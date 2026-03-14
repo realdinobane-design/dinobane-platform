@@ -14,6 +14,7 @@ import CommunityPage from "@/pages/community";
 import MembershipPage from "@/pages/membership";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import ProfilePage from "@/pages/profile";
 import { AppNav } from "@/components/app-nav";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
@@ -40,6 +41,7 @@ function AppRoutes() {
       <Route path="/membership" component={MembershipPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );

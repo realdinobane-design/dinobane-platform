@@ -10,6 +10,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUserMembership(id: number, isMember: boolean): Promise<User>;
   updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User>;
+  updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string }): Promise<User>;
   getAllUsers(): Promise<User[]>;
 
   // Messages
@@ -283,6 +284,15 @@ class MemStorage implements IStorage {
     const user = this.users.find(u => u.id === id);
     if (!user) throw new Error("User not found");
     user.stripeCustomerId = stripeCustomerId;
+    return user;
+  }
+
+  async updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string }): Promise<User> {
+    const user = this.users.find(u => u.id === id);
+    if (!user) throw new Error("User not found");
+    if (data.displayName !== undefined) user.displayName = data.displayName;
+    if (data.avatarInitials !== undefined) user.avatarInitials = data.avatarInitials;
+    if (data.avatarColor !== undefined) user.avatarColor = data.avatarColor;
     return user;
   }
 

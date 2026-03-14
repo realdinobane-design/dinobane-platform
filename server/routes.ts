@@ -109,6 +109,60 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(safeUser);
   });
 
+  // ─── PROFILE ─────────────────────────────────────────────────────────────────
+  // Update display name, avatar initials, avatar colour
+  app.patch("/api/profile", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const schema = z.object({
+      displayName: z.string().min(2).max(30).optional(),
+      avatarInitials: z.string().min(1).max(3).toUpperCase().optional(),
+      avatarColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const updated = await storage.updateUserProfile(req.session.userId, parsed.data);
+    const { password: _, ...safeUser } = updated;
+    return res.json(safeUser);
+  });
+
+  // Get all messages that @mention the current user
+  app.get("/api/profile/mentions", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(401).json({ error: "User not found" });
+    const allUsers = await storage.getAllUsers();
+    // Search all channels for messages containing @username
+    const channels = ["general", "news-links", "video-discussion", "off-topic"];
+    const mentionRegex = new RegExp(`@${user.username}\\b`, "i");
+    const results: any[] = [];
+    for (const channel of channels) {
+      const msgs = await storage.getMessages(channel);
+      for (const msg of msgs) {
+        if (mentionRegex.test(msg.content)) {
+          results.push(msg);
+        }
+      }
+    }
+    // Sort newest first
+    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return res.json(results);
+  });
+
+  // Get the current user's own messages (activity history)
+  app.get("/api/profile/messages", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const channels = ["general", "news-links", "video-discussion", "off-topic"];
+    const results: any[] = [];
+    for (const channel of channels) {
+      const msgs = await storage.getMessages(channel);
+      for (const msg of msgs) {
+        if (msg.userId === req.session.userId) results.push(msg);
+      }
+    }
+    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return res.json(results);
+  });
+
   // ─── STRIPE CHECKOUT ────────────────────────────────────────────────────────────
   app.post("/api/stripe/checkout", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });

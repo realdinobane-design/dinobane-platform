@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss } from "lucide-react";
+import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +99,7 @@ export function AppNav() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary transition-colors" data-testid="button-user-menu">
-                    <Avatar className="h-7 w-7">
+                    <Avatar className="h-7 w-7 ring-2 ring-transparent hover:ring-primary/50 transition-all">
                       <AvatarFallback
                         className="text-xs font-bold text-white"
                         style={{ background: user.avatarColor }}
@@ -112,7 +112,17 @@ export function AppNav() {
                     </span>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-52">
+                  {/* Profile header */}
+                  <div className="px-3 py-2 border-b border-border">
+                    <p className="text-sm font-semibold text-foreground truncate">{user.displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                  </div>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" data-testid="link-profile">
+                      <User size={14} className="mr-2 text-muted-foreground" /> My Profile
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/membership" data-testid="link-membership">
                       <Crown size={14} className="mr-2 text-yellow-500" /> Membership
