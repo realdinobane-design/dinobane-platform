@@ -270,11 +270,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const { youtubeUrl } = req.body;
     if (!youtubeUrl) return res.status(400).json({ error: "YouTube URL required" });
 
-    // Extract video ID
     const videoIdMatch = youtubeUrl.match(/(?:v=|youtu\.be\/)([^&\s]+)/);
     const videoId = videoIdMatch ? videoIdMatch[1] : null;
 
-    // Fetch video info from YouTube oEmbed (no API key needed)
     let title = "DinoBane Video Analysis";
     let thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
@@ -286,11 +284,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     } catch {}
 
-    // Generate article content based on title (AI-style analysis)
+    const content = await generateArticleAI(title, youtubeUrl);
     const article = await storage.createArticle({
-      title: `${title} — Full Written Analysis`,
-      content: generateArticleContent(title, youtubeUrl),
-      summary: `A written breakdown of "${title}" — key arguments, sources, and context for readers who prefer text.`,
+      title,
+      content,
+      summary: `Written analysis of "${title}" — key arguments and context from the latest DinoBane video.`,
       youtubeUrl,
       videoId,
       thumbnail,
@@ -302,24 +300,61 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── YOUTUBE FEED PROXY ───────────────────────────────────────────────────────
   app.get("/api/youtube/feed", async (req, res) => {
-    try {
-      // Fetch the YouTube RSS feed for the channel
-      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q"; // DinoBane-Clips channel ID
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+    const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    let xml: string | null = null;
 
-      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-      if (!response.ok) throw new Error("Feed unavailable");
+    // Try direct fetch first (works server-side), then fallback proxies
+    const attempts = [
+      () => fetch(rssUrl, { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0" } }),
+      () => fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, { signal: AbortSignal.timeout(8000) }).then(async r => { const d = await r.json() as any; return new Response(d.contents); }),
+      () => fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`, { signal: AbortSignal.timeout(8000) }),
+    ];
 
-      const data = await response.json() as any;
-      const xml = data.contents;
+    for (const attempt of attempts) {
+      try {
+        const r = await attempt();
+        if (r.ok) { xml = await r.text(); break; }
+      } catch {}
+    }
 
-      // Parse XML manually
+    if (xml && xml.includes("<feed")) {
       const videos = parseYouTubeFeed(xml);
-      return res.json(videos);
-    } catch (e) {
-      // Return curated fallback videos for DinoBane channel
-      return res.json(getFallbackVideos());
+      if (videos.length > 0) return res.json(videos);
+    }
+
+    return res.json(getFallbackVideos());
+  });
+
+  // ─── RSS POLL — auto-generate articles for new videos ────────────────────────
+  app.post("/api/youtube/sync", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
+      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      const r = await fetch(rssUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const xml = await r.text();
+      const videos = parseYouTubeFeed(xml);
+      const articles = await storage.getArticles();
+      const existingVideoIds = new Set(articles.map((a: any) => a.videoId).filter(Boolean));
+      const newVideos = videos.filter((v: any) => !existingVideoIds.has(v.id));
+      const created: any[] = [];
+      for (const v of newVideos) {
+        const content = await generateArticleAI(v.title, `https://www.youtube.com/watch?v=${v.id}`);
+        const article = await storage.createArticle({
+          title: v.title,
+          content,
+          summary: `Written analysis of "${v.title}" — key arguments and context from the latest DinoBane video.`,
+          youtubeUrl: `https://www.youtube.com/watch?v=${v.id}`,
+          videoId: v.id,
+          thumbnail: v.thumbnail,
+          isPublic: true,
+        });
+        created.push(article);
+      }
+      return res.json({ synced: created.length, newArticles: created });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
     }
   });
 
@@ -365,34 +400,64 @@ function parseYouTubeFeed(xml: string): any[] {
 }
 
 function getFallbackVideos() {
+  // Real DinoBane video IDs as fallback if RSS is unavailable
   return [
-    { id: "dQw4w9WgXcQ", title: "Graham Moore — [Unfiltered]", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg", url: "https://www.youtube.com/@Dinobane-Clips", publishedAt: new Date().toISOString() },
-    { id: "dQw4w9WgXcQ", title: "Inside The Mind of a Leftist", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg", url: "https://www.youtube.com/@Dinobane-Clips", publishedAt: new Date(Date.now() - 86400000 * 3).toISOString() },
-    { id: "dQw4w9WgXcQ", title: "They Buried This Footage For a Reason", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg", url: "https://www.youtube.com/@Dinobane-Clips", publishedAt: new Date(Date.now() - 86400000 * 7).toISOString() },
-    { id: "dQw4w9WgXcQ", title: "Ben Habib Is Cooked", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg", url: "https://www.youtube.com/@Dinobane-Clips", publishedAt: new Date(Date.now() - 86400000 * 10).toISOString() },
-    { id: "dQw4w9WgXcQ", title: "We're Taking It Back", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg", url: "https://www.youtube.com/@Dinobane-Clips", publishedAt: new Date(Date.now() - 86400000 * 14).toISOString() },
-    { id: "dQw4w9WgXcQ", title: "WARNING: This Video Will Make You a Patriot", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg", url: "https://www.youtube.com/@Dinobane-Clips", publishedAt: new Date(Date.now() - 86400000 * 18).toISOString() },
+    { id: "Tyho3Qiq8eY", title: "Graham Moore — [Unfiltered]", thumbnail: "https://img.youtube.com/vi/Tyho3Qiq8eY/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Tyho3Qiq8eY", publishedAt: "2026-03-13T20:19:50+00:00" },
+    { id: "glP5aWLwd6s", title: "Inside The Mind of a Leftist", thumbnail: "https://img.youtube.com/vi/glP5aWLwd6s/mqdefault.jpg", url: "https://www.youtube.com/watch?v=glP5aWLwd6s", publishedAt: "2026-03-12T13:54:12+00:00" },
+    { id: "Xfz1TaCRblA", title: "They Buried This Footage For a Reason", thumbnail: "https://img.youtube.com/vi/Xfz1TaCRblA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Xfz1TaCRblA", publishedAt: "2026-03-12T13:02:10+00:00" },
+    { id: "gfZDulfXDQU", title: "We're Taking It Back", thumbnail: "https://img.youtube.com/vi/gfZDulfXDQU/mqdefault.jpg", url: "https://www.youtube.com/watch?v=gfZDulfXDQU", publishedAt: "2026-03-11T12:23:38+00:00" },
+    { id: "Z1Ok0954i-8", title: "[ WARNING! ] This Video Will Make You a Patriot", thumbnail: "https://img.youtube.com/vi/Z1Ok0954i-8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Z1Ok0954i-8", publishedAt: "2026-03-11T07:11:48+00:00" },
+    { id: "QFFO3EyGKUo", title: "Ben Habib Is Cooked", thumbnail: "https://img.youtube.com/vi/QFFO3EyGKUo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=QFFO3EyGKUo", publishedAt: "2026-03-10T19:58:30+00:00" },
+    { id: "DFaVsor8JeI", title: "The 'DEBATE' Is Over", thumbnail: "https://img.youtube.com/vi/DFaVsor8JeI/mqdefault.jpg", url: "https://www.youtube.com/watch?v=DFaVsor8JeI", publishedAt: "2026-03-10T16:53:13+00:00" },
+    { id: "fxEwgChVQEs", title: "The BATTLE LINES Have Been Drawn", thumbnail: "https://img.youtube.com/vi/fxEwgChVQEs/mqdefault.jpg", url: "https://www.youtube.com/watch?v=fxEwgChVQEs", publishedAt: "2026-03-09T14:21:40+00:00" },
+    { id: "8oVK_gK_aN8", title: "There Is No 'SPLIT' on The 'Right Wing'", thumbnail: "https://img.youtube.com/vi/8oVK_gK_aN8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8oVK_gK_aN8", publishedAt: "2026-03-07T14:13:31+00:00" },
+    { id: "4NecXlxplf8", title: "The Cat's Out Of The Bag...", thumbnail: "https://img.youtube.com/vi/4NecXlxplf8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=4NecXlxplf8", publishedAt: "2026-03-05T19:58:39+00:00" },
+    { id: "4dCSN4G0G68", title: "Nothing About This Makes Sense. We Need To Unite", thumbnail: "https://img.youtube.com/vi/4dCSN4G0G68/mqdefault.jpg", url: "https://www.youtube.com/watch?v=4dCSN4G0G68", publishedAt: "2026-03-05T14:56:36+00:00" },
+    { id: "8qvL5O3faWg", title: "These Channels Are DANGEROUS", thumbnail: "https://img.youtube.com/vi/8qvL5O3faWg/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8qvL5O3faWg", publishedAt: "2026-03-05T12:09:24+00:00" },
   ];
 }
 
-function generateArticleContent(title: string, url: string): string {
-  return `<h2>Overview</h2>
-<p>This article is an auto-generated written analysis of the DinoBane video: <strong>${title}</strong>. It captures the key arguments, context, and sources for readers who prefer text over video.</p>
+// ─── AI ARTICLE GENERATION (OpenRouter — free tier) ──────────────────────────
+async function generateArticleAI(title: string, url: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (apiKey) {
+    try {
+      const prompt = `You are writing a political commentary article for DinoBane, a UK YouTube channel covering corruption, immigration, media censorship, and stories the mainstream media buries. The tone is direct, no-nonsense, pro-English, and right-leaning.
 
-<h2>Key Arguments</h2>
-<p>The video breaks down one of the central stories that the mainstream media has either ignored, misrepresented, or buried. DinoBane provides the context that establishment outlets consistently fail to give their audiences.</p>
-<ul>
-  <li><strong>The core claim:</strong> The official narrative on this issue does not hold up under scrutiny.</li>
-  <li><strong>The evidence:</strong> Multiple primary sources and documented events contradict what has been presented to the public.</li>
-  <li><strong>The pattern:</strong> This is not an isolated incident — it fits a broader and demonstrable pattern of institutional behaviour.</li>
-  <li><strong>Who benefits:</strong> Following the money and the power dynamics reveals clear incentive structures that explain why the truth is suppressed.</li>
-</ul>
+Write a 400-500 word article based on this YouTube video title: "${title}"
+Video URL: ${url}
 
-<h2>Context the MSM Won't Give You</h2>
-<p>To understand why this story matters, you need background that the BBC and mainstream press routinely omit. The institutional pressures on journalists, the ownership structures of major outlets, and the political incentives of editors all create systematic blind spots that consistently favour the establishment narrative.</p>
+Structure:
+- Strong opening paragraph capturing the core argument
+- 3-4 body paragraphs expanding on the theme
+- A closing paragraph calling for awareness or action
 
-<h2>What You Can Do</h2>
-<p>Share this content. The algorithm suppresses this kind of analysis — the only way it reaches people is through direct sharing between viewers who value honest commentary.</p>
+Write in proper paragraphs (no bullet points, no markdown headers). Return only the article HTML using <p> tags for paragraphs. Do not include a title tag.`;
 
-<p><em>Watch the full video: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></em></p>`;
+      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://dinobane.com",
+          "X-Title": "DinoBane Platform",
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.3-70b-instruct:free",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 800,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (r.ok) {
+        const data = await r.json() as any;
+        const content = data.choices?.[0]?.message?.content?.trim();
+        if (content && content.length > 200) return content;
+      }
+    } catch (e) {
+      console.error("OpenRouter error:", e);
+    }
+  }
+  // Fallback if no API key or AI fails
+  return `<p>This is a written analysis of the DinoBane video: <strong>${title}</strong>.</p><p>The video covers a topic that the mainstream media consistently ignores or misrepresents. DinoBane breaks it down with the context that establishment outlets refuse to provide.</p><p>Watch the full video here: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></p>`;
 }

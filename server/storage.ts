@@ -38,10 +38,13 @@ class MemStorage implements IStorage {
   private async seed() {
     // Seed demo users
     const hash = await bcrypt.hash("demo1234", 10);
+    // Admin password from env var, fallback to demo1234
+    const adminPassword = process.env.ADMIN_PASSWORD || "demo1234";
+    const adminHash = await bcrypt.hash(adminPassword, 10);
     this.users = [
       {
         id: 1, username: "dino_admin", email: "realdinobane@gmail.com",
-        password: hash, displayName: "DinoBane", avatarInitials: "DB",
+        password: adminHash, displayName: "DinoBane", avatarInitials: "DB",
         avatarColor: "#cc2a2a", isMember: true, memberSince: new Date("2025-01-01"),
         stripeCustomerId: null, createdAt: new Date("2025-01-01"),
       },
