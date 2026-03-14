@@ -301,14 +301,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── INTEL / NEWS RSS FEED ──────────────────────────────────────────────────
   app.get("/api/intel/feed", async (req, res) => {
     const FEEDS = [
-      { name: "Guido Fawkes",     url: "https://order-order.com/feed/" },
-      { name: "Spiked Online",    url: "https://www.spiked-online.com/feed/" },
-      { name: "GB News",          url: "https://www.gbnews.com/feed" },
-      { name: "The Spectator",    url: "https://www.spectator.co.uk/feed/" },
-      { name: "ZeroHedge",        url: "https://feeds.feedburner.com/zerohedge/feed" },
-      { name: "Breitbart London", url: "https://www.breitbart.com/london/feed/" },
-      { name: "Daily Mail",       url: "https://www.dailymail.co.uk/articles.rss" },
-      { name: "The Telegraph",    url: "https://www.telegraph.co.uk/rss.xml" },
+      // Original 8
+      { name: "Guido Fawkes",          url: "https://order-order.com/feed/" },
+      { name: "Spiked Online",         url: "https://www.spiked-online.com/feed/" },
+      { name: "GB News",               url: "https://www.gbnews.com/feed" },
+      { name: "The Spectator",         url: "https://www.spectator.co.uk/feed/" },
+      { name: "ZeroHedge",             url: "https://feeds.feedburner.com/zerohedge/feed" },
+      { name: "Breitbart London",      url: "https://www.breitbart.com/london/feed/" },
+      { name: "Daily Mail",            url: "https://www.dailymail.co.uk/articles.rss" },
+      { name: "The Telegraph",         url: "https://www.telegraph.co.uk/rss.xml" },
+      // Additional pro-British / alt-media sources
+      { name: "The Daily Sceptic",     url: "https://dailysceptic.org/feed/" },
+      { name: "The Conservative Woman",url: "https://www.conservativewoman.co.uk/feed/" },
+      { name: "UnHerd",                url: "https://unherd.com/feed/" },
+      { name: "The Critic",            url: "https://thecritic.co.uk/feed/" },
+      { name: "ConservativeHome",      url: "https://www.conservativehome.com/feed/" },
+      { name: "Iain Dale",             url: "https://iaindale.com/feed/" },
+      { name: "The Sun Politics",      url: "https://www.thesun.co.uk/news/politics/feed/" },
     ];
 
     async function fetchFeed(name: string, url: string): Promise<any[]> {

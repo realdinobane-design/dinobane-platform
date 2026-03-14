@@ -4,14 +4,21 @@ import { Button } from "@/components/ui/button";
 import { queryClient } from "@/lib/queryClient";
 
 const SOURCE_COLORS: Record<string, string> = {
-  "Guido Fawkes":     "bg-red-900/40 text-red-300 border-red-800",
-  "Spiked Online":    "bg-orange-900/40 text-orange-300 border-orange-800",
-  "GB News":          "bg-blue-900/40 text-blue-300 border-blue-800",
-  "The Spectator":    "bg-purple-900/40 text-purple-300 border-purple-800",
-  "ZeroHedge":        "bg-yellow-900/40 text-yellow-300 border-yellow-800",
-  "Breitbart London": "bg-green-900/40 text-green-300 border-green-800",
-  "Daily Mail":       "bg-pink-900/40 text-pink-300 border-pink-800",
-  "The Telegraph":    "bg-sky-900/40 text-sky-300 border-sky-800",
+  "Guido Fawkes":           "bg-red-900/40 text-red-300 border-red-800",
+  "Spiked Online":          "bg-orange-900/40 text-orange-300 border-orange-800",
+  "GB News":                "bg-blue-900/40 text-blue-300 border-blue-800",
+  "The Spectator":          "bg-purple-900/40 text-purple-300 border-purple-800",
+  "ZeroHedge":              "bg-yellow-900/40 text-yellow-300 border-yellow-800",
+  "Breitbart London":       "bg-green-900/40 text-green-300 border-green-800",
+  "Daily Mail":             "bg-pink-900/40 text-pink-300 border-pink-800",
+  "The Telegraph":          "bg-sky-900/40 text-sky-300 border-sky-800",
+  "The Daily Sceptic":      "bg-red-900/40 text-red-200 border-red-700",
+  "The Conservative Woman": "bg-violet-900/40 text-violet-300 border-violet-800",
+  "UnHerd":                 "bg-teal-900/40 text-teal-300 border-teal-800",
+  "The Critic":             "bg-amber-900/40 text-amber-300 border-amber-800",
+  "ConservativeHome":       "bg-blue-900/40 text-blue-200 border-blue-700",
+  "Iain Dale":              "bg-indigo-900/40 text-indigo-300 border-indigo-800",
+  "The Sun Politics":       "bg-orange-900/40 text-orange-200 border-orange-700",
 };
 
 function timeAgo(dateStr: string): string {
