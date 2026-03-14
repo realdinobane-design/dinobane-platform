@@ -298,6 +298,75 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(article);
   });
 
+  // ─── INTEL / NEWS RSS FEED ──────────────────────────────────────────────────
+  app.get("/api/intel/feed", async (req, res) => {
+    const FEEDS = [
+      { name: "Guido Fawkes",     url: "https://order-order.com/feed/" },
+      { name: "Spiked Online",    url: "https://www.spiked-online.com/feed/" },
+      { name: "GB News",          url: "https://www.gbnews.com/feed" },
+      { name: "The Spectator",    url: "https://www.spectator.co.uk/feed/" },
+      { name: "ZeroHedge",        url: "https://feeds.feedburner.com/zerohedge/feed" },
+      { name: "Breitbart London", url: "https://www.breitbart.com/london/feed/" },
+      { name: "Daily Mail",       url: "https://www.dailymail.co.uk/articles.rss" },
+      { name: "The Telegraph",    url: "https://www.telegraph.co.uk/rss.xml" },
+    ];
+
+    async function fetchFeed(name: string, url: string): Promise<any[]> {
+      try {
+        // Try direct first, then allorigins proxy
+        let xml = "";
+        const attempts = [
+          () => fetch(url, { signal: AbortSignal.timeout(6000), headers: { "User-Agent": "Mozilla/5.0" } }),
+          () => fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(8000) })
+            .then(async r => { const d = await r.json() as any; return new Response(d.contents, { status: 200 }); }),
+        ];
+        for (const attempt of attempts) {
+          try {
+            const r = await attempt();
+            if (r.ok) { xml = await r.text(); break; }
+          } catch {}
+        }
+        if (!xml) return [];
+
+        // Parse RSS/Atom items
+        const items: any[] = [];
+        const itemRegex = /<item>([\s\S]*?)<\/item>|<entry>([\s\S]*?)<\/entry>/g;
+        let m;
+        while ((m = itemRegex.exec(xml)) !== null) {
+          const block = m[1] || m[2];
+          const getTag = (tag: string) => {
+            const r = block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\/${tag}>|<${tag}[^>]*>([^<]*)<\/${tag}>`));
+            return r ? (r[1] || r[2] || "").trim() : "";
+          };
+          const title = getTag("title");
+          const link = getTag("link") || block.match(/<link[^>]+href=["']([^"']+)["']/)?.[1] || "";
+          const pubDate = getTag("pubDate") || getTag("published") || getTag("updated") || "";
+          const desc = getTag("description") || getTag("summary") || getTag("content");
+          const cleanDesc = desc.replace(/<[^>]+>/g, "").slice(0, 200).trim();
+          if (title && link) {
+            items.push({ title, link, pubDate, description: cleanDesc, source: name });
+          }
+        }
+        return items.slice(0, 8);
+      } catch { return []; }
+    }
+
+    try {
+      const results = await Promise.allSettled(FEEDS.map(f => fetchFeed(f.name, f.url)));
+      const allItems: any[] = [];
+      results.forEach(r => { if (r.status === "fulfilled") allItems.push(...r.value); });
+      // Sort by date descending
+      allItems.sort((a, b) => {
+        const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+        const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+        return db - da;
+      });
+      return res.json(allItems.slice(0, 50));
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
   // ─── YOUTUBE FEED PROXY ───────────────────────────────────────────────────────
   app.get("/api/youtube/feed", async (req, res) => {
     const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
@@ -461,3 +530,6 @@ Write in proper paragraphs (no bullet points, no markdown headers). Return only 
   // Fallback if no API key or AI fails
   return `<p>This is a written analysis of the DinoBane video: <strong>${title}</strong>.</p><p>The video covers a topic that the mainstream media consistently ignores or misrepresents. DinoBane breaks it down with the context that establishment outlets refuse to provide.</p><p>Watch the full video here: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></p>`;
 }
+
+// ─── NEWS / INTEL RSS FEED ────────────────────────────────────────────────────
+// This is appended at module level — registered via registerRoutes call above
