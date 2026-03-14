@@ -84,7 +84,11 @@ app.use((req, res, next) => {
 
 (async () => {
   // Run DB migrations and seed on every startup
-  await runMigrationsAndSeed();
+  try {
+    await runMigrationsAndSeed();
+  } catch (err: any) {
+    console.error("[db] Migration/seed failed — server will still start:", err.message);
+  }
 
   await registerRoutes(httpServer, app);
 
