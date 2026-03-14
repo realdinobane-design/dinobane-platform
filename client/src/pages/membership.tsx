@@ -173,10 +173,10 @@ export default function MembershipPage() {
             <h2 className="text-lg font-bold uppercase tracking-wider text-foreground font-display">Community Channels</h2>
 
             {[
-              { name: "general", desc: "Main chat — anything goes", count: "24 online" },
-              { name: "news-links", desc: "Drop links to stories you find", count: "8 online" },
-              { name: "video-discussion", desc: "Discuss the latest DinoBane videos", count: "12 online" },
-              { name: "off-topic", desc: "Banter, memes, off-the-record", count: "5 online" },
+              { name: "general", desc: "Main chat — anything goes" },
+              { name: "news-links", desc: "Drop links to stories you find" },
+              { name: "video-discussion", desc: "Discuss the latest DinoBane videos" },
+              { name: "off-topic", desc: "Banter, memes, off-the-record" },
             ].map((ch) => (
               <div key={ch.name} className="bg-card border border-border rounded-sm p-4 flex items-center gap-4 hover:border-primary/30 transition-colors">
                 <div className="w-8 h-8 bg-primary/10 rounded-sm flex items-center justify-center shrink-0">
@@ -185,10 +185,6 @@ export default function MembershipPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">#{ch.name}</p>
                   <p className="text-xs text-muted-foreground truncate">{ch.desc}</p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                  <span className="text-xs text-muted-foreground">{ch.count}</span>
                 </div>
               </div>
             ))}
@@ -203,12 +199,7 @@ export default function MembershipPage() {
               </ul>
             </div>
 
-            <div className="bg-card border border-border rounded-sm p-4">
-              <blockquote className="border-l-2 border-primary/60 pl-3">
-                <p className="text-sm text-muted-foreground italic">"Finally a place where you can talk about the stories the BBC refuses to cover without getting banned."</p>
-                <footer className="text-xs text-primary mt-1 font-semibold">— @PatriotWatch99</footer>
-              </blockquote>
-            </div>
+
           </div>
 
         </div>
