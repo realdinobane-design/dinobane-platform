@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 
 const SOURCE_COLORS: Record<string, string> = {
   "Guido Fawkes":           "bg-red-900/40 text-red-300 border-red-800",
@@ -20,6 +21,37 @@ const SOURCE_COLORS: Record<string, string> = {
   "Iain Dale":              "bg-indigo-900/40 text-indigo-300 border-indigo-800",
   "The Sun Politics":       "bg-orange-900/40 text-orange-200 border-orange-700",
 };
+
+// Category tags per source
+const SOURCE_TAGS: Record<string, string[]> = {
+  "Guido Fawkes":           ["uk", "pro-british", "politics"],
+  "Spiked Online":          ["uk", "pro-british", "culture"],
+  "GB News":                ["uk", "pro-british", "politics"],
+  "The Spectator":          ["uk", "pro-british", "politics", "culture"],
+  "ZeroHedge":              ["international", "geopolitics", "finance"],
+  "Breitbart London":       ["uk", "international", "pro-british", "politics"],
+  "Daily Mail":             ["uk", "pro-british", "politics"],
+  "The Telegraph":          ["uk", "pro-british", "politics"],
+  "The Daily Sceptic":      ["uk", "pro-british", "anti-establishment"],
+  "The Conservative Woman": ["uk", "pro-british", "culture"],
+  "UnHerd":                 ["uk", "international", "pro-british", "culture"],
+  "The Critic":             ["uk", "pro-british", "culture"],
+  "ConservativeHome":       ["uk", "pro-british", "politics"],
+  "Iain Dale":              ["uk", "pro-british", "politics"],
+  "The Sun Politics":       ["uk", "pro-british", "politics"],
+};
+
+const FILTERS = [
+  { id: "all",              label: "All" },
+  { id: "uk",               label: "🇬🇧 UK" },
+  { id: "international",    label: "🌍 International" },
+  { id: "pro-british",      label: "Pro-British" },
+  { id: "anti-establishment", label: "Anti-Establishment" },
+  { id: "geopolitics",      label: "Geopolitics" },
+  { id: "culture",          label: "Culture" },
+  { id: "politics",         label: "Politics" },
+  { id: "finance",          label: "Finance" },
+];
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
@@ -40,14 +72,22 @@ interface NewsItem {
 }
 
 export default function NewsPage() {
+  const [activeFilter, setActiveFilter] = useState("all");
+
   const { data: items, isLoading, isError, dataUpdatedAt } = useQuery<NewsItem[]>({
     queryKey: ["/api/intel/feed"],
-    staleTime: 5 * 60 * 1000, // cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const lastUpdated = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
     : null;
+
+  const filteredItems = items?.filter(item => {
+    if (activeFilter === "all") return true;
+    const tags = SOURCE_TAGS[item.source] || [];
+    return tags.includes(activeFilter);
+  }) ?? [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,7 +98,7 @@ export default function NewsPage() {
             Intel Dashboard
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Live UK political news — {items?.length ?? "—"} stories from 8 sources
+            {filteredItems.length} stories · 15 sources
             {lastUpdated && <span className="ml-2 opacity-60">· updated {lastUpdated}</span>}
           </p>
         </div>
@@ -76,15 +116,20 @@ export default function NewsPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
 
-        {/* Source filter pills */}
+        {/* Category filter tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
-          {Object.keys(SOURCE_COLORS).map(src => (
-            <span
-              key={src}
-              className={`text-xs px-2 py-0.5 rounded-sm border font-medium ${SOURCE_COLORS[src]}`}
+          {FILTERS.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              className={`text-xs px-3 py-1.5 rounded-sm border font-semibold transition-colors ${
+                activeFilter === f.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-primary/40"
+              }`}
             >
-              {src}
-            </span>
+              {f.label}
+            </button>
           ))}
         </div>
 
@@ -112,9 +157,9 @@ export default function NewsPage() {
         )}
 
         {/* News items */}
-        {items && items.length > 0 && (
+        {!isLoading && filteredItems.length > 0 && (
           <div className="space-y-2">
-            {items.map((item, i) => (
+            {filteredItems.map((item, i) => (
               <a
                 key={`${item.link}-${i}`}
                 href={item.link}
@@ -151,7 +196,13 @@ export default function NewsPage() {
           </div>
         )}
 
-        {items && items.length === 0 && !isLoading && (
+        {!isLoading && filteredItems.length === 0 && items && items.length > 0 && (
+          <div className="text-center text-muted-foreground py-12 text-sm">
+            No stories in this category. Try a different filter.
+          </div>
+        )}
+
+        {!isLoading && items && items.length === 0 && (
           <div className="text-center text-muted-foreground py-12 text-sm">
             No stories loaded. Try refreshing.
           </div>
