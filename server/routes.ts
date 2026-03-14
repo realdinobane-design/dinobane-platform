@@ -304,7 +304,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/youtube/feed", async (req, res) => {
     try {
       // Fetch the YouTube RSS feed for the channel
-      const channelId = "UCsIfuJfQ2RxKKiKKuHYE0kQ"; // DinoBane-Clips channel ID (RSS fallback)
+      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q"; // DinoBane-Clips channel ID
       const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
 
