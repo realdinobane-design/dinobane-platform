@@ -3,7 +3,7 @@ import { useAuth } from "@/App";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Crown, Hash, Send, Users, Loader2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -202,6 +202,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         {/* Current user */}
         <div className="px-3 py-3 border-t border-border flex items-center gap-2">
           <Avatar className="h-7 w-7">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} className="object-cover" />}
             <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>
               {user.avatarInitials}
             </AvatarFallback>
@@ -264,6 +265,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                       title={`@${msg.user.username}`}
                     >
                       <Avatar className="h-8 w-8">
+                        {(msg.user as any).avatarUrl && <AvatarImage src={(msg.user as any).avatarUrl} alt={msg.user.displayName} className="object-cover" />}
                         <AvatarFallback className="text-xs font-bold text-white" style={{ background: msg.user.avatarColor }}>
                           {msg.user.avatarInitials}
                         </AvatarFallback>

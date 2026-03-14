@@ -125,6 +125,30 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(safeUser);
   });
 
+  // Upload avatar image — accepts base64 data URL from client-side canvas resize
+  app.post("/api/profile/avatar", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const schema = z.object({
+      // data URL: "data:image/jpeg;base64,..." — must be JPEG or PNG, max ~400KB base64
+      avatarUrl: z.string()
+        .refine(v => v.startsWith("data:image/jpeg;base64,") || v.startsWith("data:image/png;base64,") || v.startsWith("data:image/webp;base64,"), "Must be a JPEG, PNG or WebP image")
+        .refine(v => v.length <= 600_000, "Image too large — please use a smaller image"),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const updated = await storage.updateUserProfile(req.session.userId, { avatarUrl: parsed.data.avatarUrl });
+    const { password: _, ...safeUser } = updated;
+    return res.json(safeUser);
+  });
+
+  // Remove avatar image (revert to initials)
+  app.delete("/api/profile/avatar", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const updated = await storage.updateUserProfile(req.session.userId, { avatarUrl: null });
+    const { password: _, ...safeUser } = updated;
+    return res.json(safeUser);
+  });
+
   // Get all messages that @mention the current user
   app.get("/api/profile/mentions", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });

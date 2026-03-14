@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   displayName: text("display_name").notNull(),
   avatarInitials: text("avatar_initials").notNull(),
   avatarColor: text("avatar_color").notNull().default("#cc2a2a"),
+  avatarUrl: text("avatar_url"),
   isMember: boolean("is_member").notNull().default(false),
   memberSince: timestamp("member_since"),
   stripeCustomerId: text("stripe_customer_id"),

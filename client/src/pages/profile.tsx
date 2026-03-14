@@ -1,33 +1,55 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/App";
 import { Link, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { queryClient as qc } from "@/lib/queryClient";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Crown, LogOut, User, AtSign, MessageSquare, Calendar,
+  Crown, LogOut, User, AtSign, MessageSquare,
   Pencil, Check, X, ExternalLink, Hash, ShieldAlert, Loader2,
-  Palette, ChevronRight,
+  Palette, Upload, Trash2, ImageIcon,
 } from "lucide-react";
 import { logout } from "@/lib/auth";
 import { formatDistanceToNow, format } from "date-fns";
 
 // ─── AVATAR COLOUR PRESETS ────────────────────────────────────────────────────
 const AVATAR_COLORS = [
-  "#cc2a2a", "#b91c1c", "#dc2626",   // Reds
-  "#1d4ed8", "#2563eb", "#3b82f6",   // Blues
-  "#16a34a", "#15803d", "#22c55e",   // Greens
-  "#7c3aed", "#6d28d9", "#8b5cf6",   // Purples
-  "#d97706", "#b45309", "#f59e0b",   // Ambers
-  "#0f766e", "#0d9488", "#14b8a6",   // Teals
-  "#be185d", "#db2777", "#ec4899",   // Pinks
-  "#374151", "#4b5563", "#6b7280",   // Greys
+  "#cc2a2a", "#b91c1c", "#dc2626",
+  "#1d4ed8", "#2563eb", "#3b82f6",
+  "#16a34a", "#15803d", "#22c55e",
+  "#7c3aed", "#6d28d9", "#8b5cf6",
+  "#d97706", "#b45309", "#f59e0b",
+  "#0f766e", "#0d9488", "#14b8a6",
+  "#be185d", "#db2777", "#ec4899",
+  "#374151", "#4b5563", "#6b7280",
 ];
+
+// ─── CLIENT-SIDE IMAGE RESIZE ────────────────────────────────────────────────
+// Compresses to max 256×256 JPEG before sending to server — keeps payload tiny
+function resizeImageToDataUrl(file: File, maxSize = 256): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; } }
+      else        { if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; } }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 interface MessageWithUser {
   id: number;
@@ -40,16 +62,14 @@ interface MessageWithUser {
     displayName: string;
     avatarInitials: string;
     avatarColor: string;
+    avatarUrl?: string | null;
     username: string;
   };
 }
 
 function timeAgo(dateStr: string) {
-  try {
-    return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
-  } catch {
-    return "";
-  }
+  try { return formatDistanceToNow(new Date(dateStr), { addSuffix: true }); }
+  catch { return ""; }
 }
 
 function renderContent(content: string) {
@@ -59,7 +79,6 @@ function renderContent(content: string) {
     .replace(/@([a-zA-Z0-9_]+)/g, '<span class="text-red-400 font-semibold">@$1</span>');
 }
 
-// ─── SECTION WRAPPER ─────────────────────────────────────────────────────────
 function Section({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
   return (
     <div className="bg-card border border-border rounded-sm">
@@ -72,7 +91,6 @@ function Section({ title, icon: Icon, children }: { title: string; icon: any; ch
   );
 }
 
-// ─── MESSAGE ITEM ─────────────────────────────────────────────────────────────
 function MessageItem({ msg, highlight }: { msg: MessageWithUser; highlight?: boolean }) {
   return (
     <div className={`rounded-sm px-4 py-3 text-sm border ${highlight ? "border-red-800/40 bg-red-950/10" : "border-border bg-background/50"}`}>
@@ -83,6 +101,7 @@ function MessageItem({ msg, highlight }: { msg: MessageWithUser; highlight?: boo
           <>
             <span className="text-muted-foreground/40">·</span>
             <Avatar className="h-4 w-4 shrink-0">
+              {msg.user.avatarUrl && <AvatarImage src={msg.user.avatarUrl} alt={msg.user.displayName} className="object-cover" />}
               <AvatarFallback className="text-[8px] font-bold text-white" style={{ background: msg.user.avatarColor }}>
                 {msg.user.avatarInitials}
               </AvatarFallback>
@@ -92,10 +111,186 @@ function MessageItem({ msg, highlight }: { msg: MessageWithUser; highlight?: boo
         )}
         <span className="text-muted-foreground/40 ml-auto text-xs">{timeAgo(msg.createdAt)}</span>
       </div>
-      <p
-        className="text-foreground/80 leading-relaxed"
-        dangerouslySetInnerHTML={{ __html: renderContent(msg.content) }}
-      />
+      <p className="text-foreground/80 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderContent(msg.content) }} />
+    </div>
+  );
+}
+
+// ─── AVATAR UPLOAD COMPONENT ──────────────────────────────────────────────────
+function AvatarUploadSection({ user, onUpdate }: { user: any; onUpdate: (u: any) => void }) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [editingInitials, setEditingInitials] = useState(false);
+  const [draftInitials, setDraftInitials] = useState("");
+  const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { avatarInitials?: string; avatarColor?: string }) => {
+      const res = await apiRequest("PATCH", "/api/profile", data);
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Update failed"); }
+      return res.json();
+    },
+    onSuccess: (u) => { queryClient.setQueryData(["/api/auth/me"], u); onUpdate(u); setEditingInitials(false); },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/profile/avatar", { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to remove avatar");
+      return res.json();
+    },
+    onSuccess: (u) => { queryClient.setQueryData(["/api/auth/me"], u); onUpdate(u); setPreview(null); toast({ title: "Avatar removed" }); },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 256);
+      setPreview(dataUrl);
+      const res = await apiRequest("POST", "/api/profile/avatar", { avatarUrl: dataUrl });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Upload failed"); }
+      const updated = await res.json();
+      queryClient.setQueryData(["/api/auth/me"], updated);
+      onUpdate(updated);
+      toast({ title: "Avatar updated" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+      setPreview(null);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const currentAvatar = preview || user.avatarUrl;
+
+  return (
+    <div className="space-y-5">
+      {/* Upload area */}
+      <div>
+        <Label className="text-xs text-muted-foreground mb-3 block">Profile photo</Label>
+        <div className="flex items-center gap-4">
+          {/* Large avatar preview */}
+          <div className="relative group shrink-0">
+            <Avatar className="h-20 w-20">
+              {currentAvatar && <AvatarImage src={currentAvatar} alt={user.displayName} className="object-cover" />}
+              <AvatarFallback className="text-2xl font-black text-white" style={{ background: user.avatarColor }}>
+                {user.avatarInitials}
+              </AvatarFallback>
+            </Avatar>
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full">
+                <Loader2 size={20} className="text-white animate-spin" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {/* Upload button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-xs"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              data-testid="button-upload-avatar"
+            >
+              <Upload size={13} />
+              {currentAvatar ? "Change photo" : "Upload photo"}
+            </Button>
+
+            {/* Remove button — only when has custom image */}
+            {(user.avatarUrl || preview) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300"
+                onClick={() => removeMutation.mutate()}
+                disabled={removeMutation.isPending || uploading}
+                data-testid="button-remove-avatar"
+              >
+                {removeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                Remove photo
+              </Button>
+            )}
+
+            <p className="text-xs text-muted-foreground">JPG, PNG or WebP · auto-resized to 256px</p>
+          </div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={handleFileChange}
+          data-testid="input-avatar-file"
+        />
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-4">
+        {/* Initials fallback */}
+        <div>
+          <Label className="text-xs text-muted-foreground mb-2 block">Initials (shown when no photo is set)</Label>
+          {editingInitials ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={draftInitials}
+                onChange={e => setDraftInitials(e.target.value.toUpperCase().slice(0, 3))}
+                className="h-8 w-24 text-center font-bold uppercase"
+                maxLength={3}
+                autoFocus
+                data-testid="input-initials"
+              />
+              <button onClick={() => updateMutation.mutate({ avatarInitials: draftInitials })} className="text-green-400 hover:text-green-300" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              </button>
+              <button onClick={() => setEditingInitials(false)} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setDraftInitials(user.avatarInitials); setEditingInitials(true); }}
+              className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+              data-testid="button-edit-initials"
+            >
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>
+                  {user.avatarInitials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-mono font-bold text-sm">{user.avatarInitials}</span>
+              <Pencil size={12} className="text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Colour swatches */}
+        <div>
+          <Label className="text-xs text-muted-foreground mb-2 block">Fallback colour</Label>
+          <div className="flex flex-wrap gap-2">
+            {AVATAR_COLORS.map(color => (
+              <button
+                key={color}
+                onClick={() => updateMutation.mutate({ avatarColor: color })}
+                className="h-6 w-6 rounded-full border-2 transition-all hover:scale-110 focus:outline-none"
+                style={{ background: color, borderColor: user.avatarColor === color ? "white" : "transparent" }}
+                title={color}
+                disabled={updateMutation.isPending}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -107,13 +302,9 @@ export default function ProfilePage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
-  // Edit states
   const [editingName, setEditingName] = useState(false);
-  const [editingInitials, setEditingInitials] = useState(false);
   const [draftName, setDraftName] = useState("");
-  const [draftInitials, setDraftInitials] = useState("");
 
-  // ── Queries ──────────────────────────────────────────────────────────────
   const { data: mentions = [], isLoading: loadingMentions } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/profile/mentions"],
     queryFn: async () => {
@@ -134,19 +325,17 @@ export default function ProfilePage() {
     enabled: !!user,
   });
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
   const updateMutation = useMutation({
-    mutationFn: async (data: { displayName?: string; avatarInitials?: string; avatarColor?: string }) => {
+    mutationFn: async (data: { displayName?: string }) => {
       const res = await apiRequest("PATCH", "/api/profile", data);
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Update failed"); }
       return res.json();
     },
-    onSuccess: (updatedUser) => {
-      queryClient.setQueryData(["/api/auth/me"], updatedUser);
-      setUser(updatedUser);
+    onSuccess: (u) => {
+      queryClient.setQueryData(["/api/auth/me"], u);
+      setUser(u);
       toast({ title: "Profile updated" });
       setEditingName(false);
-      setEditingInitials(false);
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -179,6 +368,9 @@ export default function ProfilePage() {
   }
 
   const memberSinceDate = user.memberSince ? format(new Date(user.memberSince), "d MMM yyyy") : null;
+  const daysMember = user.memberSince
+    ? Math.floor((Date.now() - new Date(user.memberSince).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -186,28 +378,14 @@ export default function ProfilePage() {
       {/* ── Profile Header ── */}
       <div className="bg-card border border-border rounded-sm p-6">
         <div className="flex items-start gap-5">
+          <Avatar className="h-16 w-16 shrink-0">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} className="object-cover" />}
+            <AvatarFallback className="text-xl font-black text-white" style={{ background: user.avatarColor }}>
+              {user.avatarInitials}
+            </AvatarFallback>
+          </Avatar>
 
-          {/* Avatar with colour picker overlay */}
-          <div className="relative group shrink-0">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback
-                className="text-xl font-black text-white"
-                style={{ background: user.avatarColor }}
-              >
-                {user.avatarInitials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              onClick={() => setEditingInitials(true)}
-              title="Edit avatar"
-            >
-              <Palette size={16} className="text-white" />
-            </div>
-          </div>
-
-          {/* Name + meta */}
           <div className="flex-1 min-w-0">
-            {/* Display name */}
             {editingName ? (
               <div className="flex items-center gap-2 mb-1">
                 <Input
@@ -252,87 +430,18 @@ export default function ProfilePage() {
                   Free account
                 </span>
               )}
-              <span className="text-xs text-muted-foreground">
-                Joined {format(new Date(user.createdAt), "d MMM yyyy")}
-              </span>
+              <span className="text-xs text-muted-foreground">Joined {format(new Date(user.createdAt), "d MMM yyyy")}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Avatar Customisation ── */}
-      <Section title="Avatar" icon={Palette}>
-        <div className="space-y-4">
-          {/* Initials */}
-          <div>
-            <Label className="text-xs text-muted-foreground mb-2 block">Initials (1–3 characters)</Label>
-            {editingInitials ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={draftInitials}
-                  onChange={e => setDraftInitials(e.target.value.toUpperCase().slice(0, 3))}
-                  className="h-8 w-24 text-center font-bold uppercase"
-                  maxLength={3}
-                  autoFocus
-                  data-testid="input-initials"
-                />
-                <button onClick={() => updateMutation.mutate({ avatarInitials: draftInitials })} className="text-green-400 hover:text-green-300" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                </button>
-                <button onClick={() => setEditingInitials(false)} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
-              </div>
-            ) : (
-              <button
-                onClick={() => { setDraftInitials(user.avatarInitials); setEditingInitials(true); }}
-                className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
-                data-testid="button-edit-initials"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>
-                    {user.avatarInitials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="font-mono font-bold">{user.avatarInitials}</span>
-                <Pencil size={12} className="text-muted-foreground" />
-              </button>
-            )}
-          </div>
-
-          {/* Colour swatches */}
-          <div>
-            <Label className="text-xs text-muted-foreground mb-2 block">Colour</Label>
-            <div className="flex flex-wrap gap-2">
-              {AVATAR_COLORS.map(color => (
-                <button
-                  key={color}
-                  onClick={() => updateMutation.mutate({ avatarColor: color })}
-                  className="h-7 w-7 rounded-full border-2 transition-all hover:scale-110"
-                  style={{
-                    background: color,
-                    borderColor: user.avatarColor === color ? "white" : "transparent",
-                  }}
-                  title={color}
-                  data-testid={`color-swatch-${color.replace("#", "")}`}
-                  disabled={updateMutation.isPending}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div className="flex items-center gap-3 pt-2 border-t border-border">
-            <span className="text-xs text-muted-foreground">Preview:</span>
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="text-sm font-black text-white" style={{ background: user.avatarColor }}>
-                {user.avatarInitials}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-semibold text-foreground">{user.displayName}</span>
-          </div>
-        </div>
+      {/* ── Avatar / Photo ── */}
+      <Section title="Profile Photo" icon={ImageIcon}>
+        <AvatarUploadSection user={user} onUpdate={(u) => setUser(u)} />
       </Section>
 
-      {/* ── Stats ── */}
+      {/* ── Activity Stats ── */}
       <Section title="Activity" icon={MessageSquare}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="text-center">
@@ -344,13 +453,7 @@ export default function ProfilePage() {
             <p className="text-xs text-muted-foreground mt-0.5">Times @mentioned</p>
           </div>
           <div className="text-center col-span-2 sm:col-span-1">
-            <p className="text-2xl font-black text-white">
-              {user.isMember ? (
-                memberSinceDate
-                  ? Math.floor((Date.now() - new Date(user.memberSince!).getTime()) / (1000 * 60 * 60 * 24))
-                  : "—"
-              ) : "—"}
-            </p>
+            <p className="text-2xl font-black text-white">{user.isMember && daysMember !== null ? daysMember : "—"}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Days as member</p>
           </div>
         </div>
@@ -359,26 +462,20 @@ export default function ProfilePage() {
       {/* ── @Mention History ── */}
       <Section title="@Mention History" icon={AtSign}>
         {loadingMentions ? (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Loader2 size={14} className="animate-spin" /> Loading…
-          </div>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 size={14} className="animate-spin" /> Loading…</div>
         ) : mentions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No one has @mentioned you yet. Get active in the community!</p>
         ) : (
           <div className="space-y-2">
-            {mentions.map(msg => (
-              <MessageItem key={`mention-${msg.id}`} msg={msg} highlight />
-            ))}
+            {mentions.map(msg => <MessageItem key={`mention-${msg.id}`} msg={msg} highlight />)}
           </div>
         )}
       </Section>
 
-      {/* ── My Recent Messages ── */}
+      {/* ── My Messages ── */}
       <Section title="My Messages" icon={MessageSquare}>
         {loadingMessages ? (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Loader2 size={14} className="animate-spin" /> Loading…
-          </div>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 size={14} className="animate-spin" /> Loading…</div>
         ) : myMessages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             You haven't posted anything yet.{" "}
@@ -386,13 +483,9 @@ export default function ProfilePage() {
           </p>
         ) : (
           <div className="space-y-2">
-            {myMessages.slice(0, 10).map(msg => (
-              <MessageItem key={`msg-${msg.id}`} msg={msg} />
-            ))}
+            {myMessages.slice(0, 10).map(msg => <MessageItem key={`msg-${msg.id}`} msg={msg} />)}
             {myMessages.length > 10 && (
-              <p className="text-xs text-muted-foreground text-center pt-2">
-                Showing 10 of {myMessages.length} messages
-              </p>
+              <p className="text-xs text-muted-foreground text-center pt-2">Showing 10 of {myMessages.length} messages</p>
             )}
           </div>
         )}
@@ -405,41 +498,20 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-white">DinoBane Members Community</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  £5 / month · Active{memberSinceDate ? ` since ${memberSinceDate}` : ""}
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">£5 / month · Active{memberSinceDate ? ` since ${memberSinceDate}` : ""}</p>
               </div>
-              <span className="text-xs bg-green-950/40 text-green-400 border border-green-800/40 px-2 py-0.5 rounded-sm font-semibold shrink-0">
-                Active
-              </span>
+              <span className="text-xs bg-green-950/40 text-green-400 border border-green-800/40 px-2 py-0.5 rounded-sm font-semibold shrink-0">Active</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 pt-1 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-xs"
-                onClick={() => portalMutation.mutate()}
-                disabled={portalMutation.isPending}
-                data-testid="button-manage-billing"
-              >
+              <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending} data-testid="button-manage-billing">
                 {portalMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <ExternalLink size={13} />}
                 Manage billing
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300"
-                onClick={() => portalMutation.mutate()}
-                disabled={portalMutation.isPending}
-                data-testid="button-cancel-membership"
-              >
-                <ShieldAlert size={13} />
-                Cancel membership
+              <Button variant="outline" size="sm" className="gap-2 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300" onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending} data-testid="button-cancel-membership">
+                <ShieldAlert size={13} /> Cancel membership
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Cancelling will keep your access until the end of the current billing period.
-            </p>
+            <p className="text-xs text-muted-foreground">Cancelling keeps your access until the end of the current billing period.</p>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4">
@@ -472,15 +544,8 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300"
-              onClick={handleLogout}
-              data-testid="button-profile-logout"
-            >
-              <LogOut size={14} />
-              Sign out
+            <Button variant="outline" size="sm" className="gap-2 text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300" onClick={handleLogout} data-testid="button-profile-logout">
+              <LogOut size={14} /> Sign out
             </Button>
           </div>
         </div>

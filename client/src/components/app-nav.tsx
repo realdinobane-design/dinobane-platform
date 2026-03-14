@@ -8,7 +8,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -100,6 +100,7 @@ export function AppNav() {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary transition-colors" data-testid="button-user-menu">
                     <Avatar className="h-7 w-7 ring-2 ring-transparent hover:ring-primary/50 transition-all">
+                      {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} className="object-cover" />}
                       <AvatarFallback
                         className="text-xs font-bold text-white"
                         style={{ background: user.avatarColor }}

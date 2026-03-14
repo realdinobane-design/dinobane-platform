@@ -7,6 +7,7 @@ export interface AuthUser {
   displayName: string;
   avatarInitials: string;
   avatarColor: string;
+  avatarUrl: string | null;
   isMember: boolean;
   memberSince: string | null;
   createdAt: string;

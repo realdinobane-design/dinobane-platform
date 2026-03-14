@@ -10,7 +10,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUserMembership(id: number, isMember: boolean): Promise<User>;
   updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User>;
-  updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string }): Promise<User>;
+  updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null }): Promise<User>;
   getAllUsers(): Promise<User[]>;
 
   // Messages
@@ -46,19 +46,19 @@ class MemStorage implements IStorage {
       {
         id: 1, username: "dino_admin", email: "realdinobane@gmail.com",
         password: adminHash, displayName: "DinoBane", avatarInitials: "DB",
-        avatarColor: "#cc2a2a", isMember: true, memberSince: new Date("2025-01-01"),
+        avatarColor: "#cc2a2a", avatarUrl: null, isMember: true, memberSince: new Date("2025-01-01"),
         stripeCustomerId: null, createdAt: new Date("2025-01-01"),
       },
       {
         id: 2, username: "patriot_uk", email: "patriot@example.com",
         password: hash, displayName: "PatriotUK", avatarInitials: "PU",
-        avatarColor: "#1d4ed8", isMember: true, memberSince: new Date("2025-02-01"),
+        avatarColor: "#1d4ed8", avatarUrl: null, isMember: true, memberSince: new Date("2025-02-01"),
         stripeCustomerId: null, createdAt: new Date("2025-02-01"),
       },
       {
         id: 3, username: "truth_seeker", email: "truth@example.com",
         password: hash, displayName: "TruthSeeker", avatarInitials: "TS",
-        avatarColor: "#16a34a", isMember: true, memberSince: new Date("2025-03-01"),
+        avatarColor: "#16a34a", avatarUrl: null, isMember: true, memberSince: new Date("2025-03-01"),
         stripeCustomerId: null, createdAt: new Date("2025-03-01"),
       },
     ];
@@ -287,12 +287,13 @@ class MemStorage implements IStorage {
     return user;
   }
 
-  async updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string }): Promise<User> {
+  async updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null }): Promise<User> {
     const user = this.users.find(u => u.id === id);
     if (!user) throw new Error("User not found");
     if (data.displayName !== undefined) user.displayName = data.displayName;
     if (data.avatarInitials !== undefined) user.avatarInitials = data.avatarInitials;
     if (data.avatarColor !== undefined) user.avatarColor = data.avatarColor;
+    if (data.avatarUrl !== undefined) user.avatarUrl = data.avatarUrl;
     return user;
   }
 
