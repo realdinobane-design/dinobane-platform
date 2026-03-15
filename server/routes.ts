@@ -4,9 +4,11 @@ import type { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
+import { Resend } from "resend";
 import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, insertArticleSchema } from "@shared/schema";
 import { z } from "zod";
+import crypto from "crypto";
 
 // ─── STRIPE CLIENT ────────────────────────────────────────────────────────────
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -15,6 +17,15 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 const PRICE_ID = process.env.STRIPE_PRICE_ID || "price_1TAtUxLgaM5ScSUDmOEucYog";
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+// ─── EMAIL CLIENT (Resend) ────────────────────────────────────────────────────
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+// In-memory token store: token → { userId, email, expires }
+// Small memory footprint — tokens expire after 24h
+const verificationTokens = new Map<string, { userId: number; email: string; expires: number }>();
 
 // ─── SESSION AUGMENTATION ─────────────────────────────────────────────────────
 declare module "express-session" {
@@ -40,29 +51,31 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── AUTH ROUTES ────────────────────────────────────────────────────────────
   app.post("/api/auth/register", async (req, res) => {
     try {
+      // displayName is optional from frontend — falls back to username
       const schema = z.object({
         email: z.string().email(),
-        username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
-        displayName: z.string().min(2).max(30),
+        username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_-]+$/),
+        displayName: z.string().min(2).max(30).optional(),
         password: z.string().min(6),
       });
       const body = schema.parse(req.body);
+      const displayName = body.displayName || body.username;
 
       const existingEmail = await storage.getUserByEmail(body.email);
-      if (existingEmail) return res.status(400).json({ error: "Email already registered" });
+      if (existingEmail) return res.status(400).json({ error: "That email is already registered. Try signing in instead." });
 
       const existingUsername = await storage.getUserByUsername(body.username);
-      if (existingUsername) return res.status(400).json({ error: "Username taken" });
+      if (existingUsername) return res.status(400).json({ error: "That username is already taken. Please choose another." });
 
       const hash = await bcrypt.hash(body.password, 10);
-      const initials = body.displayName.slice(0, 2).toUpperCase();
+      const initials = displayName.slice(0, 2).toUpperCase();
       const colors = ["#cc2a2a", "#1d4ed8", "#16a34a", "#7c3aed", "#d97706", "#0891b2"];
       const color = colors[Math.floor(Math.random() * colors.length)];
 
       const user = await storage.createUser({
         email: body.email,
         username: body.username,
-        displayName: body.displayName,
+        displayName,
         password: hash,
         avatarInitials: initials,
         avatarColor: color,
@@ -70,12 +83,70 @@ export function registerRoutes(httpServer: Server, app: Express) {
         stripeCustomerId: null,
       });
 
-      req.session.userId = user.id;
-      const { password: _, ...safeUser } = user;
-      return res.json(safeUser);
+      // Generate email verification token
+      const token = crypto.randomBytes(32).toString("hex");
+      verificationTokens.set(token, {
+        userId: user.id,
+        email: user.email,
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24h
+      });
+
+      // Send verification email
+      const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+      const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
+
+      if (resend) {
+        await resend.emails.send({
+          from: "DinoBane <noreply@dinobane.com>",
+          to: user.email,
+          subject: "Verify your DinoBane account",
+          html: `
+            <div style="background:#0a0a0a;color:#fff;font-family:sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;">
+              <div style="margin-bottom:32px;">
+                <span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#cc2a2a;">BANE</span>
+              </div>
+              <h2 style="font-size:20px;font-weight:700;margin:0 0 12px;">Verify your email</h2>
+              <p style="color:#aaa;font-size:14px;margin:0 0 28px;line-height:1.6;">
+                Hi <strong style="color:#fff;">${user.displayName}</strong>, click the button below to verify your email address and proceed to membership.
+              </p>
+              <a href="${verifyUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">
+                Verify Email &amp; Join
+              </a>
+              <p style="color:#555;font-size:12px;margin:28px 0 0;">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
+            </div>
+          `,
+        });
+      } else {
+        // No Resend key — log the verify URL (dev/fallback)
+        console.log("[email] RESEND_API_KEY not set — verify URL:", verifyUrl);
+      }
+
+      return res.json({ ok: true, message: "Verification email sent" });
     } catch (e: any) {
       return res.status(400).json({ error: e.message || "Registration failed" });
     }
+  });
+
+  // ─── EMAIL VERIFICATION ───────────────────────────────────────────────────────
+  // User clicks link in email → verify → log them in → redirect to Stripe checkout
+  app.get("/api/auth/verify-email", async (req, res) => {
+    const token = req.query.token as string;
+    if (!token) return res.redirect("/#/register?error=missing_token");
+
+    const record = verificationTokens.get(token);
+    if (!record) return res.redirect("/#/register?error=invalid_token");
+    if (Date.now() > record.expires) {
+      verificationTokens.delete(token);
+      return res.redirect("/#/register?error=expired_token");
+    }
+
+    verificationTokens.delete(token); // single-use
+
+    // Log the user in
+    req.session.userId = record.userId;
+
+    // Redirect straight to membership/checkout
+    return res.redirect("/#/membership?verified=1");
   });
 
   app.post("/api/auth/login", async (req, res) => {

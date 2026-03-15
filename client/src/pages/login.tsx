@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 interface LoginForm {
   email: string;
@@ -18,21 +19,24 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const { setUser } = useAuth();
   const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
       const res = await apiRequest("POST", "/api/auth/login", data);
-      return res.json();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Login failed");
+      return json;
     },
     onSuccess: (data) => {
       setUser(data);
       toast({ title: "Logged in", description: "Welcome back to DINOBANE." });
       navigate("/");
     },
-    onError: () => {
-      toast({ title: "Login failed", description: "Invalid email or password.", variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Login failed", description: err.message || "Invalid email or password.", variant: "destructive" });
     },
   });
 
@@ -40,25 +44,22 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      {/* Background texture */}
       <div className="absolute inset-0 opacity-5 pointer-events-none"
         style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, hsl(0 76% 47% / 0.3) 2px, hsl(0 76% 47% / 0.3) 3px)" }} />
 
       <div className="relative w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
-          {/* Logo */}
           <Link href="/" className="inline-block mb-6">
-            <svg viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-10 w-auto" aria-label="DINOBANE">
+            {/* Fixed SVG — wider viewBox so DINOBANE isn't clipped */}
+            <svg viewBox="0 0 200 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-10 w-auto" aria-label="DINOBANE">
               <polygon points="8,4 16,4 24,20 32,4 40,4 28,20 40,36 32,36 24,20 16,36 8,36 20,20" fill="hsl(0 76% 47%)" />
-              <text x="48" y="26" fontFamily="'Clash Display', sans-serif" fontWeight="700" fontSize="16" fill="white" letterSpacing="2">DINOBANE</text>
+              <text x="50" y="27" fontFamily="'Clash Display', sans-serif" fontWeight="700" fontSize="17" fill="white" letterSpacing="2">DINOBANE</text>
             </svg>
           </Link>
           <h1 className="text-xl font-bold text-foreground tracking-wider uppercase font-display">Sign In</h1>
           <p className="text-sm text-muted-foreground mt-1">Access your DinoBane account</p>
         </div>
 
-        {/* Form Card */}
         <div className="bg-card border border-border rounded-sm p-8 space-y-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" data-testid="form-login">
             <div className="space-y-2">
@@ -76,14 +77,25 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                data-testid="input-password"
-                className="bg-background border-border focus:border-primary"
-                {...register("password", { required: "Password is required" })}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  data-testid="input-password"
+                  className="bg-background border-border focus:border-primary pr-10"
+                  {...register("password", { required: "Password is required" })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
             </div>
 
@@ -96,16 +108,8 @@ export default function LoginPage() {
               {loginMutation.isPending ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          {/* Demo hint */}
-          <div className="border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground text-center">
-              Demo: <span className="text-foreground font-mono">realdinobane@gmail.com</span> / <span className="text-foreground font-mono">demo1234</span>
-            </p>
-          </div>
         </div>
 
-        {/* Register link */}
         <p className="text-center text-sm text-muted-foreground mt-6">
           Not a member?{" "}
           <Link href="/membership" className="text-primary hover:underline font-semibold">
