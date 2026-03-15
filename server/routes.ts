@@ -27,6 +27,69 @@ const resend = process.env.RESEND_API_KEY
 // Small memory footprint — tokens expire after 24h
 const verificationTokens = new Map<string, { userId: number; email: string; expires: number }>();
 
+// ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
+// Tracks the last time a mention email was sent per user (userId → Date)
+// We only send one email per user per calendar day (UTC)
+const mentionEmailSentAt = new Map<number, string>(); // userId → "YYYY-MM-DD"
+
+async function maybeSendMentionEmail(mentionedUsername: string, mentionedByUsername: string, channel: string): Promise<void> {
+  if (!resend) return;
+  try {
+    const mentionedUser = await storage.getUserByUsername(mentionedUsername);
+    if (!mentionedUser?.email) return;
+
+    const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+    if (mentionEmailSentAt.get(mentionedUser.id) === todayUTC) return; // already sent today
+
+    mentionEmailSentAt.set(mentionedUser.id, todayUTC);
+
+    const channelLabel = channel.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    await resend.emails.send({
+      from: "DinoBane <noreply@dinobane.com>",
+      to: mentionedUser.email,
+      subject: `📣 @${mentionedByUsername} mentioned you in the DinoBane community`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;overflow:hidden;max-width:560px;width:100%;">
+        <!-- Header -->
+        <tr>
+          <td style="background:#cc2a2a;padding:24px 32px;">
+            <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.05em;">DINOBANE</span>
+            <span style="font-size:13px;color:rgba(255,255,255,0.7);display:block;margin-top:2px;">Community Alert</span>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px;color:#e5e5e5;">
+            <p style="margin:0 0 16px;font-size:16px;">Hey <strong>@${mentionedUser.username}</strong>,</p>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;"><strong>@${mentionedByUsername}</strong> mentioned you in <strong>#${channelLabel}</strong>. Head over to the community to see what they said.</p>
+            <a href="https://dinobane.com/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:700;">View Message →</a>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 32px;border-top:1px solid #222;">
+            <p style="margin:0;font-size:12px;color:#555;">You're receiving this because you're a DinoBane member. You'll receive at most one of these per day.</p>
+            <p style="margin:8px 0 0;font-size:12px;"><a href="https://dinobane.com" style="color:#cc2a2a;">dinobane.com</a></p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+    });
+    console.log(`[mention-email] sent to ${mentionedUser.email} (mentioned by @${mentionedByUsername} in #${channel})`);
+  } catch (e: any) {
+    console.error("[mention-email] failed:", e.message);
+  }
+}
+
 // ─── SESSION AUGMENTATION ─────────────────────────────────────────────────────
 declare module "express-session" {
   interface SessionData {
@@ -468,6 +531,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const body = insertMessageSchema.parse({ ...req.body, userId: req.session.userId });
       const message = await storage.createMessage(body);
       broadcast({ type: "new_message", message });
+
+      // ── @mention email notifications (fire-and-forget, max 1/day/user) ──
+      if (typeof body.content === "string") {
+        const mentioned = [...body.content.matchAll(/@([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+        if (mentioned.length > 0) {
+          const sender = await storage.getUserById(req.session.userId!);
+          const senderUsername = sender?.username ?? "someone";
+          const channel = (body as any).channel ?? "general";
+          // Deduplicate and skip self-mentions
+          const unique = [...new Set(mentioned)].filter(u => u.toLowerCase() !== senderUsername.toLowerCase());
+          for (const username of unique) {
+            maybeSendMentionEmail(username, senderUsername, channel).catch(() => {});
+          }
+        }
+      }
+
       return res.json(message);
     } catch (e: any) {
       return res.status(400).json({ error: e.message });
