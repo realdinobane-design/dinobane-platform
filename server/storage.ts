@@ -182,7 +182,13 @@ export async function runMigrationsAndSeed() {
       `UPDATE users SET password = $1 WHERE email = 'realdinobane@gmail.com'`,
       [adminHash]
     );
-    console.log("[db] database already seeded — skipping");
+    // Patch: if member_since is still the placeholder 2025-01-01, reset it to now
+    await pool.query(
+      `UPDATE users SET member_since = now(), created_at = now()
+       WHERE email = 'realdinobane@gmail.com'
+         AND member_since = '2025-01-01 00:00:00'`
+    );
+    console.log("[db] database already seeded — skipping (applied date patch if needed)");
     return;
   }
 
@@ -193,7 +199,7 @@ export async function runMigrationsAndSeed() {
 
   await pool.query(`
     INSERT INTO users (username, email, password, display_name, avatar_initials, avatar_color, is_member, member_since, created_at)
-    VALUES ('dino_admin', 'realdinobane@gmail.com', $1, 'DinoBane', 'DB', '#cc2a2a', true, '2025-01-01', '2025-01-01')
+    VALUES ('dino_admin', 'realdinobane@gmail.com', $1, 'DinoBane', 'DB', '#cc2a2a', true, now(), now())
   `, [adminHash]);
 
   // Seed articles

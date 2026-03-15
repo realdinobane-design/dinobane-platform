@@ -466,7 +466,7 @@ export default function ProfilePage() {
         ) : mentions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No one has @mentioned you yet. Get active in the community!</p>
         ) : (
-          <div className="space-y-2">
+          <div className="max-h-80 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border">
             {mentions.map(msg => <MessageItem key={`mention-${msg.id}`} msg={msg} highlight />)}
           </div>
         )}
@@ -482,11 +482,8 @@ export default function ProfilePage() {
             <Link href="/community" className="text-primary hover:underline">Head to the community</Link>
           </p>
         ) : (
-          <div className="space-y-2">
-            {myMessages.slice(0, 10).map(msg => <MessageItem key={`msg-${msg.id}`} msg={msg} />)}
-            {myMessages.length > 10 && (
-              <p className="text-xs text-muted-foreground text-center pt-2">Showing 10 of {myMessages.length} messages</p>
-            )}
+          <div className="max-h-80 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border">
+            {myMessages.map(msg => <MessageItem key={`msg-${msg.id}`} msg={msg} />)}
           </div>
         )}
       </Section>
