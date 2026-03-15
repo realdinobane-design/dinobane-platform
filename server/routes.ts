@@ -520,6 +520,67 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(article);
   });
 
+  // ─── ADMIN USER MANAGEMENT ────────────────────────────────────────────────────
+  // All routes require admin email. Cancel membership first, then delete account.
+  const ADMIN_EMAIL_MGMT = "realdinobane@gmail.com";
+
+  async function requireAdmin(req: express.Request, res: express.Response): Promise<{ ok: true; adminUser: any } | { ok: false }> {
+    if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return { ok: false }; }
+    const adminUser = await storage.getUserById(req.session.userId);
+    if (!adminUser || adminUser.email !== ADMIN_EMAIL_MGMT) { res.status(403).json({ error: "Admin only" }); return { ok: false }; }
+    return { ok: true, adminUser };
+  }
+
+  // GET /api/admin/users — list all users (admin only)
+  app.get("/api/admin/users", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const users = await storage.getAllUsers();
+    const safe = users.map(({ password: _, ...u }) => u);
+    return res.json(safe);
+  });
+
+  // DELETE /api/admin/users/:id/membership — cancel Stripe + mark isMember=false
+  app.delete("/api/admin/users/:id/membership", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: "Invalid user ID" });
+    const target = await storage.getUserById(targetId);
+    if (!target) return res.status(404).json({ error: "User not found" });
+    // Cancel Stripe subscription if active
+    if (target.stripeCustomerId && stripe) {
+      try {
+        const subs = await stripe.subscriptions.list({ customer: target.stripeCustomerId, status: "active", limit: 1 });
+        if (subs.data.length > 0) {
+          await stripe.subscriptions.cancel(subs.data[0].id);
+        }
+      } catch (e: any) {
+        console.error("[admin] stripe cancel failed:", e.message);
+      }
+    }
+    await storage.updateUserMembership(targetId, false);
+    const updated = await storage.getUserById(targetId);
+    if (!updated) return res.status(404).json({ error: "User not found after update" });
+    const { password: _, ...safe } = updated;
+    return res.json(safe);
+  });
+
+  // DELETE /api/admin/users/:id — delete account (only if isMember is already false)
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: "Invalid user ID" });
+    const target = await storage.getUserById(targetId);
+    if (!target) return res.status(404).json({ error: "User not found" });
+    if (target.isMember) {
+      return res.status(400).json({ error: "Cancel their membership before deleting their account." });
+    }
+    await storage.deleteUser(targetId);
+    return res.json({ ok: true });
+  });
+
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
   // GET: any paid member can view all media
   // POST/DELETE: admin only (realdinobane@gmail.com)

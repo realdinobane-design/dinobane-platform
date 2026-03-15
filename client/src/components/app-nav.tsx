@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault } from "lucide-react";
+import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -130,6 +130,13 @@ export function AppNav() {
                       <Crown size={14} className="mr-2 text-yellow-500" /> Membership
                     </Link>
                   </DropdownMenuItem>
+                  {user.email === "realdinobane@gmail.com" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/users" data-testid="link-admin-users">
+                        <ShieldAlert size={14} className="mr-2 text-red-500" /> User Management
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} data-testid="button-logout" className="text-red-400">
                     Sign out
