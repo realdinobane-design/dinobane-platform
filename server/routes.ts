@@ -661,33 +661,85 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!url || !url.startsWith("http")) return res.status(400).json({ error: "Invalid URL" });
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
 
+    const domain = new URL(url).hostname.replace(/^www\./, "");
+    const fallback = { url, title: "", description: "", image: "", siteName: domain, domain };
+
     try {
+      // ─── YouTube / youtu.be: use oEmbed for reliable title + thumbnail ───
+      const ytMatch = url.match(
+        /(?:youtube\.com\/watch\?(?:.*&)?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/
+      );
+      if (ytMatch) {
+        const videoId = ytMatch[1];
+        const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+        const oController = new AbortController();
+        const oTimeout = setTimeout(() => oController.abort(), 5000);
+        const oRes = await fetch(oembedUrl, { signal: oController.signal });
+        clearTimeout(oTimeout);
+        if (oRes.ok) {
+          const oembed = await oRes.json() as { title?: string; author_name?: string; thumbnail_url?: string };
+          return res.json({
+            url,
+            title: oembed.title || "",
+            description: oembed.author_name ? `By ${oembed.author_name}` : "",
+            image: oembed.thumbnail_url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+            siteName: "YouTube",
+            domain: "youtube.com",
+          });
+        }
+        // oEmbed failed — fall back to thumbnail at least
+        return res.json({
+          url,
+          title: "",
+          description: "",
+          image: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          siteName: "YouTube",
+          domain: "youtube.com",
+        });
+      }
+
+      // ─── Generic OG / Twitter card fetch ───
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), 6000);
       const r = await fetch(url, {
         signal: controller.signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; DinoBaneBot/1.0)" },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; Twitterbot/1.0)",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Language": "en-GB,en;q=0.9",
+        },
       });
       clearTimeout(timeout);
       const html = await r.text();
 
+      // Decode HTML entities in meta values
+      const decode = (s: string) =>
+        s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+
       const getMeta = (prop: string): string => {
-        const m = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, "i"))
-          || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`, "i"));
-        return m ? m[1].trim() : "";
+        // Handle property="og:x" content="..." and name="x" content="..."
+        const patterns = [
+          new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']*)["']`, "i"),
+          new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${prop}["']`, "i"),
+          // Some sites use unquoted content
+          new RegExp(`<meta[^>]+(?:property|name)=${prop}[^>]+content=["']([^"']*)["']`, "i"),
+        ];
+        for (const p of patterns) {
+          const m = html.match(p);
+          if (m?.[1]) return decode(m[1].trim());
+        }
+        return "";
       };
 
       const title = getMeta("og:title") || getMeta("twitter:title")
-        || (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "");
+        || decode(html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "");
       const description = getMeta("og:description") || getMeta("twitter:description") || getMeta("description");
       const image = getMeta("og:image") || getMeta("twitter:image");
       const siteName = getMeta("og:site_name");
 
-      const domain = new URL(url).hostname.replace(/^www\./, "");
-
       return res.json({ url, title, description, image, siteName: siteName || domain, domain });
     } catch (e: any) {
-      return res.status(200).json({ url, title: "", description: "", image: "", domain: new URL(url).hostname });
+      return res.status(200).json(fallback);
     }
   });
 

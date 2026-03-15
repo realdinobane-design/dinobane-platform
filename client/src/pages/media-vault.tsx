@@ -229,26 +229,35 @@ export default function MediaVaultPage() {
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
             <Film size={14} /> Videos ({videos.length})
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {videos.map(item => (
-              <div key={item.id} className="bg-card border border-border rounded-sm p-4 flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-sm flex items-center justify-center shrink-0">
-                  <Film size={20} className="text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatBytes(item.size)}</p>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => copyUrl(item.id, item.dataUrl)}>
-                    {copied === item.id ? <Check size={12} /> : <Copy size={12} />}
-                    Copy
-                  </Button>
-                  {isAdmin && (
-                    <Button size="sm" variant="outline" className="gap-1.5 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20" onClick={() => deleteMutation.mutate(item.id)}>
-                      <Trash2 size={12} /> Delete
+              <div key={item.id} className="bg-card border border-border rounded-sm overflow-hidden">
+                {/* Playable video */}
+                <video
+                  src={item.dataUrl}
+                  controls
+                  controlsList="nodownload"
+                  className="w-full max-h-96 bg-black"
+                  preload="metadata"
+                />
+                {/* Footer row */}
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <Film size={14} className="text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatBytes(item.size)}</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => copyUrl(item.id, item.dataUrl)}>
+                      {copied === item.id ? <Check size={12} /> : <Copy size={12} />}
+                      Copy URL
                     </Button>
-                  )}
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20" onClick={() => deleteMutation.mutate(item.id)}>
+                        <Trash2 size={12} /> Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
