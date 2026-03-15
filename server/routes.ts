@@ -1017,6 +1017,150 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Then every 30 minutes
   setInterval(() => syncYouTubeArticles("interval"), 30 * 60 * 1000);
 
+  // ─── WEEKLY NEWSLETTER — every Sunday at 9 AM Bangkok (02:00 UTC) ─────────────
+  async function sendWeeklyNewsletter() {
+    if (!resend) return;
+    try {
+      // Fetch the YouTube RSS feed for the latest videos
+      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
+      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      let xml: string | null = null;
+      const proxies = [
+        () => fetch(rssUrl, { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0" } }),
+        () => fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, { signal: AbortSignal.timeout(8000) }).then(async r => { const d = await r.json() as any; return new Response(d.contents); }),
+      ];
+      for (const attempt of proxies) {
+        try { const r = await attempt(); if (r.ok) { xml = await r.text(); break; } } catch {}
+      }
+      if (!xml) { console.error("[newsletter] could not fetch YouTube feed"); return; }
+
+      const allVideos = parseYouTubeFeed(xml);
+      // Filter to videos published in the last 7 days
+      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const thisWeek = allVideos.filter(v => {
+        const t = v.publishedAt ? new Date(v.publishedAt).getTime() : 0;
+        return t >= oneWeekAgo;
+      }).slice(0, 5);
+
+      // If no new videos this week, skip sending
+      if (thisWeek.length === 0) {
+        console.log("[newsletter] no new videos this week — skipping");
+        return;
+      }
+
+      // Get all paying members
+      const allUsers = await storage.getAllUsers();
+      const members = allUsers.filter(u => u.isMember && u.email);
+      if (members.length === 0) { console.log("[newsletter] no members to send to"); return; }
+
+      // Build the video cards HTML
+      const videoCards = thisWeek.map((v, i) => `
+        <tr>
+          <td style="padding:0 0 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:8px;overflow:hidden;">
+              <tr>
+                <td style="padding:0;">
+                  <a href="${v.url}" style="display:block;">
+                    <img src="${v.thumbnail}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 20px;">
+                  <p style="margin:0 0 4px;font-size:11px;color:#cc2a2a;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Video ${i + 1} of ${thisWeek.length}</p>
+                  <a href="${v.url}" style="font-size:16px;font-weight:700;color:#fff;text-decoration:none;line-height:1.4;display:block;margin-bottom:12px;">${v.title}</a>
+                  <a href="${v.url}" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:8px 20px;border-radius:5px;font-size:13px;font-weight:700;">Watch Now →</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`).join("");
+
+      const today = new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;overflow:hidden;max-width:560px;width:100%;">
+        <!-- Header -->
+        <tr>
+          <td style="background:#cc2a2a;padding:28px 32px;">
+            <span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:0.06em;">DINOBANE</span>
+            <span style="font-size:13px;color:rgba(255,255,255,0.75);display:block;margin-top:4px;">Weekly Dispatch — ${today}</span>
+          </td>
+        </tr>
+        <!-- Thank you message -->
+        <tr>
+          <td style="padding:28px 32px 8px;">
+            <p style="margin:0 0 12px;font-size:17px;font-weight:700;color:#fff;">This week on DinoBane</p>
+            <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#bbb;">Thank you for your continued support — it genuinely means everything. Here are the ${thisWeek.length} video${thisWeek.length > 1 ? "s" : ""} I uploaded this week. Watch, share, and keep exposing the truth.</p>
+          </td>
+        </tr>
+        <!-- Video cards -->
+        <tr>
+          <td style="padding:0 32px 8px;">
+            <table width="100%" cellpadding="0" cellspacing="0">${videoCards}</table>
+          </td>
+        </tr>
+        <!-- CTA -->
+        <tr>
+          <td style="padding:8px 32px 28px;text-align:center;">
+            <a href="https://dinobane.com/#/community" style="display:inline-block;background:#1a1a1a;border:1px solid #333;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:700;">Join the Discussion in the Community</a>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 32px;border-top:1px solid #222;">
+            <p style="margin:0;font-size:12px;color:#555;">You're receiving this weekly digest because you're a DinoBane member. <a href="https://dinobane.com" style="color:#cc2a2a;">Manage your membership</a></p>
+            <p style="margin:6px 0 0;font-size:12px;"><a href="https://dinobane.com" style="color:#cc2a2a;">dinobane.com</a></p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+      // Send to all members
+      let sent = 0;
+      for (const member of members) {
+        try {
+          await resend.emails.send({
+            from: "DinoBane <noreply@dinobane.com>",
+            to: member.email,
+            subject: `📺 DinoBane Weekly — ${thisWeek.length} new video${thisWeek.length > 1 ? "s" : ""} this week`,
+            html,
+          });
+          sent++;
+        } catch (e: any) {
+          console.error(`[newsletter] failed to send to ${member.email}:`, e.message);
+        }
+      }
+      console.log(`[newsletter] sent to ${sent}/${members.length} members`);
+    } catch (e: any) {
+      console.error("[newsletter] error:", e.message);
+    }
+  }
+
+  // Schedule: check every hour — fire when it's Sunday and between 02:00–02:59 UTC (9 AM Bangkok)
+  // Persist the last-sent date so it only fires once per week even if server restarts within that hour
+  let newsletterLastSentDate = "";
+  setInterval(async () => {
+    const now = new Date();
+    const dayUTC = now.getUTCDay();   // 0 = Sunday
+    const hourUTC = now.getUTCHours(); // 2 = 09:00 Bangkok
+    const dateStr = now.toISOString().slice(0, 10);
+    if (dayUTC === 0 && hourUTC === 2 && newsletterLastSentDate !== dateStr) {
+      newsletterLastSentDate = dateStr;
+      console.log(`[newsletter] firing weekly dispatch for ${dateStr}`);
+      await sendWeeklyNewsletter();
+    }
+  }, 60 * 60 * 1000); // check once per hour
+
   // ─── WEBSOCKET SERVER ─────────────────────────────────────────────────────────
   wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
