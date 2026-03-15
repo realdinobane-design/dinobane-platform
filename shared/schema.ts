@@ -51,3 +51,18 @@ export const articles = pgTable("articles", {
 export const insertArticleSchema = createInsertSchema(articles).omit({ id: true, publishedAt: true });
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Article = typeof articles.$inferSelect;
+
+// ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
+export const media = pgTable("media", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // "image" | "video"
+  dataUrl: text("data_url").notNull(),
+  size: integer("size").notNull(),
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+});
+
+export const insertMediaSchema = createInsertSchema(media).omit({ id: true, uploadedAt: true });
+export type InsertMedia = z.infer<typeof insertMediaSchema>;
+export type Media = typeof media.$inferSelect;

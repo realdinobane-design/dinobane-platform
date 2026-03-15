@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User } from "lucide-react";
+import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { href: "/articles", label: "Articles", icon: BookOpen },
   { href: "/news", label: "Intel", icon: Rss },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
+  { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
 ];
 
 export function AppNav() {

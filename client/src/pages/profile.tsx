@@ -350,6 +350,24 @@ export default function ProfilePage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/account", {});
+      if (!res.ok) throw new Error("Delete failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      setUser(null);
+      toast({ title: "Account deleted", description: "Your account has been permanently removed.", variant: "destructive" });
+      navigate("/");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not delete account. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleLogout = async () => {
     await logout();
     queryClient.setQueryData(["/api/auth/me"], null);
@@ -540,10 +558,29 @@ export default function ProfilePage() {
               <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
             </div>
           </div>
-          <div className="pt-2">
-            <Button variant="outline" size="sm" className="gap-2 text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300" onClick={handleLogout} data-testid="button-profile-logout">
+          <div className="pt-2 flex flex-col gap-2">
+            <Button variant="outline" size="sm" className="gap-2 text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300 w-fit" onClick={handleLogout} data-testid="button-profile-logout">
               <LogOut size={14} /> Sign out
             </Button>
+            <div className="border-t border-border pt-3 mt-1">
+              <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wider text-red-500/70">Danger Zone</p>
+              {!showDeleteConfirm ? (
+                <Button variant="outline" size="sm" className="gap-2 text-red-500 border-red-800/40 hover:bg-red-950/30 hover:text-red-400" onClick={() => setShowDeleteConfirm(true)} data-testid="button-delete-account">
+                  <Trash2 size={14} /> Delete account
+                </Button>
+              ) : (
+                <div className="bg-red-950/20 border border-red-800/40 rounded-sm p-3 space-y-2">
+                  <p className="text-xs text-red-300 font-semibold">This will permanently delete your account and cancel any active subscription. This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-xs border-border text-muted-foreground" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+                    <Button size="sm" className="text-xs bg-red-700 hover:bg-red-600 text-white gap-1.5" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                      {deleteMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                      Yes, delete my account
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Section>

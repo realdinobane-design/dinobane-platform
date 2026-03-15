@@ -2,11 +2,13 @@ import { eq, desc, ilike } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
 import {
-  users, messages, articles,
+  users, messages, articles, media,
   type User, type InsertUser,
   type Message, type InsertMessage,
   type Article, type InsertArticle,
+  type Media,
 } from "@shared/schema";
+import { media } from "@shared/schema";
 
 // ─── INTERFACE ────────────────────────────────────────────────────────────────
 export interface IStorage {
@@ -24,6 +26,10 @@ export interface IStorage {
   createMessage(data: InsertMessage): Promise<Message & { user: User }>;
 
   getArticles(): Promise<Article[]>;
+  // Media vault
+  getMediaByUser(userId: number): Promise<Media[]>;
+  createMedia(data: { userId: number; name: string; type: string; dataUrl: string; size: number }): Promise<Media>;
+  deleteMedia(id: number, userId: number): Promise<void>;
   getArticleById(id: number): Promise<Article | undefined>;
   createArticle(data: InsertArticle): Promise<Article>;
 }
@@ -132,6 +138,18 @@ class DrizzleStorage implements IStorage {
     }).returning();
     return article;
   }
+  async getMediaByUser(userId: number): Promise<Media[]> {
+    return db.select().from(media).where(eq(media.userId, userId)).orderBy(media.uploadedAt);
+  }
+
+  async createMedia(data: { userId: number; name: string; type: string; dataUrl: string; size: number }): Promise<Media> {
+    const [item] = await db.insert(media).values(data).returning();
+    return item;
+  }
+
+  async deleteMedia(id: number, userId: number): Promise<void> {
+    await db.delete(media).where(eq(media.id, id));
+  }
 }
 
 export const storage = new DrizzleStorage();
@@ -175,7 +193,17 @@ export async function runMigrationsAndSeed() {
       published_at timestamp NOT NULL DEFAULT now(),
       is_public    boolean NOT NULL DEFAULT true
     );
+    CREATE TABLE IF NOT EXISTS media (
+      id          serial PRIMARY KEY,
+      user_id     integer NOT NULL,
+      name        text NOT NULL,
+      type        text NOT NULL,
+      data_url    text NOT NULL,
+      size        integer NOT NULL,
+      uploaded_at timestamp NOT NULL DEFAULT now()
+    );
   `);
+
 
   // Seed admin user (only if no users exist yet)
   const existing = await pool.query("SELECT id FROM users LIMIT 1");

@@ -5,6 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 
 const SOURCE_COLORS: Record<string, string> = {
+  // Alt / right-leaning
   "Guido Fawkes":           "bg-red-900/40 text-red-300 border-red-800",
   "Spiked Online":          "bg-orange-900/40 text-orange-300 border-orange-800",
   "GB News":                "bg-blue-900/40 text-blue-300 border-blue-800",
@@ -20,36 +21,66 @@ const SOURCE_COLORS: Record<string, string> = {
   "ConservativeHome":       "bg-blue-900/40 text-blue-200 border-blue-700",
   "Iain Dale":              "bg-indigo-900/40 text-indigo-300 border-indigo-800",
   "The Sun Politics":       "bg-orange-900/40 text-orange-200 border-orange-700",
+  // Mainstream
+  "The Sun":                "bg-red-950/40 text-red-200 border-red-900",
+  "The Times":              "bg-slate-900/40 text-slate-300 border-slate-700",
+  "The Guardian":           "bg-cyan-900/40 text-cyan-300 border-cyan-800",
+  "BBC News":               "bg-red-950/40 text-red-300 border-red-900",
+  "Sky News":               "bg-sky-950/40 text-sky-200 border-sky-900",
+  "The Independent":        "bg-zinc-900/40 text-zinc-300 border-zinc-700",
+  "The Mirror":             "bg-rose-900/40 text-rose-300 border-rose-800",
+  "Express":                "bg-yellow-950/40 text-yellow-200 border-yellow-900",
+  // Independent
+  "Reclaim The Net":        "bg-emerald-900/40 text-emerald-300 border-emerald-800",
+  "The Gateway Pundit":     "bg-orange-950/40 text-orange-200 border-orange-900",
+  "Westmonster":            "bg-red-900/40 text-red-200 border-red-800",
 };
 
 // Category tags per source
 const SOURCE_TAGS: Record<string, string[]> = {
-  "Guido Fawkes":           ["uk", "pro-british", "politics"],
-  "Spiked Online":          ["uk", "pro-british", "culture"],
-  "GB News":                ["uk", "pro-british", "politics"],
+  // Alt / right-leaning
+  "Guido Fawkes":           ["uk", "pro-british", "politics", "alt-media"],
+  "Spiked Online":          ["uk", "pro-british", "culture", "alt-media"],
+  "GB News":                ["uk", "pro-british", "politics", "alt-media"],
   "The Spectator":          ["uk", "pro-british", "politics", "culture"],
-  "ZeroHedge":              ["international", "geopolitics", "finance"],
-  "Breitbart London":       ["uk", "international", "pro-british", "politics"],
+  "ZeroHedge":              ["international", "geopolitics", "finance", "alt-media"],
+  "Breitbart London":       ["uk", "international", "pro-british", "politics", "alt-media"],
   "Daily Mail":             ["uk", "pro-british", "politics"],
   "The Telegraph":          ["uk", "pro-british", "politics"],
-  "The Daily Sceptic":      ["uk", "pro-british", "anti-establishment"],
-  "The Conservative Woman": ["uk", "pro-british", "culture"],
+  "The Daily Sceptic":      ["uk", "pro-british", "anti-establishment", "alt-media"],
+  "The Conservative Woman": ["uk", "pro-british", "culture", "alt-media"],
   "UnHerd":                 ["uk", "international", "pro-british", "culture"],
   "The Critic":             ["uk", "pro-british", "culture"],
   "ConservativeHome":       ["uk", "pro-british", "politics"],
   "Iain Dale":              ["uk", "pro-british", "politics"],
   "The Sun Politics":       ["uk", "pro-british", "politics"],
+  // Mainstream
+  "The Sun":                ["uk", "mainstream", "politics"],
+  "The Times":              ["uk", "mainstream", "politics"],
+  "The Guardian":           ["uk", "mainstream", "anti-british", "politics"],
+  "BBC News":               ["uk", "mainstream", "anti-british", "politics"],
+  "Sky News":               ["uk", "mainstream", "politics"],
+  "The Independent":        ["uk", "mainstream", "politics"],
+  "The Mirror":             ["uk", "mainstream", "anti-british", "politics"],
+  "Express":                ["uk", "pro-british", "politics"],
+  // Independent
+  "Reclaim The Net":        ["international", "alt-media", "anti-establishment", "culture"],
+  "The Gateway Pundit":     ["international", "alt-media", "anti-establishment", "politics"],
+  "Westmonster":            ["uk", "pro-british", "alt-media", "anti-establishment"],
 };
 
 const FILTERS = [
   { id: "all",              label: "All" },
   { id: "uk",               label: "🇬🇧 UK" },
   { id: "international",    label: "🌍 International" },
+  { id: "alt-media",        label: "Alt Media" },
+  { id: "mainstream",       label: "Mainstream" },
   { id: "pro-british",      label: "Pro-British" },
+  { id: "anti-british",     label: "Anti-British" },
   { id: "anti-establishment", label: "Anti-Establishment" },
   { id: "geopolitics",      label: "Geopolitics" },
-  { id: "culture",          label: "Culture" },
   { id: "politics",         label: "Politics" },
+  { id: "culture",          label: "Culture" },
   { id: "finance",          label: "Finance" },
 ];
 
@@ -98,7 +129,7 @@ export default function NewsPage() {
             Intel Dashboard
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {filteredItems.length} stories · 15 sources
+            {filteredItems.length} stories · {Object.keys(SOURCE_TAGS).length} sources
             {lastUpdated && <span className="ml-2 opacity-60">· updated {lastUpdated}</span>}
           </p>
         </div>

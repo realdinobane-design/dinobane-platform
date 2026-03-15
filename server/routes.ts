@@ -186,6 +186,29 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.send(relayPage("/#/membership?verified=1", "Verified! Redirecting to membership..."));
   });
 
+  // ─── DELETE ACCOUNT ───────────────────────────────────────────────────────────
+  app.delete("/api/account", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Cancel Stripe subscription first if active member
+    if (user.isMember && user.stripeCustomerId && stripe) {
+      try {
+        const subs = await stripe.subscriptions.list({ customer: user.stripeCustomerId, status: "active", limit: 1 });
+        if (subs.data.length > 0) {
+          await stripe.subscriptions.cancel(subs.data[0].id);
+        }
+      } catch (e: any) {
+        console.error("[stripe] cancel on delete failed:", e.message);
+      }
+    }
+
+    await storage.deleteUser(req.session.userId);
+    req.session.destroy(() => {});
+    return res.json({ ok: true });
+  });
+
   // ─── CANCEL CHECKOUT — wipe unverified account ────────────────────────────────
   // When a new user cancels Stripe checkout, delete their account entirely
   // so they cannot access the site without paying
@@ -497,10 +520,87 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(article);
   });
 
+  // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
+  app.get("/api/media", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const items = await storage.getMediaByUser(req.session.userId);
+    return res.json(items);
+  });
+
+  app.post("/api/media", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+
+    const schema = z.object({
+      name: z.string().min(1).max(255),
+      type: z.enum(["image", "video"]),
+      dataUrl: z.string().min(10),
+      size: z.number().positive(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+
+    const maxBytes = parsed.data.type === "image" ? 5 * 1024 * 1024 : 50 * 1024 * 1024;
+    if (parsed.data.size > maxBytes) {
+      return res.status(400).json({ error: `File too large. Max ${parsed.data.type === "image" ? "5MB" : "50MB"}.` });
+    }
+
+    const item = await storage.createMedia({ userId: req.session.userId, ...parsed.data });
+    return res.json(item);
+  });
+
+  app.delete("/api/media/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    await storage.deleteMedia(id, req.session.userId);
+    return res.json({ ok: true });
+  });
+
+  // ─── LINK PREVIEW ────────────────────────────────────────────────────────────
+  // Fetches Open Graph / Twitter card metadata for a URL (used by chat)
+  app.get("/api/link-preview", async (req, res) => {
+    const url = req.query.url as string;
+    if (!url || !url.startsWith("http")) return res.status(400).json({ error: "Invalid URL" });
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const r = await fetch(url, {
+        signal: controller.signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; DinoBaneBot/1.0)" },
+      });
+      clearTimeout(timeout);
+      const html = await r.text();
+
+      const getMeta = (prop: string): string => {
+        const m = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, "i"))
+          || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`, "i"));
+        return m ? m[1].trim() : "";
+      };
+
+      const title = getMeta("og:title") || getMeta("twitter:title")
+        || (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "");
+      const description = getMeta("og:description") || getMeta("twitter:description") || getMeta("description");
+      const image = getMeta("og:image") || getMeta("twitter:image");
+      const siteName = getMeta("og:site_name");
+
+      const domain = new URL(url).hostname.replace(/^www\./, "");
+
+      return res.json({ url, title, description, image, siteName: siteName || domain, domain });
+    } catch (e: any) {
+      return res.status(200).json({ url, title: "", description: "", image: "", domain: new URL(url).hostname });
+    }
+  });
+
   // ─── INTEL / NEWS RSS FEED ──────────────────────────────────────────────────
   app.get("/api/intel/feed", async (req, res) => {
     const FEEDS = [
-      // Original 8
+      // Original alt / right-leaning
       { name: "Guido Fawkes",          url: "https://order-order.com/feed/" },
       { name: "Spiked Online",         url: "https://www.spiked-online.com/feed/" },
       { name: "GB News",               url: "https://www.gbnews.com/feed" },
@@ -509,9 +609,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
       { name: "Breitbart London",      url: "https://www.breitbart.com/london/feed/" },
       { name: "Daily Mail",            url: "https://www.dailymail.co.uk/articles.rss" },
       { name: "The Telegraph",         url: "https://www.telegraph.co.uk/rss.xml" },
-      // Additional pro-British / alt-media sources
       { name: "The Daily Sceptic",     url: "https://dailysceptic.org/feed/" },
       { name: "The Conservative Woman",url: "https://www.conservativewoman.co.uk/feed/" },
+      // Mainstream UK outlets
+      { name: "The Sun",               url: "https://www.thesun.co.uk/feed/" },
+      { name: "The Times",             url: "https://www.thetimes.co.uk/rss/news" },
+      { name: "The Guardian",          url: "https://www.theguardian.com/uk/rss" },
+      { name: "BBC News",              url: "https://feeds.bbci.co.uk/news/rss.xml" },
+      { name: "Sky News",              url: "https://feeds.skynews.com/feeds/rss/uk.xml" },
+      { name: "The Independent",       url: "https://www.independent.co.uk/news/uk/rss" },
+      { name: "The Mirror",            url: "https://www.mirror.co.uk/news/politics/?service=rss" },
+      { name: "Express",               url: "https://www.express.co.uk/news/politics/rss" },
+      // Alternative / independent
+      { name: "Reclaim The Net",       url: "https://reclaimthenet.org/feed/" },
+      { name: "The Gateway Pundit",    url: "https://www.thegatewaypundit.com/feed/" },
+      { name: "Westmonster",           url: "https://westmonster.com/feed/" },
       { name: "UnHerd",                url: "https://unherd.com/feed/" },
       { name: "The Critic",            url: "https://thecritic.co.uk/feed/" },
       { name: "ConservativeHome",      url: "https://www.conservativehome.com/feed/" },

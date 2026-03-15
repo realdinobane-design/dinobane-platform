@@ -15,6 +15,7 @@ import MembershipPage from "@/pages/membership";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import ProfilePage from "@/pages/profile";
+import MediaVaultPage from "@/pages/media-vault";
 import { AppNav } from "@/components/app-nav";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
@@ -42,6 +43,7 @@ function AppRoutes() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/media-vault" component={MediaVaultPage} />
       <Route component={NotFound} />
     </Switch>
   );
