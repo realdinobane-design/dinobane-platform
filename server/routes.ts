@@ -521,18 +521,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
+  // GET: any paid member can view all media
+  // POST/DELETE: admin only (realdinobane@gmail.com)
+  const ADMIN_EMAIL = "realdinobane@gmail.com";
+
   app.get("/api/media", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
     if (!user?.isMember) return res.status(403).json({ error: "Members only" });
-    const items = await storage.getMediaByUser(req.session.userId);
+    const items = await storage.getAllMedia();
     return res.json(items);
   });
 
   app.post("/api/media", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
-    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    if (!user) return res.status(401).json({ error: "User not found" });
+    if (user.email !== ADMIN_EMAIL) return res.status(403).json({ error: "Only the admin can upload media." });
 
     const schema = z.object({
       name: z.string().min(1).max(255),
@@ -554,6 +559,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   app.delete("/api/media/:id", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(401).json({ error: "User not found" });
+    if (user.email !== ADMIN_EMAIL) return res.status(403).json({ error: "Only the admin can delete media." });
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
     await storage.deleteMedia(id, req.session.userId);

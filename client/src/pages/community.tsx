@@ -415,7 +415,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 placeholder={pendingImage ? "Add a caption (optional)..." : `Message #${activeChannel} — use @username to mention`}
                 className="resize-none bg-secondary border-border text-sm min-h-[42px] max-h-32"
                 rows={1}
-                disabled={!!pendingImage && draft === ""}
+                disabled={false}
                 data-testid="input-message"
               />
             </div>

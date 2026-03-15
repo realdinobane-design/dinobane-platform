@@ -18,6 +18,7 @@ interface MediaItem {
 
 const MAX_IMAGE_MB = 5;
 const MAX_VIDEO_MB = 50;
+const ADMIN_EMAIL = "realdinobane@gmail.com";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -122,6 +123,7 @@ export default function MediaVaultPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const isAdmin = user.email === ADMIN_EMAIL;
   const images = media.filter(m => m.type === "image");
   const videos = media.filter(m => m.type === "video");
 
@@ -135,43 +137,45 @@ export default function MediaVaultPage() {
         <p className="text-sm text-muted-foreground mt-1">Upload images and videos for use across the site. Members only.</p>
       </div>
 
-      {/* Upload buttons */}
-      <div className="flex flex-wrap gap-3 mb-8">
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], "image")}
-        />
-        <input
-          ref={videoInputRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], "video")}
-        />
-        <Button
-          onClick={() => imageInputRef.current?.click()}
-          disabled={uploading}
-          className="gap-2 bg-card border border-border hover:border-primary/40 text-foreground hover:text-primary"
-          variant="outline"
-        >
-          {uploading ? <Loader2 size={16} className="animate-spin" /> : <Image size={16} />}
-          Upload Image
-          <span className="text-xs text-muted-foreground">· max {MAX_IMAGE_MB}MB</span>
-        </Button>
-        <Button
-          onClick={() => videoInputRef.current?.click()}
-          disabled={uploading}
-          className="gap-2 bg-card border border-border hover:border-primary/40 text-foreground hover:text-primary"
-          variant="outline"
-        >
-          {uploading ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}
-          Upload Video
-          <span className="text-xs text-muted-foreground">· max {MAX_VIDEO_MB}MB</span>
-        </Button>
-      </div>
+      {/* Upload buttons — admin only */}
+      {isAdmin && (
+        <div className="flex flex-wrap gap-3 mb-8">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], "image")}
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], "video")}
+          />
+          <Button
+            onClick={() => imageInputRef.current?.click()}
+            disabled={uploading}
+            className="gap-2 bg-card border border-border hover:border-primary/40 text-foreground hover:text-primary"
+            variant="outline"
+          >
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Image size={16} />}
+            Upload Image
+            <span className="text-xs text-muted-foreground">· max {MAX_IMAGE_MB}MB</span>
+          </Button>
+          <Button
+            onClick={() => videoInputRef.current?.click()}
+            disabled={uploading}
+            className="gap-2 bg-card border border-border hover:border-primary/40 text-foreground hover:text-primary"
+            variant="outline"
+          >
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}
+            Upload Video
+            <span className="text-xs text-muted-foreground">· max {MAX_VIDEO_MB}MB</span>
+          </Button>
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex items-center gap-2 text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Loading...</div>
@@ -203,13 +207,15 @@ export default function MediaVaultPage() {
                   >
                     {copied === item.id ? <Check size={12} /> : <Copy size={12} />}
                   </button>
-                  <button
-                    onClick={() => deleteMutation.mutate(item.id)}
-                    className="bg-red-900/80 text-red-300 p-1.5 rounded-sm hover:bg-red-900"
-                    title="Delete"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => deleteMutation.mutate(item.id)}
+                      className="bg-red-900/80 text-red-300 p-1.5 rounded-sm hover:bg-red-900"
+                      title="Delete"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -238,9 +244,11 @@ export default function MediaVaultPage() {
                     {copied === item.id ? <Check size={12} /> : <Copy size={12} />}
                     Copy
                   </Button>
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20" onClick={() => deleteMutation.mutate(item.id)}>
-                    <Trash2 size={12} /> Delete
-                  </Button>
+                  {isAdmin && (
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs text-red-400 border-red-800/40 hover:bg-red-950/20" onClick={() => deleteMutation.mutate(item.id)}>
+                      <Trash2 size={12} /> Delete
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

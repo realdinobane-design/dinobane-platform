@@ -28,6 +28,7 @@ export interface IStorage {
   getArticles(): Promise<Article[]>;
   // Media vault
   getMediaByUser(userId: number): Promise<Media[]>;
+  getAllMedia(): Promise<Media[]>;
   createMedia(data: { userId: number; name: string; type: string; dataUrl: string; size: number }): Promise<Media>;
   deleteMedia(id: number, userId: number): Promise<void>;
   getArticleById(id: number): Promise<Article | undefined>;
@@ -140,6 +141,10 @@ class DrizzleStorage implements IStorage {
   }
   async getMediaByUser(userId: number): Promise<Media[]> {
     return db.select().from(media).where(eq(media.userId, userId)).orderBy(media.uploadedAt);
+  }
+
+  async getAllMedia(): Promise<Media[]> {
+    return db.select().from(media).orderBy(media.uploadedAt);
   }
 
   async createMedia(data: { userId: number; name: string; type: string; dataUrl: string; size: number }): Promise<Media> {
