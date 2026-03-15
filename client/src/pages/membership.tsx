@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Lock, Users, MessageSquare, Newspaper, Zap, Shield, CreditCard, Settings } from "lucide-react";
 import { useEffect } from "react";
+import { useHashLocation } from "wouter/use-hash-location";
 
 const FEATURES = [
   { icon: MessageSquare, text: "Access all community channels (#general, #news-links, #video-discussion, #off-topic)" },
@@ -20,13 +21,32 @@ export default function MembershipPage() {
   const [location] = useLocation();
   const { toast } = useToast();
 
+  const { refetch, setUser } = useAuth();
+
   // Handle Stripe redirect callbacks
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    if (params.get("verified") === "1") {
+      // Freshly verified — refetch user so nav updates, then auto-open checkout
+      refetch();
+    }
+
     if (params.get("success") === "1") {
+      refetch();
       toast({ title: "Payment successful", description: "Welcome to the DinoBane community. Your membership is now active." });
     } else if (params.get("cancelled") === "1") {
-      toast({ title: "Payment cancelled", description: "No charge was made. Come back when you're ready.", variant: "destructive" });
+      // New user cancelled Stripe — wipe their account so they can't access anything
+      if (user && !user.isMember) {
+        apiRequest("POST", "/api/stripe/cancel-registration", {}).then(() => {
+          setUser(null);
+          toast({
+            title: "Payment cancelled",
+            description: "Your account has been removed. Register again when you're ready to join.",
+            variant: "destructive"
+          });
+        });
+      }
     }
   }, []);
 

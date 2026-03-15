@@ -47,6 +47,35 @@ function broadcast(data: object) {
   });
 }
 
+// HTML relay page — commits session cookie then redirects client-side
+function relayPage(destination: string, message: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>DinoBane — ${message}</title>
+  <style>
+    body { background: #0a0a0a; color: #fff; font-family: sans-serif; display: flex;
+           align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .box { text-align: center; }
+    .logo { font-size: 22px; font-weight: 900; letter-spacing: 2px; margin-bottom: 16px; }
+    .logo span { color: #cc2a2a; }
+    p { color: #aaa; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">DINO<span>BANE</span></div>
+    <p>${message}</p>
+  </div>
+  <script>
+    // Small delay so Set-Cookie header is processed before navigation
+    setTimeout(() => { window.location.replace("${destination}"); }, 300);
+  </script>
+</body>
+</html>`;
+}
+
 export function registerRoutes(httpServer: Server, app: Express) {
   // ─── AUTH ROUTES ────────────────────────────────────────────────────────────
   app.post("/api/auth/register", async (req, res) => {
@@ -129,24 +158,45 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── EMAIL VERIFICATION ───────────────────────────────────────────────────────
   // User clicks link in email → verify → log them in → redirect to Stripe checkout
+  // Uses an HTML relay page so the session cookie is committed before the SPA loads
   app.get("/api/auth/verify-email", async (req, res) => {
     const token = req.query.token as string;
-    if (!token) return res.redirect("/#/register?error=missing_token");
+
+    if (!token) {
+      return res.send(relayPage("/#/register?error=missing_token", "Invalid link"));
+    }
 
     const record = verificationTokens.get(token);
-    if (!record) return res.redirect("/#/register?error=invalid_token");
+    if (!record) {
+      return res.send(relayPage("/#/register?error=invalid_token", "Link not found — it may have already been used."));
+    }
     if (Date.now() > record.expires) {
       verificationTokens.delete(token);
-      return res.redirect("/#/register?error=expired_token");
+      return res.send(relayPage("/#/register?error=expired_token", "Link expired — please register again."));
     }
 
     verificationTokens.delete(token); // single-use
 
-    // Log the user in
+    // Log the user in — session is saved before the page redirects
     req.session.userId = record.userId;
+    await new Promise<void>((resolve, reject) =>
+      req.session.save(err => err ? reject(err) : resolve())
+    );
 
-    // Redirect straight to membership/checkout
-    return res.redirect("/#/membership?verified=1");
+    return res.send(relayPage("/#/membership?verified=1", "Verified! Redirecting to membership..."));
+  });
+
+  // ─── CANCEL CHECKOUT — wipe unverified account ────────────────────────────────
+  // When a new user cancels Stripe checkout, delete their account entirely
+  // so they cannot access the site without paying
+  app.post("/api/stripe/cancel-registration", async (req, res) => {
+    if (!req.session.userId) return res.json({ ok: true }); // already gone
+    const user = await storage.getUserById(req.session.userId);
+    if (user && !user.isMember) {
+      await storage.deleteUser(req.session.userId);
+      req.session.destroy(() => {});
+    }
+    return res.json({ ok: true });
   });
 
   app.post("/api/auth/login", async (req, res) => {

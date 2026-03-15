@@ -15,6 +15,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUserMembership(id: number, isMember: boolean): Promise<User>;
+  deleteUser(id: number): Promise<void>;
   updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User>;
   updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null }): Promise<User>;
   getAllUsers(): Promise<User[]>;
@@ -62,6 +63,10 @@ class DrizzleStorage implements IStorage {
       .returning();
     if (!user) throw new Error("User not found");
     return user;
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User> {
