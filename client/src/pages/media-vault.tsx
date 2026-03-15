@@ -18,7 +18,7 @@ interface MediaItem {
 
 const MAX_IMAGE_MB = 5;
 const MAX_VIDEO_MB = 50;
-const ADMIN_EMAIL = "realdinobane@gmail.com";
+const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -123,7 +123,7 @@ export default function MediaVaultPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const isAdmin = user.email === ADMIN_EMAIL;
+  const isAdmin = ADMIN_EMAILS.has(user.email);
   const images = media.filter(m => m.type === "image");
   const videos = media.filter(m => m.type === "video");
 

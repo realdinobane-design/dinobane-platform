@@ -11,7 +11,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert } from "lucide-react";
 import { useState } from "react";
+
 import { cn } from "@/lib/utils";
+
+const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: null },
@@ -130,7 +133,7 @@ export function AppNav() {
                       <Crown size={14} className="mr-2 text-yellow-500" /> Membership
                     </Link>
                   </DropdownMenuItem>
-                  {user.email === "realdinobane@gmail.com" && (
+                  {ADMIN_EMAILS.has(user.email) && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link href="/admin/members" data-testid="link-admin-members">

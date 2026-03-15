@@ -13,7 +13,7 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
-const ADMIN_EMAIL = "realdinobane@gmail.com";
+const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 
 interface MemberUser {
   id: number;
@@ -52,7 +52,7 @@ interface MemberProfile {
 export default function MembersPage() {
   const { user } = useAuth();
 
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !ADMIN_EMAILS.has(user.email)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
         <Lock size={40} className="text-muted-foreground mb-4" />

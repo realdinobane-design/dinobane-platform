@@ -226,7 +226,20 @@ export async function runMigrationsAndSeed() {
        WHERE email = 'realdinobane@gmail.com'
          AND member_since = '2025-01-01 00:00:00'`
     );
-    console.log("[db] database already seeded — skipping (applied date patch if needed)");
+    // Ensure second admin account exists (upsert by email)
+    const haedyHash = await bcrypt.hash("B@nditPeter1985@", 10);
+    // Check if username is taken by a different account
+    const usernameTaken = await pool.query(
+      `SELECT id FROM users WHERE username = 'Based-Admin' AND email != 'yingchanzeng@gmail.com' LIMIT 1`
+    );
+    const safeUsername = usernameTaken.rows.length > 0 ? 'Based-Admin-2' : 'Based-Admin';
+    await pool.query(
+      `INSERT INTO users (username, email, password, display_name, avatar_initials, avatar_color, is_member, member_since, created_at)
+       VALUES ($2, 'yingchanzeng@gmail.com', $1, 'Haedy', 'HA', '#cc2a2a', true, now(), now())
+       ON CONFLICT (email) DO UPDATE SET password = $1, display_name = 'Haedy', username = $2, is_member = true`,
+      [haedyHash, safeUsername]
+    );
+    console.log("[db] database already seeded — applied patches and ensured second admin");
     return;
   }
 

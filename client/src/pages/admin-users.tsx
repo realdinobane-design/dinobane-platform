@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const ADMIN_EMAIL = "realdinobane@gmail.com";
+const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 
 interface AdminUser {
   id: number;
@@ -44,7 +44,7 @@ export default function AdminUsersPage() {
   const { user } = useAuth();
 
   // Hard block — not admin
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !ADMIN_EMAILS.has(user.email)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
         <Lock size={40} className="text-muted-foreground mb-4" />
