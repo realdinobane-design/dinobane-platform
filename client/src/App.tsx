@@ -70,11 +70,7 @@ function InnerApp() {
               <AppRoutes />
             </main>
             <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-              <p>© 2026 DinoBane. All rights reserved. &nbsp;·&nbsp;
-                <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-                  Created with Perplexity Computer
-                </a>
-              </p>
+              <p>© 2026 DinoBane. All rights reserved.</p>
             </footer>
           </div>
         </Router>

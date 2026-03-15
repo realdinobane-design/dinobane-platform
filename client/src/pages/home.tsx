@@ -65,9 +65,9 @@ export default function HomePage() {
             className="text-4xl sm:text-6xl font-black text-white leading-tight mb-4"
             style={{ fontFamily: "'Clash Display', sans-serif" }}
           >
-            They Control<br />
+            They Don't Control<br />
             <span className="text-red-500">The Narrative.</span><br />
-            We Don't.
+            You Do.
           </h1>
           <p className="text-zinc-400 text-lg max-w-xl mb-8">
             Unfiltered political commentary, investigative breakdowns, and the stories the mainstream media doesn't want you to see.
