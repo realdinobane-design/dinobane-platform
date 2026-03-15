@@ -581,6 +581,31 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true });
   });
 
+  // GET /api/admin/users/:id/profile — full profile for a single user (admin only)
+  app.get("/api/admin/users/:id/profile", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: "Invalid user ID" });
+    const target = await storage.getUserById(targetId);
+    if (!target) return res.status(404).json({ error: "User not found" });
+    const { password: _, ...safeUser } = target;
+    // Gather messages across all channels
+    const channels = ["general", "news-links", "video-discussion", "off-topic"];
+    const messages: any[] = [];
+    let mentionCount = 0;
+    const mentionRegex = new RegExp(`@${target.username}\\b`, "i");
+    for (const channel of channels) {
+      const msgs = await storage.getMessages(channel);
+      for (const msg of msgs) {
+        if (msg.userId === targetId) messages.push(msg);
+        if (mentionRegex.test(msg.content)) mentionCount++;
+      }
+    }
+    messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return res.json({ user: safeUser, messages: messages.slice(0, 50), mentionCount });
+  });
+
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
   // GET: any paid member can view all media
   // POST/DELETE: admin only (realdinobane@gmail.com)

@@ -131,11 +131,18 @@ export function AppNav() {
                     </Link>
                   </DropdownMenuItem>
                   {user.email === "realdinobane@gmail.com" && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin/users" data-testid="link-admin-users">
-                        <ShieldAlert size={14} className="mr-2 text-red-500" /> User Management
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/members" data-testid="link-admin-members">
+                          <Crown size={14} className="mr-2 text-yellow-500" /> Members
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/users" data-testid="link-admin-users">
+                          <ShieldAlert size={14} className="mr-2 text-red-500" /> User Management
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} data-testid="button-logout" className="text-red-400">
