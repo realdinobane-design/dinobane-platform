@@ -65,7 +65,7 @@ export default function ArticlesPage() {
       </div>
 
       {/* ─── VIDEO TO ARTICLE TOOL ─────────────────────────────────────────── */}
-      {user && (
+      {user && new Set(["realdinobane@gmail.com","yingchanzeng@gmail.com"]).has(user.email) && (
         <div className="mb-8 p-5 rounded-lg bg-card border border-border">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles size={16} className="text-red-400" />

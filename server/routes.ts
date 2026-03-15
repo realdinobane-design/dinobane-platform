@@ -488,6 +488,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   app.post("/api/articles/generate", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]).has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
 
     const { youtubeUrl } = req.body;
     if (!youtubeUrl) return res.status(400).json({ error: "YouTube URL required" });
@@ -892,6 +896,47 @@ export function registerRoutes(httpServer: Server, app: Express) {
       return res.status(500).json({ error: e.message });
     }
   });
+
+  // ─── AUTO-SYNC: poll YouTube RSS every 30 min, auto-generate articles ────────
+  async function syncYouTubeArticles(reason = "scheduled") {
+    try {
+      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
+      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      const r = await fetch(rssUrl, { signal: AbortSignal.timeout(10_000), headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!r.ok) { console.log(`[sync] RSS fetch failed (${reason})`); return; }
+      const xml = await r.text();
+      const videos = parseYouTubeFeed(xml);
+      const articles = await storage.getArticles();
+      const existingVideoIds = new Set(articles.map((a: any) => a.videoId).filter(Boolean));
+      const newVideos = videos.filter((v: any) => !existingVideoIds.has(v.id));
+      if (newVideos.length === 0) { console.log(`[sync] no new videos (${reason})`); return; }
+      console.log(`[sync] ${newVideos.length} new video(s) found — generating articles...`);
+      for (const v of newVideos) {
+        try {
+          const content = await generateArticleAI(v.title, `https://www.youtube.com/watch?v=${v.id}`);
+          await storage.createArticle({
+            title: v.title,
+            content,
+            summary: `Written analysis of "${v.title}" — key arguments and context from the latest DinoBane video.`,
+            youtubeUrl: `https://www.youtube.com/watch?v=${v.id}`,
+            videoId: v.id,
+            thumbnail: v.thumbnail,
+            isPublic: true,
+          });
+          console.log(`[sync] article created: ${v.title}`);
+        } catch (e: any) {
+          console.error(`[sync] failed to generate article for ${v.id}:`, e.message);
+        }
+      }
+    } catch (e: any) {
+      console.error(`[sync] error (${reason}):`, e.message);
+    }
+  }
+
+  // Run once on startup (catches any videos uploaded while server was down)
+  setTimeout(() => syncYouTubeArticles("startup"), 10_000);
+  // Then every 30 minutes
+  setInterval(() => syncYouTubeArticles("interval"), 30 * 60 * 1000);
 
   // ─── WEBSOCKET SERVER ─────────────────────────────────────────────────────────
   wss = new WebSocketServer({ server: httpServer, path: "/ws" });
