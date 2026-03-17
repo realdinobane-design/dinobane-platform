@@ -33,6 +33,7 @@ export interface IStorage {
   deleteMedia(id: number, userId: number): Promise<void>;
   getArticleById(id: number): Promise<Article | undefined>;
   createArticle(data: InsertArticle): Promise<Article>;
+  updateArticle(id: number, data: Partial<InsertArticle>): Promise<Article>;
 }
 
 // ─── DRIZZLE STORAGE ──────────────────────────────────────────────────────────
@@ -137,6 +138,12 @@ class DrizzleStorage implements IStorage {
       ...data,
       isPublic: data.isPublic ?? true,
     }).returning();
+    return article;
+  }
+
+  async updateArticle(id: number, data: Partial<InsertArticle>): Promise<Article> {
+    const [article] = await db.update(articles).set(data).where(eq(articles.id, id)).returning();
+    if (!article) throw new Error("Article not found");
     return article;
   }
   async getMediaByUser(userId: number): Promise<Media[]> {
