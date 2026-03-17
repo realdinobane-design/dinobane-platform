@@ -888,6 +888,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(safe);
   });
 
+  // POST /api/admin/send-welcome-to-members — one-off: send welcome email to all current members
+  app.post("/api/admin/send-welcome-to-members", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const allUsers = await storage.getAllUsers();
+    const members = allUsers.filter((u: any) => u.isMember);
+    let sent = 0;
+    for (const u of members) {
+      await sendWelcomeEmail(u.email, u.displayName);
+      sent++;
+    }
+    console.log(`[admin] sent welcome email to ${sent} existing members`);
+    return res.json({ ok: true, sent });
+  });
+
   // DELETE /api/admin/users/:id — delete account (only if isMember is already false)
   app.delete("/api/admin/users/:id", async (req, res) => {
     const check = await requireAdmin(req, res);
