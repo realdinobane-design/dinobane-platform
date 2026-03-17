@@ -476,20 +476,60 @@ export function registerRoutes(httpServer: Server, app: Express) {
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          const userId = parseInt(session.subscription_data?.metadata?.userId || "0");
-          if (userId) await storage.updateUserMembership(userId, true);
+          let userId = parseInt(session.subscription_data?.metadata?.userId || "0");
+          // Fallback: look up user by customer email if userId not in metadata
+          if (!userId && session.customer_details?.email) {
+            const userByEmail = await storage.getUserByEmail(session.customer_details.email);
+            if (userByEmail) userId = userByEmail.id;
+          }
+          // Second fallback: look up by Stripe customer email
+          if (!userId && session.customer && typeof session.customer === "string") {
+            try {
+              const customer = await stripe!.customers.retrieve(session.customer) as Stripe.Customer;
+              if (customer && !customer.deleted && customer.email) {
+                const userByEmail = await storage.getUserByEmail(customer.email);
+                if (userByEmail) userId = userByEmail.id;
+              }
+            } catch (e) { console.error("[webhook] customer lookup failed:", e); }
+          }
+          if (userId) {
+            await storage.updateUserMembership(userId, true);
+            console.log(`[webhook] checkout.session.completed — granted membership to userId ${userId}`);
+          } else {
+            console.warn("[webhook] checkout.session.completed — could not resolve userId, session:", session.id);
+          }
           break;
         }
         case "customer.subscription.deleted":
         case "customer.subscription.paused": {
           const sub = event.data.object as Stripe.Subscription;
-          const userId = parseInt(sub.metadata?.userId || "0");
+          let userId = parseInt(sub.metadata?.userId || "0");
+          // Fallback: look up by Stripe customer email
+          if (!userId && sub.customer && typeof sub.customer === "string") {
+            try {
+              const customer = await stripe!.customers.retrieve(sub.customer) as Stripe.Customer;
+              if (customer && !customer.deleted && customer.email) {
+                const userByEmail = await storage.getUserByEmail(customer.email);
+                if (userByEmail) userId = userByEmail.id;
+              }
+            } catch (e) { console.error("[webhook] customer lookup failed:", e); }
+          }
           if (userId) await storage.updateUserMembership(userId, false);
           break;
         }
         case "customer.subscription.updated": {
           const sub = event.data.object as Stripe.Subscription;
-          const userId = parseInt(sub.metadata?.userId || "0");
+          let userId = parseInt(sub.metadata?.userId || "0");
+          // Fallback: look up by Stripe customer email
+          if (!userId && sub.customer && typeof sub.customer === "string") {
+            try {
+              const customer = await stripe!.customers.retrieve(sub.customer) as Stripe.Customer;
+              if (customer && !customer.deleted && customer.email) {
+                const userByEmail = await storage.getUserByEmail(customer.email);
+                if (userByEmail) userId = userByEmail.id;
+              }
+            } catch (e) { console.error("[webhook] customer lookup failed:", e); }
+          }
           const active = sub.status === "active" || sub.status === "trialing";
           if (userId) await storage.updateUserMembership(userId, active);
           break;
@@ -646,6 +686,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const updated = await storage.getUserById(targetId);
     if (!updated) return res.status(404).json({ error: "User not found after update" });
     const { password: _, ...safe } = updated;
+    return res.json(safe);
+  });
+
+  // POST /api/admin/users/:id/membership — manually grant membership (admin only)
+  app.post("/api/admin/users/:id/membership", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: "Invalid user ID" });
+    const target = await storage.getUserById(targetId);
+    if (!target) return res.status(404).json({ error: "User not found" });
+    if (target.isMember) return res.status(400).json({ error: "User is already a member" });
+    await storage.updateUserMembership(targetId, true);
+    const updated = await storage.getUserById(targetId);
+    if (!updated) return res.status(404).json({ error: "User not found after update" });
+    const { password: _, ...safe } = updated;
+    console.log(`[admin] membership manually granted to userId ${targetId} by admin ${check.adminUser.email}`);
     return res.json(safe);
   });
 
