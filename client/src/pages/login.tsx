@@ -110,7 +110,12 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          <Link href="/forgot-password" className="text-muted-foreground hover:text-primary transition-colors">
+            Forgot your password?
+          </Link>
+        </p>
+        <p className="text-center text-sm text-muted-foreground mt-2">
           Not a member?{" "}
           <Link href="/membership" className="text-primary hover:underline font-semibold">
             Join for £5/mo
