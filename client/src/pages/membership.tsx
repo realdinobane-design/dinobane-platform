@@ -54,13 +54,21 @@ export default function MembershipPage() {
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/stripe/checkout", {});
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw Object.assign(new Error(data.message || data.error || "Could not start checkout."), { code: data.error });
+      return data;
     },
     onSuccess: (data) => {
       if (data.url) window.location.href = data.url;
     },
     onError: (e: any) => {
-      toast({ title: "Checkout failed", description: e.message || "Could not start checkout.", variant: "destructive" });
+      if (e.code === "already_subscribed") {
+        // Payment existed but membership wasn't activated — server just fixed it
+        toast({ title: "Membership activated", description: "Your payment was found. Refreshing your account now…" });
+        refetch();
+      } else {
+        toast({ title: "Checkout failed", description: e.message || "Could not start checkout.", variant: "destructive" });
+      }
     },
   });
 
