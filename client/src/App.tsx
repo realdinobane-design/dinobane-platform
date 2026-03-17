@@ -18,6 +18,8 @@ import ProfilePage from "@/pages/profile";
 import MediaVaultPage from "@/pages/media-vault";
 import AdminUsersPage from "@/pages/admin-users";
 import MembersPage from "@/pages/members";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 import { AppNav } from "@/components/app-nav";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
@@ -60,6 +62,8 @@ function AppRoutes() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/membership" component={MembershipPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
 
       {/* Member-only routes — must have isMember=true */}
       <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
