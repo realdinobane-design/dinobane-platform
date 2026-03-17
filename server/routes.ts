@@ -164,6 +164,29 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const colors = ["#cc2a2a", "#1d4ed8", "#16a34a", "#7c3aed", "#d97706", "#0891b2"];
       const color = colors[Math.floor(Math.random() * colors.length)];
 
+      // ── STRIPE PRE-PAYMENT CHECK ─────────────────────────────────────────────
+      // If this email already has an active Stripe subscription (paid before
+      // registering, or paid via a direct link), grant membership immediately.
+      let preGrantMember = false;
+      let preGrantCustomerId: string | null = null;
+      if (stripe) {
+        try {
+          const existingCustomers = await stripe.customers.list({ email: body.email, limit: 1 });
+          if (existingCustomers.data.length > 0) {
+            const cus = existingCustomers.data[0];
+            const activeSubs = await stripe.subscriptions.list({ customer: cus.id, status: "active", limit: 1 });
+            if (activeSubs.data.length > 0) {
+              preGrantMember = true;
+              preGrantCustomerId = cus.id;
+              console.log(`[register] pre-payment detected for ${body.email} — granting membership on registration`);
+            }
+          }
+        } catch (e: any) {
+          console.error("[register] stripe pre-check failed:", e.message);
+        }
+      }
+      // ── END PRE-PAYMENT CHECK ────────────────────────────────────────────────
+
       const user = await storage.createUser({
         email: body.email,
         username: body.username,
@@ -171,9 +194,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
         password: hash,
         avatarInitials: initials,
         avatarColor: color,
-        isMember: false,
-        stripeCustomerId: null,
+        isMember: preGrantMember,
+        stripeCustomerId: preGrantCustomerId,
       });
+
+      // Link userId into Stripe customer metadata if pre-granted
+      if (preGrantMember && preGrantCustomerId && stripe) {
+        stripe.customers.update(preGrantCustomerId, { metadata: { userId: String(user.id) } }).catch(() => {});
+      }
 
       // Generate email verification token
       const token = crypto.randomBytes(32).toString("hex");
@@ -188,21 +216,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
 
       if (resend) {
+        const emailSubject = preGrantMember
+          ? "Welcome to DinoBane — Verify your email to get in"
+          : "Verify your DinoBane account";
+        const emailBody = preGrantMember
+          ? `Hi <strong style="color:#fff;">${user.displayName}</strong>, we found your payment — your membership is ready. Just verify your email to access the community.`
+          : `Hi <strong style="color:#fff;">${user.displayName}</strong>, click the button below to verify your email address and proceed to membership.`;
+        const buttonText = preGrantMember ? "Verify Email &amp; Access Community" : "Verify Email &amp; Join";
         await resend.emails.send({
           from: "DinoBane <noreply@dinobane.com>",
           to: user.email,
-          subject: "Verify your DinoBane account",
+          subject: emailSubject,
           html: `
             <div style="background:#0a0a0a;color:#fff;font-family:sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;">
               <div style="margin-bottom:32px;">
                 <span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#cc2a2a;">BANE</span>
               </div>
               <h2 style="font-size:20px;font-weight:700;margin:0 0 12px;">Verify your email</h2>
-              <p style="color:#aaa;font-size:14px;margin:0 0 28px;line-height:1.6;">
-                Hi <strong style="color:#fff;">${user.displayName}</strong>, click the button below to verify your email address and proceed to membership.
-              </p>
+              <p style="color:#aaa;font-size:14px;margin:0 0 28px;line-height:1.6;">${emailBody}</p>
               <a href="${verifyUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">
-                Verify Email &amp; Join
+                ${buttonText}
               </a>
               <p style="color:#555;font-size:12px;margin:28px 0 0;">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
             </div>
