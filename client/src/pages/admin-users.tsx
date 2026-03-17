@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Crown, Trash2, ShieldOff, Loader2, Lock, Users, Search } from "lucide-react";
+import { Crown, Trash2, ShieldOff, Loader2, Lock, Users, Search, BadgeCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import {
@@ -38,6 +38,7 @@ interface AdminUser {
 type ConfirmAction =
   | { type: "cancel"; user: AdminUser }
   | { type: "delete"; user: AdminUser }
+  | { type: "grant"; user: AdminUser }
   | null;
 
 export default function AdminUsersPage() {
@@ -70,6 +71,28 @@ function AdminUsersInner() {
       return res.json();
     },
     staleTime: 0,
+  });
+
+  const grantMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/membership`, {});
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to grant membership");
+      }
+      return res.json();
+    },
+    onSuccess: (updated: AdminUser) => {
+      qc.setQueryData<AdminUser[]>(["/api/admin/users"], (old = []) =>
+        old.map(u => u.id === updated.id ? { ...u, isMember: true, memberSince: updated.memberSince } : u)
+      );
+      toast({ title: "Membership granted", description: `${updated.displayName} now has full member access.` });
+      setConfirm(null);
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+      setConfirm(null);
+    },
   });
 
   const cancelMutation = useMutation({
@@ -125,7 +148,7 @@ function AdminUsersInner() {
   const members = filtered.filter(u => u.isMember);
   const nonMembers = filtered.filter(u => !u.isMember);
 
-  const isPending = cancelMutation.isPending || deleteMutation.isPending;
+  const isPending = cancelMutation.isPending || deleteMutation.isPending || grantMutation.isPending;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -139,7 +162,7 @@ function AdminUsersInner() {
             User Management
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Admin only — cancel memberships and delete accounts.
+            Admin only — grant, cancel memberships and delete accounts.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-sm px-3 py-2">
@@ -182,6 +205,7 @@ function AdminUsersInner() {
                     user={u}
                     onCancel={() => setConfirm({ type: "cancel", user: u })}
                     onDelete={() => setConfirm({ type: "delete", user: u })}
+                    onGrant={() => setConfirm({ type: "grant", user: u })}
                     isPending={isPending}
                   />
                 ))}
@@ -202,6 +226,7 @@ function AdminUsersInner() {
                     user={u}
                     onCancel={() => setConfirm({ type: "cancel", user: u })}
                     onDelete={() => setConfirm({ type: "delete", user: u })}
+                    onGrant={() => setConfirm({ type: "grant", user: u })}
                     isPending={isPending}
                   />
                 ))}
@@ -214,6 +239,37 @@ function AdminUsersInner() {
           )}
         </>
       )}
+
+      {/* Confirm: Grant membership */}
+      <AlertDialog open={confirm?.type === "grant"} onOpenChange={open => { if (!open) setConfirm(null); }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Grant membership?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This will manually grant{" "}
+              <span className="text-white font-semibold">{confirm?.user.displayName}</span> full member
+              access to the community and vault. Use this to fix accounts where payment was received
+              but access wasn't automatically activated.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border text-muted-foreground" onClick={() => setConfirm(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-700 hover:bg-green-600 text-white gap-1.5"
+              onClick={() => confirm && grantMutation.mutate(confirm.user.id)}
+              disabled={grantMutation.isPending}
+              data-testid="button-confirm-grant"
+            >
+              {grantMutation.isPending
+                ? <Loader2 size={13} className="animate-spin" />
+                : <BadgeCheck size={13} />}
+              Grant access
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirm: Cancel membership */}
       <AlertDialog open={confirm?.type === "cancel"} onOpenChange={open => { if (!open) setConfirm(null); }}>
@@ -288,11 +344,13 @@ function UserRow({
   user,
   onCancel,
   onDelete,
+  onGrant,
   isPending,
 }: {
   user: AdminUser;
   onCancel: () => void;
   onDelete: () => void;
+  onGrant: () => void;
   isPending: boolean;
 }) {
   return (
@@ -332,6 +390,19 @@ function UserRow({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {/* Grant membership — only shown for non-members */}
+        {!user.isMember && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs text-green-400 border-green-800/40 hover:bg-green-950/20 hover:text-green-300"
+            onClick={onGrant}
+            disabled={isPending}
+            data-testid={`button-grant-${user.id}`}
+          >
+            <BadgeCheck size={12} /> Grant
+          </Button>
+        )}
         {/* Cancel membership — only shown if currently a member */}
         {user.isMember && (
           <Button
