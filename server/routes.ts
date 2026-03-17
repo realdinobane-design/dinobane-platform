@@ -201,6 +201,43 @@ async function sendWelcomeEmail(email: string, displayName: string) {
   }
 }
 
+// ─── ADMIN NEW MEMBER NOTIFICATION ─────────────────────────────────────────────
+async function notifyAdminNewMember(email: string, displayName: string) {
+  if (!resend) return;
+  try {
+    await resend.emails.send({
+      from: "DinoBane <noreply@dinobane.com>",
+      to: "realdinobane@gmail.com",
+      subject: `⭐ New member: ${displayName}`,
+      html: `
+        <div style="background:#0a0a0a;color:#fff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:36px 32px;border:1px solid #1f1f1f;">
+          <div style="margin-bottom:20px;border-bottom:2px solid #cc2a2a;padding-bottom:16px;">
+            <span style="font-size:22px;font-weight:900;letter-spacing:3px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:3px;color:#cc2a2a;">BANE</span>
+          </div>
+          <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">New Member Joined</h2>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #1f1f1f;border-radius:3px;background:#111;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid #1a1a1a;">
+              <span style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Name</span><br/>
+              <span style="color:#fff;font-size:15px;font-weight:600;">${displayName}</span>
+            </td></tr>
+            <tr><td style="padding:14px 18px;">
+              <span style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Email</span><br/>
+              <span style="color:#cc2a2a;font-size:15px;font-weight:600;">${email}</span>
+            </td></tr>
+          </table>
+          <div style="margin-top:20px;">
+            <a href="https://dinobane.com/#/admin/users" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 24px;text-decoration:none;border-radius:2px;">View in Admin Panel →</a>
+          </div>
+          <p style="margin:20px 0 0;font-size:11px;color:#444;">Sent automatically by DinoBane when a new paid member is created.</p>
+        </div>
+      `,
+    });
+    console.log(`[admin-notify] new member notification sent for ${email}`);
+  } catch (e: any) {
+    console.error(`[admin-notify] failed:`, e.message);
+  }
+}
+
 // Tracks the last time a mention email was sent per user (userId → Date)
 // We only send one email per user per calendar day (UTC)
 const mentionEmailSentAt = new Map<number, string>(); // userId → "YYYY-MM-DD"
@@ -379,6 +416,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // Send welcome email immediately for pre-granted members (they've already paid)
       if (preGrantMember) {
         sendWelcomeEmail(user.email, user.displayName).catch(() => {});
+        notifyAdminNewMember(user.email, user.displayName).catch(() => {});
       }
 
       // Generate email verification token
@@ -745,6 +783,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         // They already paid — fix their account right now
         await storage.updateUserMembership(user.id, true);
         sendWelcomeEmail(user.email, user.displayName).catch(() => {});
+        notifyAdminNewMember(user.email, user.displayName).catch(() => {});
         console.log(`[checkout] duplicate guard triggered — auto-granted membership to userId ${user.id} (existing sub: ${activeSubs.data[0].id})`);
         return res.status(400).json({
           error: "already_subscribed",
@@ -830,7 +869,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
           if (userId) {
             await storage.updateUserMembership(userId, true);
             const webhookUser = await storage.getUserById(userId);
-            if (webhookUser) sendWelcomeEmail(webhookUser.email, webhookUser.displayName).catch(() => {});
+            if (webhookUser) {
+              sendWelcomeEmail(webhookUser.email, webhookUser.displayName).catch(() => {});
+              notifyAdminNewMember(webhookUser.email, webhookUser.displayName).catch(() => {});
+            }
             console.log(`[webhook] checkout.session.completed — granted membership to userId ${userId}`);
           } else {
             console.warn("[webhook] checkout.session.completed — could not resolve userId, session:", session.id);
@@ -885,6 +927,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (stripe) return res.status(400).json({ error: "Use Stripe checkout" });
     const user = await storage.updateUserMembership(req.session.userId, true);
     sendWelcomeEmail(user.email, user.displayName).catch(() => {});
+    notifyAdminNewMember(user.email, user.displayName).catch(() => {});
     const { password: _, ...safeUser } = user;
     return res.json(safeUser);
   });
@@ -1040,6 +1083,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const updated = await storage.getUserById(targetId);
     if (!updated) return res.status(404).json({ error: "User not found after update" });
     sendWelcomeEmail(updated.email, updated.displayName).catch(() => {});
+    notifyAdminNewMember(updated.email, updated.displayName).catch(() => {});
     const { password: _, ...safe } = updated;
     console.log(`[admin] membership manually granted to userId ${targetId} by admin ${check.adminUser.email}`);
     return res.json(safe);
