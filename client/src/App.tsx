@@ -1,5 +1,5 @@
 import { useHashLocation } from "wouter/use-hash-location";
-import { Switch, Route, Router } from "wouter";
+import { Switch, Route, Router, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -32,22 +32,49 @@ export const AuthContext = createContext<{
 
 export const useAuth = () => useContext(AuthContext);
 
+// ─── ROUTE GUARDS ─────────────────────────────────────────────────────────────
+
+// Requires a fully paid member session.
+// Not logged in → /login | Logged in but not member → /membership
+function MemberRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null; // wait for session check before redirecting
+  if (!user) return <Redirect to="/login" />;
+  if (!user.isMember) return <Redirect to="/membership" />;
+  return <Component />;
+}
+
+// Requires any logged-in session (e.g. profile, admin).
+function AuthRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Redirect to="/login" />;
+  return <Component />;
+}
+
 function AppRoutes() {
   return (
     <Switch>
+      {/* Public routes — no login required */}
       <Route path="/" component={HomePage} />
-      <Route path="/videos" component={VideosPage} />
-      <Route path="/articles" component={ArticlesPage} />
-      <Route path="/articles/:id" component={ArticleDetailPage} />
-      <Route path="/news" component={NewsPage} />
-      <Route path="/community" component={CommunityPage} />
-      <Route path="/membership" component={MembershipPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route path="/media-vault" component={MediaVaultPage} />
-      <Route path="/admin/users" component={AdminUsersPage} />
-      <Route path="/admin/members" component={MembersPage} />
+      <Route path="/membership" component={MembershipPage} />
+
+      {/* Member-only routes — must have isMember=true */}
+      <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
+      <Route path="/media-vault">{() => <MemberRoute component={MediaVaultPage} />}</Route>
+      <Route path="/news">{() => <MemberRoute component={NewsPage} />}</Route>
+      <Route path="/videos">{() => <MemberRoute component={VideosPage} />}</Route>
+      <Route path="/articles">{() => <MemberRoute component={ArticlesPage} />}</Route>
+      <Route path="/articles/:id">{() => <MemberRoute component={ArticleDetailPage} />}</Route>
+      <Route path="/members">{() => <MemberRoute component={MembersPage} />}</Route>
+
+      {/* Authenticated routes — logged in, membership not required */}
+      <Route path="/profile">{() => <AuthRoute component={ProfilePage} />}</Route>
+      <Route path="/admin/users">{() => <AuthRoute component={AdminUsersPage} />}</Route>
+      <Route path="/admin/members">{() => <AuthRoute component={MembersPage} />}</Route>
+
       <Route component={NotFound} />
     </Switch>
   );
