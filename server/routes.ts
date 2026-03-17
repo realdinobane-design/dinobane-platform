@@ -28,6 +28,120 @@ const resend = process.env.RESEND_API_KEY
 const verificationTokens = new Map<string, { userId: number; email: string; expires: number }>();
 
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
+// ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
+async function sendWelcomeEmail(email: string, displayName: string) {
+  if (!resend) return;
+  const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+  try {
+    await resend.emails.send({
+      from: "DinoBane <noreply@dinobane.com>",
+      to: email,
+      subject: "Welcome to DinoBane — You're in.",
+      html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to DinoBane</title></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a0a;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;background:#111;border:1px solid #1f1f1f;border-radius:4px;overflow:hidden;">
+
+        <!-- Header / Logo -->
+        <tr>
+          <td style="background:#0d0d0d;border-bottom:2px solid #cc2a2a;padding:28px 36px;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td>
+                  <!-- SVG logo as inline text -->
+                  <span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">DINO</span><span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#cc2a2a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">BANE</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Hero banner -->
+        <tr>
+          <td style="padding:0;">
+            <img src="${appUrl}/brand/hero2.jpg" alt="DinoBane" width="520" style="display:block;width:100%;max-width:520px;height:140px;object-fit:cover;opacity:0.7;" />
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 36px 12px;">
+            <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">You're In.</h1>
+            <p style="margin:0 0 24px;font-size:15px;color:#aaaaaa;line-height:1.7;">Welcome to the <strong style="color:#fff;">DinoBane</strong> community, ${displayName}. Your membership is now active — you've got full access to everything below.</p>
+          </td>
+        </tr>
+
+        <!-- Feature list -->
+        <tr>
+          <td style="padding:0 36px 28px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #1f1f1f;border-radius:3px;background:#0d0d0d;">
+              ${[
+                ["#general", "Main chat — anything goes"],
+                ["#news-links", "Drop links to stories you find"],
+                ["#video-discussion", "Discuss the latest videos"],
+                ["#off-topic", "Banter, memes, off-the-record"],
+              ].map(([ch, desc]) => `
+              <tr>
+                <td style="padding:13px 18px;border-bottom:1px solid #1a1a1a;">
+                  <span style="color:#cc2a2a;font-weight:700;font-size:13px;">${ch}&nbsp;</span>
+                  <span style="color:#888;font-size:13px;">${desc}</span>
+                </td>
+              </tr>`).join('')}
+              <tr>
+                <td style="padding:13px 18px;">
+                  <span style="color:#cc2a2a;font-weight:700;font-size:13px;">Media Vault&nbsp;</span>
+                  <span style="color:#888;font-size:13px;">Members-only content &amp; exclusives</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- CTA button -->
+        <tr>
+          <td align="center" style="padding:4px 36px 32px;">
+            <a href="${appUrl}/#/community" style="display:inline-block;background:#cc2a2a;color:#ffffff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:15px 36px;text-decoration:none;border-radius:2px;">Enter the Community &rarr;</a>
+          </td>
+        </tr>
+
+        <!-- Support note -->
+        <tr>
+          <td style="padding:0 36px 32px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #2a2a2a;border-radius:3px;background:#141414;padding:0;">
+              <tr>
+                <td style="padding:16px 18px;">
+                  <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">Billing &amp; Account Issues?</p>
+                  <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">Email us directly at <a href="mailto:realdinobane@gmail.com" style="color:#cc2a2a;text-decoration:none;font-weight:600;">realdinobane@gmail.com</a> and we'll sort it out for you.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#0d0d0d;border-top:1px solid #1a1a1a;padding:20px 36px;">
+            <p style="margin:0;font-size:11px;color:#444;line-height:1.6;">&copy; 2026 DinoBane. All rights reserved.<br>You're receiving this because you just became a member at <a href="${appUrl}" style="color:#555;text-decoration:none;">dinobane.com</a>. Cancel any time from your billing portal.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+      `,
+    });
+    console.log(`[welcome-email] sent to ${email}`);
+  } catch (e: any) {
+    console.error(`[welcome-email] failed for ${email}:`, e.message);
+  }
+}
+
 // Tracks the last time a mention email was sent per user (userId → Date)
 // We only send one email per user per calendar day (UTC)
 const mentionEmailSentAt = new Map<number, string>(); // userId → "YYYY-MM-DD"
@@ -201,6 +315,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // Link userId into Stripe customer metadata if pre-granted
       if (preGrantMember && preGrantCustomerId && stripe) {
         stripe.customers.update(preGrantCustomerId, { metadata: { userId: String(user.id) } }).catch(() => {});
+      }
+
+      // Send welcome email immediately for pre-granted members (they've already paid)
+      if (preGrantMember) {
+        sendWelcomeEmail(user.email, user.displayName).catch(() => {});
       }
 
       // Generate email verification token
@@ -468,6 +587,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       if (activeSubs.data.length > 0) {
         // They already paid — fix their account right now
         await storage.updateUserMembership(user.id, true);
+        sendWelcomeEmail(user.email, user.displayName).catch(() => {});
         console.log(`[checkout] duplicate guard triggered — auto-granted membership to userId ${user.id} (existing sub: ${activeSubs.data[0].id})`);
         return res.status(400).json({
           error: "already_subscribed",
@@ -552,6 +672,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
           }
           if (userId) {
             await storage.updateUserMembership(userId, true);
+            const webhookUser = await storage.getUserById(userId);
+            if (webhookUser) sendWelcomeEmail(webhookUser.email, webhookUser.displayName).catch(() => {});
             console.log(`[webhook] checkout.session.completed — granted membership to userId ${userId}`);
           } else {
             console.warn("[webhook] checkout.session.completed — could not resolve userId, session:", session.id);
@@ -605,6 +727,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     if (stripe) return res.status(400).json({ error: "Use Stripe checkout" });
     const user = await storage.updateUserMembership(req.session.userId, true);
+    sendWelcomeEmail(user.email, user.displayName).catch(() => {});
     const { password: _, ...safeUser } = user;
     return res.json(safeUser);
   });
@@ -759,6 +882,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     await storage.updateUserMembership(targetId, true);
     const updated = await storage.getUserById(targetId);
     if (!updated) return res.status(404).json({ error: "User not found after update" });
+    sendWelcomeEmail(updated.email, updated.displayName).catch(() => {});
     const { password: _, ...safe } = updated;
     console.log(`[admin] membership manually granted to userId ${targetId} by admin ${check.adminUser.email}`);
     return res.json(safe);
