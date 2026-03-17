@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff, Mail, AlertTriangle } from "lucide-react";
 
 interface RegisterForm {
   username: string;
@@ -16,6 +16,12 @@ interface RegisterForm {
   confirmPassword: string;
 }
 
+const TOKEN_ERROR_MESSAGES: Record<string, string> = {
+  invalid_token: "That verification link has already been used or is invalid. Please register again.",
+  expired_token: "Your verification link has expired (links are valid for 24 hours). Please register again.",
+  missing_token: "Verification link was incomplete. Please register again.",
+};
+
 export default function RegisterPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -23,6 +29,18 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  // Show error if redirected back from a failed email verification
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err && TOKEN_ERROR_MESSAGES[err]) {
+      setTokenError(TOKEN_ERROR_MESSAGES[err]);
+      // Strip the error param from the URL cleanly
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>();
   const password = watch("password");
@@ -113,6 +131,14 @@ export default function RegisterPage() {
           <h1 className="text-xl font-bold text-foreground tracking-wider uppercase font-display">Create Account</h1>
           <p className="text-sm text-muted-foreground mt-1">Join the DinoBane community</p>
         </div>
+
+        {/* Token error banner — shown when redirected back from a failed verify link */}
+        {tokenError && (
+          <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/40 rounded-sm p-4 mb-4">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <p className="text-sm text-destructive">{tokenError}</p>
+          </div>
+        )}
 
         <div className="bg-card border border-border rounded-sm p-8 space-y-6">
           {/* Membership banner */}
