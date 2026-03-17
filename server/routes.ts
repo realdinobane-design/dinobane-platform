@@ -23,9 +23,68 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-// In-memory token store: token → { userId, email, expires }
-// Small memory footprint — tokens expire after 24h
+// ─── VERIFICATION TOKEN STORE ───────────────────────────────────────────────
+// Tokens are stored in the DB-backed sessions table so they survive server
+// restarts (Railway deploys, crashes, etc.). We use a dedicated pg table.
+// Falls back to in-memory if DB is unavailable.
 const verificationTokens = new Map<string, { userId: number; email: string; expires: number }>();
+
+async function storeVerificationToken(token: string, userId: number, email: string, expires: number) {
+  verificationTokens.set(token, { userId, email, expires });
+  try {
+    const { pool } = await import("./db");
+    await pool.query(
+      `INSERT INTO verification_tokens (token, user_id, email, expires_at)
+       VALUES ($1, $2, $3, to_timestamp($4 / 1000.0))
+       ON CONFLICT (token) DO NOTHING`,
+      [token, userId, email, expires]
+    );
+  } catch (e: any) { console.warn("[verify-token] db store failed:", e.message); }
+}
+
+async function getVerificationToken(token: string): Promise<{ userId: number; email: string; expires: number } | null> {
+  // Check in-memory first
+  if (verificationTokens.has(token)) return verificationTokens.get(token)!;
+  // Fall back to DB (after server restart)
+  try {
+    const { pool } = await import("./db");
+    const r = await pool.query(
+      `SELECT user_id, email, EXTRACT(EPOCH FROM expires_at)*1000 AS expires_ms
+       FROM verification_tokens WHERE token=$1`,
+      [token]
+    );
+    if (r.rows.length === 0) return null;
+    const row = r.rows[0];
+    const record = { userId: row.user_id, email: row.email, expires: Math.floor(parseFloat(row.expires_ms)) };
+    verificationTokens.set(token, record); // warm the cache
+    return record;
+  } catch (e: any) { console.warn("[verify-token] db lookup failed:", e.message); return null; }
+}
+
+async function deleteVerificationToken(token: string) {
+  verificationTokens.delete(token);
+  try {
+    const { pool } = await import("./db");
+    await pool.query(`DELETE FROM verification_tokens WHERE token=$1`, [token]);
+  } catch (e: any) { console.warn("[verify-token] db delete failed:", e.message); }
+}
+
+async function ensureVerificationTokensTable() {
+  try {
+    const { pool } = await import("./db");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS verification_tokens (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        email TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+    // Clean up expired tokens on startup
+    await pool.query(`DELETE FROM verification_tokens WHERE expires_at < now()`);
+  } catch (e: any) { console.warn("[verify-token] table setup failed:", e.message); }
+}
+ensureVerificationTokensTable();
 
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
@@ -324,11 +383,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       // Generate email verification token
       const token = crypto.randomBytes(32).toString("hex");
-      verificationTokens.set(token, {
-        userId: user.id,
-        email: user.email,
-        expires: Date.now() + 24 * 60 * 60 * 1000, // 24h
-      });
+      const tokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24h
+      await storeVerificationToken(token, user.id, user.email, tokenExpires);
 
       // Send verification email
       const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
@@ -381,16 +437,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
       return res.send(relayPage("/#/register?error=missing_token", "Invalid link"));
     }
 
-    const record = verificationTokens.get(token);
+    const record = await getVerificationToken(token);
     if (!record) {
       return res.send(relayPage("/#/register?error=invalid_token", "Link not found — it may have already been used."));
     }
     if (Date.now() > record.expires) {
-      verificationTokens.delete(token);
+      await deleteVerificationToken(token);
       return res.send(relayPage("/#/register?error=expired_token", "Link expired — please register again."));
     }
 
-    verificationTokens.delete(token); // single-use
+    await deleteVerificationToken(token); // single-use
 
     // Log the user in — session is saved before the page redirects
     req.session.userId = record.userId;
@@ -458,6 +514,107 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy(() => res.json({ ok: true }));
+  });
+
+  // ─── FORGOT / RESET PASSWORD ───────────────────────────────────────────────────
+  // In-memory password reset token store (also persisted to DB like verify tokens)
+  const passwordResetTokens = new Map<string, { userId: number; expires: number }>();
+
+  async function storePasswordResetToken(token: string, userId: number, expires: number) {
+    passwordResetTokens.set(token, { userId, expires });
+    try {
+      const { pool } = await import("./db");
+      await pool.query(
+        `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at TIMESTAMPTZ NOT NULL
+        )`,
+      );
+      await pool.query(
+        `INSERT INTO password_reset_tokens (token, user_id, expires_at)
+         VALUES ($1, $2, to_timestamp($3 / 1000.0))
+         ON CONFLICT (token) DO NOTHING`,
+        [token, userId, expires]
+      );
+    } catch (e: any) { console.warn("[reset-token] db store failed:", e.message); }
+  }
+
+  async function getPasswordResetToken(token: string): Promise<{ userId: number; expires: number } | null> {
+    if (passwordResetTokens.has(token)) return passwordResetTokens.get(token)!;
+    try {
+      const { pool } = await import("./db");
+      const r = await pool.query(
+        `SELECT user_id, EXTRACT(EPOCH FROM expires_at)*1000 AS expires_ms FROM password_reset_tokens WHERE token=$1`,
+        [token]
+      );
+      if (r.rows.length === 0) return null;
+      const row = r.rows[0];
+      const record = { userId: row.user_id, expires: Math.floor(parseFloat(row.expires_ms)) };
+      passwordResetTokens.set(token, record);
+      return record;
+    } catch (e: any) { return null; }
+  }
+
+  async function deletePasswordResetToken(token: string) {
+    passwordResetTokens.delete(token);
+    try {
+      const { pool } = await import("./db");
+      await pool.query(`DELETE FROM password_reset_tokens WHERE token=$1`, [token]);
+    } catch (e: any) {}
+  }
+
+  // POST /api/auth/forgot-password — sends reset link
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email required" });
+    // Always return 200 to prevent email enumeration
+    const user = await storage.getUserByEmail(email);
+    if (!user || !resend) return res.json({ ok: true });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = Date.now() + 60 * 60 * 1000; // 1 hour
+    await storePasswordResetToken(token, user.id, expires);
+
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+    const resetUrl = `${appUrl}/#/reset-password?token=${token}`;
+
+    await resend.emails.send({
+      from: "DinoBane <noreply@dinobane.com>",
+      to: user.email,
+      subject: "Reset your DinoBane password",
+      html: `
+        <div style="background:#0a0a0a;color:#fff;font-family:sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;">
+          <div style="margin-bottom:24px;">
+            <span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#cc2a2a;">BANE</span>
+          </div>
+          <h2 style="font-size:18px;font-weight:700;margin:0 0 12px;">Reset your password</h2>
+          <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Hi ${user.displayName}, click the button below to reset your password. This link expires in 1 hour.</p>
+          <a href="${resetUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a>
+          <p style="color:#555;font-size:11px;margin-top:32px;">If you didn\'t request this, ignore this email. Your password won\'t change.</p>
+        </div>
+      `,
+    }).catch(() => {});
+
+    return res.json({ ok: true });
+  });
+
+  // POST /api/auth/reset-password — consumes token and sets new password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: "Token and password required" });
+    if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+    const record = await getPasswordResetToken(token);
+    if (!record) return res.status(400).json({ error: "Invalid or expired reset link" });
+    if (Date.now() > record.expires) {
+      await deletePasswordResetToken(token);
+      return res.status(400).json({ error: "Reset link has expired — please request a new one" });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await storage.updateUserProfile(record.userId, { password: hash } as any);
+    await deletePasswordResetToken(token);
+
+    return res.json({ ok: true });
   });
 
   app.get("/api/auth/me", async (req, res) => {
