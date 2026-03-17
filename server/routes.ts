@@ -746,6 +746,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true });
   });
 
+  // POST /api/admin/cleanup — delete all non-member accounts older than 24h (admin only)
+  app.post("/api/admin/cleanup", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const users = await storage.getAllUsers();
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+    const stale = users.filter(u =>
+      !u.isMember &&
+      new Date(u.createdAt).getTime() < cutoff
+    );
+    let deleted = 0;
+    for (const u of stale) {
+      await storage.deleteUser(u.id);
+      deleted++;
+      console.log(`[admin cleanup] deleted stale non-member account: ${u.email} (userId ${u.id})`);
+    }
+    return res.json({ deleted, message: `Removed ${deleted} unpaid account(s) older than 24h.` });
+  });
+
   // GET /api/admin/users/:id/profile — full profile for a single user (admin only)
   app.get("/api/admin/users/:id/profile", async (req, res) => {
     const check = await requireAdmin(req, res);
