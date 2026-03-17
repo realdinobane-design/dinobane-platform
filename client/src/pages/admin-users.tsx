@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Crown, Trash2, ShieldOff, Loader2, Lock, Users, Search, BadgeCheck } from "lucide-react";
+import { Crown, Trash2, ShieldOff, Loader2, Lock, Users, Search, BadgeCheck, Eraser } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import {
@@ -71,6 +71,24 @@ function AdminUsersInner() {
       return res.json();
     },
     staleTime: 0,
+  });
+
+  const cleanupMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/cleanup", {});
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Cleanup failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data: { deleted: number; message: string }) => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Cleanup complete", description: data.message });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Cleanup failed", description: e.message, variant: "destructive" });
+    },
   });
 
   const grantMutation = useMutation({
@@ -148,7 +166,7 @@ function AdminUsersInner() {
   const members = filtered.filter(u => u.isMember);
   const nonMembers = filtered.filter(u => !u.isMember);
 
-  const isPending = cancelMutation.isPending || deleteMutation.isPending || grantMutation.isPending;
+  const isPending = cancelMutation.isPending || deleteMutation.isPending || grantMutation.isPending || cleanupMutation.isPending;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -162,15 +180,29 @@ function AdminUsersInner() {
             User Management
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Admin only — grant, cancel memberships and delete accounts.
+            Admin only — grant, cancel memberships, delete accounts, and purge unpaid users.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-sm px-3 py-2">
-          <Users size={13} />
-          <span>{users.length} total</span>
-          <span className="text-muted-foreground/40">·</span>
-          <Crown size={11} className="text-yellow-500" />
-          <span className="text-yellow-500">{users.filter(u => u.isMember).length} members</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-sm px-3 py-2">
+            <Users size={13} />
+            <span>{users.length} total</span>
+            <span className="text-muted-foreground/40">·</span>
+            <Crown size={11} className="text-yellow-500" />
+            <span className="text-yellow-500">{users.filter(u => u.isMember).length} members</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs text-zinc-400 border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
+            onClick={() => cleanupMutation.mutate()}
+            disabled={cleanupMutation.isPending}
+            title="Delete all non-member accounts older than 24 hours"
+            data-testid="button-cleanup"
+          >
+            {cleanupMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Eraser size={12} />}
+            Purge Unpaid
+          </Button>
         </div>
       </div>
 
