@@ -77,6 +77,10 @@ app.use(async (req: any, res: any, next: any) => {
         p.query("UPDATE sessions SET user_id=$1, last_seen=now() WHERE sid=$2", [v ?? null, sid]).catch(() => {});
       });
     },
+    save(cb?: (err?: any) => void) {
+      // Session is written synchronously on userId set — save() is a no-op for compatibility
+      if (cb) cb();
+    },
     destroy(cb: () => void) {
       sessionCache.delete(sid);
       import("./db").then(({ pool: p }) => {
