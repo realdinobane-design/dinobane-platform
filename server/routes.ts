@@ -409,14 +409,39 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // Get or create Stripe customer
       let customerId = user.stripeCustomerId;
       if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: user.email,
-          name: user.displayName,
-          metadata: { userId: String(user.id) },
-        });
-        customerId = customer.id;
+        // Check if a Stripe customer already exists for this email (prevents duplicates)
+        const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+        if (existing.data.length > 0) {
+          customerId = existing.data[0].id;
+        } else {
+          const customer = await stripe.customers.create({
+            email: user.email,
+            name: user.displayName,
+            metadata: { userId: String(user.id) },
+          });
+          customerId = customer.id;
+        }
         await storage.updateStripeCustomerId(user.id, customerId);
       }
+
+      // ── DUPLICATE PAYMENT GUARD ──────────────────────────────────────────────
+      // If this customer already has an active subscription, do NOT create a new
+      // checkout session. Instead, self-heal by granting membership immediately.
+      const activeSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+      if (activeSubs.data.length > 0) {
+        // They already paid — fix their account right now
+        await storage.updateUserMembership(user.id, true);
+        console.log(`[checkout] duplicate guard triggered — auto-granted membership to userId ${user.id} (existing sub: ${activeSubs.data[0].id})`);
+        return res.status(400).json({
+          error: "already_subscribed",
+          message: "You already have an active subscription. Your membership has been activated — please refresh the page.",
+        });
+      }
+      // ── END GUARD ────────────────────────────────────────────────────────────
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
