@@ -1024,6 +1024,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(article);
   });
 
+  // ─── ADMIN: UPDATE ARTICLE CONTENT ──────────────────────────────────────────
+  app.patch("/api/admin/articles/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]).has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const { content, summary } = req.body;
+    const updated = await storage.updateArticle(id, { ...(content && { content }), ...(summary && { summary }) });
+    return res.json(updated);
+  });
+
   // ─── ADMIN USER MANAGEMENT ────────────────────────────────────────────────────
   // All routes require admin email. Cancel membership first, then delete account.
   const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
@@ -1694,48 +1708,68 @@ function getFallbackVideos() {
   ];
 }
 
-// ─── AI ARTICLE GENERATION (OpenRouter — free tier) ──────────────────────────
+// ─── AI ARTICLE GENERATION (OpenRouter) ───────────────────────────────────────
 async function generateArticleAI(title: string, url: string): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (apiKey) {
-    try {
-      const prompt = `You are writing a political commentary article for DinoBane, a UK YouTube channel covering corruption, immigration, media censorship, and stories the mainstream media buries. The tone is direct, no-nonsense, pro-English, and right-leaning.
+  if (!apiKey) {
+    console.warn("[articles] OPENROUTER_API_KEY not set — skipping AI generation");
+  } else {
+    const prompt = `You are writing a political commentary article for DinoBane, a UK YouTube channel covering corruption, immigration, media censorship, and stories the mainstream media buries. The tone is direct, no-nonsense, pro-English, and right-leaning — like a sharp op-ed from the Spectator or Telegraph.
 
-Write a 400-500 word article based on this YouTube video title: "${title}"
+Write a 450-500 word newspaper-style article based on this YouTube video: "${title}"
 Video URL: ${url}
 
-Structure:
-- Strong opening paragraph capturing the core argument
-- 3-4 body paragraphs expanding on the theme
-- A closing paragraph calling for awareness or action
+Requirements:
+- Strong opinionated opening paragraph that states the argument clearly
+- 3-4 substantive body paragraphs on relevant British political issues: immigration, media bias, establishment corruption, free speech, national identity
+- Punchy closing paragraph calling the reader to action
+- Pro-English, right-leaning, specific and pointed arguments throughout
 
-Write in proper paragraphs (no bullet points, no markdown headers). Return only the article HTML using <p> tags for paragraphs. Do not include a title tag.`;
+Return ONLY the article HTML using <p> tags. No title tag, no bullet points, no markdown headers, no preamble.`;
 
-      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://dinobane.com",
-          "X-Title": "DinoBane Platform",
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-3.3-70b-instruct:free",
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 800,
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (r.ok) {
+    // Model fallback chain — try in order until one succeeds
+    const MODELS = [
+      "google/gemini-2.0-flash-001",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemma-3-27b-it:free",
+    ];
+
+    for (const model of MODELS) {
+      try {
+        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://dinobane.com",
+            "X-Title": "DinoBane Platform",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 900,
+          }),
+          signal: AbortSignal.timeout(35000),
+        });
+        if (!r.ok) {
+          const errBody = await r.text();
+          console.warn(`[articles] OpenRouter model ${model} failed: HTTP ${r.status} — ${errBody.slice(0, 200)}`);
+          continue;
+        }
         const data = await r.json() as any;
         const content = data.choices?.[0]?.message?.content?.trim();
-        if (content && content.length > 200) return content;
+        if (content && content.length > 200) {
+          console.log(`[articles] Generated with model ${model} (${content.length} chars)`);
+          return content;
+        }
+        console.warn(`[articles] Model ${model} returned short/null content`);
+      } catch (e: any) {
+        console.warn(`[articles] OpenRouter model ${model} threw: ${e.message}`);
       }
-    } catch (e) {
-      console.error("OpenRouter error:", e);
     }
+    console.error("[articles] All OpenRouter models failed — falling back to stub");
   }
-  // Fallback if no API key or AI fails
+  // Fallback stub — only reached if no API key or all models fail
   return `<p>This is a written analysis of the DinoBane video: <strong>${title}</strong>.</p><p>The video covers a topic that the mainstream media consistently ignores or misrepresents. DinoBane breaks it down with the context that establishment outlets refuse to provide.</p><p>Watch the full video here: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></p>`;
 }
 
