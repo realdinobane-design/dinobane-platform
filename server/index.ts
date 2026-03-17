@@ -136,6 +136,27 @@ app.use((req, res, next) => {
 
   await registerRoutes(httpServer, app);
 
+  // ── AUTO-PURGE: delete non-member accounts older than 24h, runs every 6 hours ──
+  async function purgeStaleAccounts() {
+    try {
+      const { storage } = await import("./storage");
+      const users = await storage.getAllUsers();
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      const stale = users.filter(u => !u.isMember && new Date(u.createdAt).getTime() < cutoff);
+      for (const u of stale) {
+        await storage.deleteUser(u.id);
+        console.log(`[auto-purge] removed stale non-member: ${u.email} (userId ${u.id})`);
+      }
+      if (stale.length > 0) console.log(`[auto-purge] removed ${stale.length} stale account(s)`);
+    } catch (e: any) {
+      console.error("[auto-purge] failed:", e.message);
+    }
+  }
+  // Run once on startup, then every 6 hours
+  purgeStaleAccounts();
+  setInterval(purgeStaleAccounts, 6 * 60 * 60 * 1000);
+  // ── END AUTO-PURGE ─────────────────────────────────────────────────────────────────────
+
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
