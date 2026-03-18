@@ -9,6 +9,7 @@ import { TOPICS, detectTopic, topicMeta, type TopicId } from "@/lib/topics";
 interface Video {
   id: string;
   title: string;
+  description?: string;
   thumbnail: string;
   url: string;
   publishedAt: string;
@@ -57,7 +58,7 @@ export default function VideosPage() {
 
   const filtered = activeTopic === "all"
     ? videos
-    : videos.filter(v => detectTopic(v.title) === activeTopic);
+    : videos.filter(v => detectTopic(v.title, v.description) === activeTopic);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
@@ -112,7 +113,7 @@ export default function VideosPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((v, i) => {
-            const topic = detectTopic(v.title);
+            const topic = detectTopic(v.title, v.description);
             const meta = topicMeta(topic);
             return (
               <a

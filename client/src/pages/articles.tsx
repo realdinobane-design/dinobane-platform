@@ -66,7 +66,7 @@ export default function ArticlesPage() {
 
   const filtered = activeTopic === "all"
     ? articles
-    : articles.filter(a => detectTopic(a.title) === activeTopic);
+    : articles.filter(a => detectTopic(a.title, a.summary) === activeTopic);
 
   const generateMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -172,7 +172,7 @@ export default function ArticlesPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {filtered.map(a => {
-            const topic = detectTopic(a.title);
+            const topic = detectTopic(a.title, a.summary);
             const meta = topicMeta(topic);
             return (
               <Link

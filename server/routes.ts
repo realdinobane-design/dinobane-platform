@@ -1729,6 +1729,7 @@ async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
         return entries.map((e: any, i: number) => ({
           id: e.id,
           title: (e.title || "DinoBane Video").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+          description: (e.description || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
           thumbnail: `https://img.youtube.com/vi/${e.id}/mqdefault.jpg`,
           url: `https://www.youtube.com/watch?v=${e.id}`,
           publishedAt: e.timestamp ? new Date(e.timestamp * 1000).toISOString()
@@ -1809,10 +1810,14 @@ function parseYouTubeFeed(xml: string): any[] {
       const published = getTag("published");
       const title = entry.match(/<title>([^<]+)<\/title>/)?.[1] || "";
 
+      const descMatch = entry.match(/<media:description>([\s\S]*?)<\/media:description>/);
+      const description = descMatch ? descMatch[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim() : "";
+
       if (videoId) {
         entries.push({
           id: videoId,
           title: title.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+          description,
           thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
           url: `https://www.youtube.com/watch?v=${videoId}`,
           publishedAt: published,
