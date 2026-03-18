@@ -34,6 +34,8 @@ export interface IStorage {
   toggleMediaLike(mediaId: number, userId: number): Promise<{ liked: boolean; count: number }>;
   getMediaLikeCount(mediaId: number): Promise<number>;
   hasUserLikedMedia(mediaId: number, userId: number): Promise<boolean>;
+  // Bulk stats — single query for all media items
+  getAllMediaStats(userId: number): Promise<Record<number, { likeCount: number; commentCount: number; liked: boolean }>>;
   // Media comments
   getMediaComments(mediaId: number): Promise<(MediaComment & { user: User })[]>;
   createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: User }>;
@@ -197,6 +199,41 @@ class DrizzleStorage implements IStorage {
       .where(and(eq(mediaLikes.mediaId, mediaId), eq(mediaLikes.userId, userId)))
       .limit(1);
     return rows.length > 0;
+  }
+
+  async getAllMediaStats(userId: number): Promise<Record<number, { likeCount: number; commentCount: number; liked: boolean }>> {
+    // Two aggregation queries — much faster than N individual queries
+    const [likeCounts, commentCounts, userLikes] = await Promise.all([
+      db.select({
+        mediaId: mediaLikes.mediaId,
+        count: sql<number>`count(*)::int`,
+      }).from(mediaLikes).groupBy(mediaLikes.mediaId),
+
+      db.select({
+        mediaId: mediaComments.mediaId,
+        count: sql<number>`count(*)::int`,
+      }).from(mediaComments).groupBy(mediaComments.mediaId),
+
+      db.select({ mediaId: mediaLikes.mediaId })
+        .from(mediaLikes).where(eq(mediaLikes.userId, userId)),
+    ]);
+
+    const likedSet = new Set(userLikes.map(r => r.mediaId));
+    const result: Record<number, { likeCount: number; commentCount: number; liked: boolean }> = {};
+
+    for (const r of likeCounts) {
+      if (!result[r.mediaId]) result[r.mediaId] = { likeCount: 0, commentCount: 0, liked: false };
+      result[r.mediaId].likeCount = r.count;
+    }
+    for (const r of commentCounts) {
+      if (!result[r.mediaId]) result[r.mediaId] = { likeCount: 0, commentCount: 0, liked: false };
+      result[r.mediaId].commentCount = r.count;
+    }
+    for (const id of likedSet) {
+      if (!result[id]) result[id] = { likeCount: 0, commentCount: 0, liked: false };
+      result[id].liked = true;
+    }
+    return result;
   }
 
   // ─── Media comments ───────────────────────────────────────────────────────

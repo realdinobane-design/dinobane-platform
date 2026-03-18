@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/App";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,8 @@ interface MediaComment {
   };
 }
 
-interface LikeState {
-  count: number;
-  liked: boolean;
-}
+// Bulk stats map: mediaId → { likeCount, commentCount, liked }
+type StatsMap = Record<number, { likeCount: number; commentCount: number; liked: boolean }>;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_IMAGE_MB = 5;
@@ -61,8 +59,7 @@ function timeAgo(dateStr: string): string {
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 // ─── Lock screens ─────────────────────────────────────────────────────────────
@@ -116,16 +113,11 @@ function MembersOnlyLock() {
 
 // ─── Upload zone ──────────────────────────────────────────────────────────────
 function UploadZone({ onFile, accept, maxMB, label, icon: Icon, uploading }: {
-  onFile: (f: File) => void;
-  accept: string;
-  maxMB: number;
-  label: string;
-  icon: React.ElementType;
-  uploading: boolean;
+  onFile: (f: File) => void; accept: string; maxMB: number;
+  label: string; icon: React.ElementType; uploading: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-
   return (
     <div
       onDragOver={e => { e.preventDefault(); setDragging(true); }}
@@ -134,7 +126,6 @@ function UploadZone({ onFile, accept, maxMB, label, icon: Icon, uploading }: {
       onClick={() => inputRef.current?.click()}
       className={`relative flex flex-col items-center justify-center gap-3 p-8 rounded-sm cursor-pointer border-2 border-dashed transition-all select-none
         ${dragging ? "border-[#cc2a2a] bg-[#cc2a2a]/5" : "border-zinc-800 bg-[#111] hover:border-zinc-600 hover:bg-zinc-900/60"}`}
-      data-testid={`dropzone-${label.toLowerCase().replace(" ", "-")}`}
     >
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
       {uploading ? <Loader2 size={28} className="text-[#cc2a2a] animate-spin" /> : <Icon size={28} className={dragging ? "text-[#cc2a2a]" : "text-zinc-500"} />}
@@ -148,7 +139,7 @@ function UploadZone({ onFile, accept, maxMB, label, icon: Icon, uploading }: {
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
-function UserAvatar({ user, size = 28 }: { user: MediaComment["user"]; size?: number }) {
+function UserAvatar({ user, size = 28 }: { user: MediaComment["user"] | any; size?: number }) {
   return (
     <div
       className="rounded-full flex items-center justify-center text-white font-bold shrink-0 overflow-hidden"
@@ -161,21 +152,16 @@ function UserAvatar({ user, size = 28 }: { user: MediaComment["user"]; size?: nu
   );
 }
 
-// ─── Lightbox modal ───────────────────────────────────────────────────────────
-function MediaLightbox({
-  item,
-  items,
-  onClose,
-  onNavigate,
-  currentUser,
-  isAdmin,
-}: {
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function MediaLightbox({ item, items, onClose, onNavigate, currentUser, isAdmin, stats, onStatsUpdate }: {
   item: MediaItem;
   items: MediaItem[];
   onClose: () => void;
   onNavigate: (item: MediaItem) => void;
-  currentUser: { id: number; email: string; displayName: string; avatarInitials: string; avatarColor: string; avatarUrl?: string };
+  currentUser: any;
   isAdmin: boolean;
+  stats: StatsMap;
+  onStatsUpdate: (mediaId: number, patch: Partial<{ likeCount: number; commentCount: number; liked: boolean }>) => void;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -186,7 +172,8 @@ function MediaLightbox({
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < items.length - 1;
 
-  // Close on Escape, navigate on arrow keys
+  const itemStats = stats[item.id] ?? { likeCount: 0, commentCount: 0, liked: false };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -197,29 +184,18 @@ function MediaLightbox({
     return () => window.removeEventListener("keydown", handler);
   }, [currentIndex, hasPrev, hasNext]);
 
-  // Likes
-  const { data: likeState, isLoading: likesLoading } = useQuery<LikeState>({
-    queryKey: ["/api/media", item.id, "likes"],
-    queryFn: async () => {
-      const res = await fetch(`/api/media/${item.id}/likes`, { credentials: "include" });
-      if (!res.ok) return { count: 0, liked: false };
-      return res.json();
-    },
-  });
-
+  // Like toggle — updates bulk stats map directly, no extra fetch
   const likeMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/media/${item.id}/likes`, {});
-      return res.json();
+      return res.json() as Promise<{ liked: boolean; count: number }>;
     },
     onSuccess: (data) => {
-      qc.setQueryData(["/api/media", item.id, "likes"], data);
-      // also invalidate the grid summary
-      qc.invalidateQueries({ queryKey: ["/api/media", item.id, "likes"] });
+      onStatsUpdate(item.id, { liked: data.liked, likeCount: data.count });
     },
   });
 
-  // Comments
+  // Comments — only fetched when lightbox is open for this specific item
   const { data: comments = [], isLoading: commentsLoading } = useQuery<MediaComment[]>({
     queryKey: ["/api/media", item.id, "comments"],
     queryFn: async () => {
@@ -227,6 +203,7 @@ function MediaLightbox({
       if (!res.ok) return [];
       return res.json();
     },
+    staleTime: 30000,
   });
 
   useEffect(() => {
@@ -241,6 +218,7 @@ function MediaLightbox({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/media", item.id, "comments"] });
+      onStatsUpdate(item.id, { commentCount: (itemStats.commentCount ?? 0) + 1 });
       setCommentText("");
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -251,7 +229,10 @@ function MediaLightbox({
       const res = await apiRequest("DELETE", `/api/media/comments/${commentId}`, {});
       if (!res.ok) throw new Error("Delete failed");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/media", item.id, "comments"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/media", item.id, "comments"] });
+      onStatsUpdate(item.id, { commentCount: Math.max(0, (itemStats.commentCount ?? 1) - 1) });
+    },
   });
 
   const deleteMediaMutation = useMutation({
@@ -266,50 +247,34 @@ function MediaLightbox({
     },
   });
 
-  const submitComment = () => {
-    const trimmed = commentText.trim();
-    if (!trimmed) return;
-    commentMutation.mutate(trimmed);
-  };
-
   return (
-    /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Panel */}
       <div className="relative flex flex-col md:flex-row w-full max-w-5xl mx-4 max-h-[92vh] bg-[#0d0d0d] border border-zinc-800 rounded-sm overflow-hidden shadow-2xl">
 
-        {/* ── Left: media ── */}
+        {/* ── Media side ── */}
         <div className="relative flex items-center justify-center bg-black md:w-[60%] min-h-[240px] md:min-h-0">
           {item.type === "image"
             ? <img src={item.dataUrl} alt={item.name} className="w-full h-full object-contain max-h-[55vh] md:max-h-[92vh]" />
             : <video src={item.dataUrl} controls controlsList="nodownload" className="w-full max-h-[55vh] md:max-h-[92vh]" autoPlay />
           }
-
-          {/* Nav arrows */}
           {hasPrev && (
-            <button
-              onClick={() => onNavigate(items[currentIndex - 1])}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-sm transition-colors"
-              data-testid="button-lightbox-prev"
-            >
+            <button onClick={() => onNavigate(items[currentIndex - 1])}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-sm transition-colors">
               <ChevronLeft size={20} />
             </button>
           )}
           {hasNext && (
-            <button
-              onClick={() => onNavigate(items[currentIndex + 1])}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-sm transition-colors"
-              data-testid="button-lightbox-next"
-            >
+            <button onClick={() => onNavigate(items[currentIndex + 1])}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-sm transition-colors">
               <ChevronRight size={20} />
             </button>
           )}
         </div>
 
-        {/* ── Right: info + comments ── */}
+        {/* ── Info + comments side ── */}
         <div className="flex flex-col md:w-[40%] min-h-0 border-t md:border-t-0 md:border-l border-zinc-800">
 
           {/* Header */}
@@ -320,17 +285,12 @@ function MediaLightbox({
             </div>
             <div className="flex items-center gap-2 ml-3 shrink-0">
               {isAdmin && (
-                <button
-                  onClick={() => deleteMediaMutation.mutate()}
-                  disabled={deleteMediaMutation.isPending}
-                  className="text-red-500 hover:text-red-400 p-1.5 rounded-sm hover:bg-red-950/30 transition-colors"
-                  title="Delete media"
-                  data-testid="button-lightbox-delete"
-                >
+                <button onClick={() => deleteMediaMutation.mutate()} disabled={deleteMediaMutation.isPending}
+                  className="text-red-500 hover:text-red-400 p-1.5 rounded-sm hover:bg-red-950/30 transition-colors" title="Delete media">
                   {deleteMediaMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
               )}
-              <button onClick={onClose} className="text-zinc-400 hover:text-white p-1.5 rounded-sm hover:bg-zinc-800 transition-colors" data-testid="button-lightbox-close">
+              <button onClick={onClose} className="text-zinc-400 hover:text-white p-1.5 rounded-sm hover:bg-zinc-800 transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -338,19 +298,10 @@ function MediaLightbox({
 
           {/* Like bar */}
           <div className="flex items-center gap-4 px-4 py-3 border-b border-zinc-800 shrink-0">
-            <button
-              onClick={() => likeMutation.mutate()}
-              disabled={likeMutation.isPending || likesLoading}
-              className="flex items-center gap-1.5 transition-colors group"
-              data-testid="button-lightbox-like"
-            >
-              <Heart
-                size={18}
-                className={`transition-colors ${likeState?.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : "text-zinc-500 group-hover:text-[#cc2a2a]"}`}
-              />
-              <span className={`text-sm font-semibold ${likeState?.liked ? "text-[#cc2a2a]" : "text-zinc-400"}`}>
-                {likeState?.count ?? 0}
-              </span>
+            <button onClick={() => likeMutation.mutate()} disabled={likeMutation.isPending}
+              className="flex items-center gap-1.5 transition-colors group">
+              <Heart size={18} className={`transition-colors ${itemStats.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : "text-zinc-500 group-hover:text-[#cc2a2a]"}`} />
+              <span className={`text-sm font-semibold ${itemStats.liked ? "text-[#cc2a2a]" : "text-zinc-400"}`}>{itemStats.likeCount}</span>
             </button>
             <div className="flex items-center gap-1.5 text-zinc-500">
               <MessageCircle size={16} />
@@ -362,27 +313,22 @@ function MediaLightbox({
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
             {commentsLoading && (
               <div className="flex items-center gap-2 text-zinc-600">
-                <Loader2 size={14} className="animate-spin" /> <span className="text-xs">Loading comments...</span>
+                <Loader2 size={14} className="animate-spin" /><span className="text-xs">Loading...</span>
               </div>
             )}
             {!commentsLoading && comments.length === 0 && (
               <p className="text-xs text-zinc-600 text-center py-4">No comments yet. Be the first!</p>
             )}
             {comments.map(c => (
-              <div key={c.id} className="flex gap-2.5 group/comment" data-testid={`comment-${c.id}`}>
+              <div key={c.id} className="flex gap-2.5 group/comment">
                 <UserAvatar user={c.user} size={28} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 mb-0.5">
                     <span className="text-xs font-semibold text-zinc-300">{c.user.displayName}</span>
                     <span className="text-xs text-zinc-600">{timeAgo(c.createdAt)}</span>
-                    {/* Delete: own comment or admin */}
-                    {(isAdmin || c.userId === Number((currentUser as any).id)) && (
-                      <button
-                        onClick={() => deleteCommentMutation.mutate(c.id)}
-                        className="ml-auto opacity-0 group-hover/comment:opacity-100 text-zinc-600 hover:text-red-400 transition-all"
-                        title="Delete comment"
-                        data-testid={`button-delete-comment-${c.id}`}
-                      >
+                    {(isAdmin || c.userId === currentUser.id) && (
+                      <button onClick={() => deleteCommentMutation.mutate(c.id)}
+                        className="ml-auto opacity-0 group-hover/comment:opacity-100 text-zinc-600 hover:text-red-400 transition-all">
                         <Trash2 size={11} />
                       </button>
                     )}
@@ -397,23 +343,17 @@ function MediaLightbox({
           {/* Comment input */}
           <div className="px-4 py-3 border-t border-zinc-800 shrink-0">
             <div className="flex items-center gap-2">
-              <UserAvatar user={currentUser as any} size={26} />
+              <UserAvatar user={currentUser} size={26} />
               <input
-                type="text"
-                value={commentText}
+                type="text" value={commentText}
                 onChange={e => setCommentText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitComment(); } }}
-                placeholder="Add a comment…"
-                maxLength={500}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (commentText.trim()) commentMutation.mutate(commentText.trim()); } }}
+                placeholder="Add a comment…" maxLength={500}
                 className="flex-1 bg-zinc-900 border border-zinc-700 rounded-sm px-3 py-1.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors"
-                data-testid="input-comment"
               />
-              <button
-                onClick={submitComment}
+              <button onClick={() => { if (commentText.trim()) commentMutation.mutate(commentText.trim()); }}
                 disabled={commentMutation.isPending || !commentText.trim()}
-                className="text-[#cc2a2a] hover:text-[#ff3333] disabled:text-zinc-700 transition-colors p-1"
-                data-testid="button-submit-comment"
-              >
+                className="text-[#cc2a2a] hover:text-[#ff3333] disabled:text-zinc-700 transition-colors p-1">
                 {commentMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
             </div>
@@ -421,78 +361,6 @@ function MediaLightbox({
         </div>
       </div>
     </div>
-  );
-}
-
-// ─── Compact like/comment count strip (shown on cards in the grid) ─────────────
-function MediaCardStats({ mediaId }: { mediaId: number }) {
-  const { data } = useQuery<LikeState>({
-    queryKey: ["/api/media", mediaId, "likes"],
-    queryFn: async () => {
-      const res = await fetch(`/api/media/${mediaId}/likes`, { credentials: "include" });
-      if (!res.ok) return { count: 0, liked: false };
-      return res.json();
-    },
-    staleTime: 30000,
-  });
-
-  const { data: comments = [] } = useQuery<MediaComment[]>({
-    queryKey: ["/api/media", mediaId, "comments"],
-    queryFn: async () => {
-      const res = await fetch(`/api/media/${mediaId}/comments`, { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 30000,
-  });
-
-  return (
-    <div className="flex items-center gap-3 px-2.5 py-1.5 border-t border-zinc-800/60">
-      <span className="flex items-center gap-1 text-xs text-zinc-500">
-        <Heart size={11} className={data?.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />
-        {data?.count ?? 0}
-      </span>
-      <span className="flex items-center gap-1 text-xs text-zinc-500">
-        <MessageCircle size={11} />
-        {comments.length}
-      </span>
-    </div>
-  );
-}
-
-// ─── Video card stats (same but inline row) ───────────────────────────────────
-function VideoCardStats({ mediaId }: { mediaId: number }) {
-  const { data: likeState } = useQuery<LikeState>({
-    queryKey: ["/api/media", mediaId, "likes"],
-    queryFn: async () => {
-      const res = await fetch(`/api/media/${mediaId}/likes`, { credentials: "include" });
-      if (!res.ok) return { count: 0, liked: false };
-      return res.json();
-    },
-    staleTime: 30000,
-  });
-
-  const { data: comments = [] } = useQuery<MediaComment[]>({
-    queryKey: ["/api/media", mediaId, "comments"],
-    queryFn: async () => {
-      const res = await fetch(`/api/media/${mediaId}/comments`, { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 30000,
-  });
-
-  return (
-    <>
-      <span className="flex items-center gap-1 text-xs text-zinc-500">
-        <Heart size={12} className={likeState?.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />
-        {likeState?.count ?? 0}
-      </span>
-      <span className="flex items-center gap-1 text-xs text-zinc-500">
-        <MessageCircle size={12} />
-        {comments.length}
-      </span>
-    </>
   );
 }
 
@@ -505,22 +373,50 @@ export default function MediaVaultPage() {
   const [activeTab, setActiveTab] = useState<"images" | "videos">("images");
   const [lightboxItem, setLightboxItem] = useState<MediaItem | null>(null);
 
+  // Local stats override — lets like/comment mutations update the grid instantly
+  // without refetching the whole bulk stats endpoint
+  const [statsOverrides, setStatsOverrides] = useState<StatsMap>({});
+
   if (!user) return <SignInLock />;
   if (!user.isMember) return <MembersOnlyLock />;
 
-  const { data: media = [], isLoading } = useQuery<MediaItem[]>({
+  // ── Single bulk fetch: all media ──
+  const { data: media = [], isLoading: mediaLoading } = useQuery<MediaItem[]>({
     queryKey: ["/api/media"],
     queryFn: async () => {
       const res = await fetch("/api/media", { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
+    staleTime: 60000,
   });
+
+  // ── Single bulk fetch: all stats (3 DB queries total, not N×2) ──
+  const { data: bulkStats = {} } = useQuery<StatsMap>({
+    queryKey: ["/api/media/stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/media/stats", { credentials: "include" });
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 60000,
+    enabled: media.length > 0,
+  });
+
+  // Merge server stats with any local overrides from like/comment mutations
+  const stats: StatsMap = { ...bulkStats, ...statsOverrides };
+
+  const handleStatsUpdate = (mediaId: number, patch: Partial<{ likeCount: number; commentCount: number; liked: boolean }>) => {
+    setStatsOverrides(prev => ({
+      ...prev,
+      [mediaId]: { ...(stats[mediaId] ?? { likeCount: 0, commentCount: 0, liked: false }), ...patch },
+    }));
+  };
 
   const handleFileUpload = async (file: File, type: "image" | "video") => {
     const maxMB = type === "image" ? MAX_IMAGE_MB : MAX_VIDEO_MB;
     if (file.size > maxMB * 1024 * 1024) {
-      toast({ title: "File too large", description: `Max size is ${maxMB}MB for ${type}s.`, variant: "destructive" });
+      toast({ title: "File too large", description: `Max ${maxMB}MB for ${type}s.`, variant: "destructive" });
       return;
     }
     setUploading(true);
@@ -550,7 +446,6 @@ export default function MediaVaultPage() {
 
   return (
     <>
-      {/* ── Lightbox ── */}
       {lightboxItem && (
         <MediaLightbox
           item={lightboxItem}
@@ -559,12 +454,14 @@ export default function MediaVaultPage() {
           onNavigate={setLightboxItem}
           currentUser={user}
           isAdmin={isAdmin}
+          stats={stats}
+          onStatsUpdate={handleStatsUpdate}
         />
       )}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
 
-        {/* ── Page header ── */}
+        {/* Header */}
         <div className="mb-8">
           <div className="w-10 h-1 bg-[#cc2a2a] rounded-full mb-4" />
           <div className="flex items-center gap-3 mb-1">
@@ -576,7 +473,7 @@ export default function MediaVaultPage() {
           <p className="text-sm text-zinc-500 ml-9">Private media library — images &amp; videos for community use.</p>
         </div>
 
-        {/* ── Upload zones (admin only) ── */}
+        {/* Upload zones (admin only) */}
         {isAdmin && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <UploadZone onFile={f => handleFileUpload(f, "image")} accept="image/*" maxMB={MAX_IMAGE_MB} label="Upload Image" icon={CloudUpload} uploading={uploading} />
@@ -584,16 +481,16 @@ export default function MediaVaultPage() {
           </div>
         )}
 
-        {/* ── Loading ── */}
-        {isLoading && (
+        {/* Loading */}
+        {mediaLoading && (
           <div className="flex items-center gap-2.5 text-zinc-500 py-8">
             <Loader2 size={16} className="animate-spin text-[#cc2a2a]" />
             <span className="text-sm">Loading vault...</span>
           </div>
         )}
 
-        {/* ── Empty state ── */}
-        {!isLoading && media.length === 0 && (
+        {/* Empty */}
+        {!mediaLoading && media.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-zinc-800 rounded-sm text-center">
             <Upload size={32} className="text-zinc-700 mb-4" />
             <p className="text-sm font-semibold text-zinc-400">No media yet</p>
@@ -603,17 +500,14 @@ export default function MediaVaultPage() {
           </div>
         )}
 
-        {/* ── Tabs ── */}
-        {!isLoading && media.length > 0 && (
+        {/* Tabs */}
+        {!mediaLoading && media.length > 0 && (
           <>
             <div className="flex items-center gap-1 mb-6 border-b border-zinc-800">
               {(["images", "videos"] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
+                <button key={tab} onClick={() => setActiveTab(tab)}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px
                     ${activeTab === tab ? "border-[#cc2a2a] text-[#cc2a2a]" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
-                  data-testid={`tab-${tab}`}
                 >
                   {tab === "images" ? <Image size={13} /> : <Film size={13} />}
                   {tab}
@@ -622,7 +516,7 @@ export default function MediaVaultPage() {
               ))}
             </div>
 
-            {/* ── Image grid ── */}
+            {/* Image grid */}
             {activeTab === "images" && (
               <section>
                 {images.length === 0 ? (
@@ -632,44 +526,45 @@ export default function MediaVaultPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {images.map(item => (
-                      <div
-                        key={item.id}
-                        className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden group cursor-pointer"
-                        onClick={() => setLightboxItem(item)}
-                        data-testid={`card-image-${item.id}`}
-                      >
-                        {/* Thumbnail */}
-                        <div className="aspect-square overflow-hidden bg-zinc-900 relative">
-                          <img
-                            src={item.dataUrl}
-                            alt={item.name}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          {/* Expand hint on hover */}
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white">
-                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-                              </svg>
+                    {images.map(item => {
+                      const s = stats[item.id] ?? { likeCount: 0, commentCount: 0, liked: false };
+                      return (
+                        <div key={item.id} onClick={() => setLightboxItem(item)}
+                          className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden group cursor-pointer"
+                          data-testid={`card-image-${item.id}`}
+                        >
+                          <div className="aspect-square overflow-hidden bg-zinc-900 relative">
+                            <img src={item.dataUrl} alt={item.name}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white">
+                                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                                </svg>
+                              </div>
                             </div>
                           </div>
+                          <div className="px-2.5 pt-2 pb-1">
+                            <p className="text-xs font-medium text-zinc-300 truncate leading-tight">{item.name}</p>
+                          </div>
+                          {/* Stats bar — data already available, no extra fetch */}
+                          <div className="flex items-center gap-3 px-2.5 py-1.5 border-t border-zinc-800/60">
+                            <span className="flex items-center gap-1 text-xs text-zinc-500">
+                              <Heart size={11} className={s.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />{s.likeCount}
+                            </span>
+                            <span className="flex items-center gap-1 text-xs text-zinc-500">
+                              <MessageCircle size={11} />{s.commentCount}
+                            </span>
+                          </div>
                         </div>
-                        {/* File name */}
-                        <div className="px-2.5 pt-2 pb-1">
-                          <p className="text-xs font-medium text-zinc-300 truncate leading-tight">{item.name}</p>
-                        </div>
-                        {/* Like + comment counts */}
-                        <MediaCardStats mediaId={item.id} />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </section>
             )}
 
-            {/* ── Video list ── */}
+            {/* Video list */}
             {activeTab === "videos" && (
               <section>
                 {videos.length === 0 ? (
@@ -679,46 +574,41 @@ export default function MediaVaultPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {videos.map(item => (
-                      <div
-                        key={item.id}
-                        className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden"
-                        data-testid={`card-video-${item.id}`}
-                      >
-                        {/* Video player */}
-                        <div className="relative bg-black">
-                          <video src={item.dataUrl} controls controlsList="nodownload" className="w-full max-h-80" preload="metadata" />
-                        </div>
-                        {/* Footer row */}
-                        <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800/60">
-                          <div className="w-0.5 h-8 bg-[#cc2a2a] rounded-full shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-zinc-200 truncate leading-tight">{item.name}</p>
-                            <p className="text-xs text-zinc-600 mt-0.5">{formatBytes(item.size)}</p>
+                    {videos.map(item => {
+                      const s = stats[item.id] ?? { likeCount: 0, commentCount: 0, liked: false };
+                      return (
+                        <div key={item.id} className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden" data-testid={`card-video-${item.id}`}>
+                          <div className="relative bg-black">
+                            <video src={item.dataUrl} controls controlsList="nodownload" className="w-full max-h-80" preload="metadata" />
                           </div>
-                          {/* Stats + comment button */}
-                          <div className="flex items-center gap-3 shrink-0">
-                            <VideoCardStats mediaId={item.id} />
-                            <button
-                              onClick={() => setLightboxItem(item)}
-                              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 rounded-sm transition-colors"
-                              data-testid={`button-open-video-${item.id}`}
-                            >
-                              <MessageCircle size={12} /> Comment
-                            </button>
-                            {isAdmin && (
-                              <button
-                                onClick={() => setLightboxItem(item)}
-                                className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-400 border border-red-900/40 hover:border-red-700/60 px-3 py-1.5 rounded-sm transition-colors"
-                                data-testid={`button-manage-video-${item.id}`}
-                              >
-                                <Trash2 size={12} /> Manage
+                          <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800/60">
+                            <div className="w-0.5 h-8 bg-[#cc2a2a] rounded-full shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-zinc-200 truncate leading-tight">{item.name}</p>
+                              <p className="text-xs text-zinc-600 mt-0.5">{formatBytes(item.size)}</p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="flex items-center gap-1 text-xs text-zinc-500">
+                                <Heart size={12} className={s.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />{s.likeCount}
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-zinc-500">
+                                <MessageCircle size={12} />{s.commentCount}
+                              </span>
+                              <button onClick={() => setLightboxItem(item)}
+                                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 rounded-sm transition-colors">
+                                <MessageCircle size={12} /> Comment
                               </button>
-                            )}
+                              {isAdmin && (
+                                <button onClick={() => setLightboxItem(item)}
+                                  className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-400 border border-red-900/40 hover:border-red-700/60 px-3 py-1.5 rounded-sm transition-colors">
+                                  <Trash2 size={12} /> Manage
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </section>

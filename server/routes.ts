@@ -1466,6 +1466,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── MEDIA LIKES ─────────────────────────────────────────────────────────────
+  // GET /api/media/stats — bulk stats for ALL media in 3 DB queries total
+  app.get("/api/media/stats", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const stats = await storage.getAllMediaStats(req.session.userId);
+    return res.json(stats);
+  });
+
   // GET: returns like count + whether the current user has liked it
   app.get("/api/media/:id/likes", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
