@@ -127,6 +127,21 @@ const HERO_IMAGES = [
   { src: "/brand/hero-plane.jpg",       label: "GEOPOLITICS" },
 ];
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#\d+;/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -153,8 +168,8 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
   if (!tickerItems.length) return null;
 
   return (
-    <div className="bg-[#cc2a2a] overflow-hidden h-8 flex items-center shrink-0">
-      <div className="bg-black text-white text-[10px] font-black tracking-widest px-3 h-full flex items-center shrink-0 uppercase z-10">
+    <div className="bg-[#f0c800] overflow-hidden h-8 flex items-center shrink-0">
+      <div className="bg-black text-[#f0c800] text-[10px] font-black tracking-widest px-3 h-full flex items-center shrink-0 uppercase z-10">
         BREAKING
       </div>
       <div className="relative flex-1 overflow-hidden">
@@ -170,10 +185,10 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
               href={item.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white text-[11px] font-semibold px-6 hover:underline shrink-0"
+              className="text-black text-[11px] font-semibold px-6 hover:text-[#cc2a2a] transition-colors shrink-0"
             >
               {item.title}
-              <span className="text-white/40 mx-3">◆</span>
+              <span className="text-black/30 mx-3">◆</span>
             </a>
           ))}
         </div>
@@ -276,7 +291,7 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
         {/* Description — 5 lines, larger text */}
         {item.description && (
           <p className="text-[15px] text-zinc-400 line-clamp-5 leading-relaxed">
-            {item.description}
+            {stripHtml(item.description)}
           </p>
         )}
       </div>
@@ -663,7 +678,7 @@ export default function NewsPage() {
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
-        <div className="w-52 shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
+        <div className="w-80 shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
           <div className="p-3">
             {/* Hero banner */}
             <HeroBanner items={items ?? []} />
