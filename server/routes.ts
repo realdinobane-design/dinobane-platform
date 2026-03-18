@@ -1318,8 +1318,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── INTEL / NEWS RSS FEED ──────────────────────────────────────────────────
-  app.get("/api/intel/feed", async (req, res) => {
-    const FEEDS = [
+  // ─── INTEL FEED CACHE — avoids fetching 26 RSS feeds on every page load ────────
+  let intelCache: { data: any[]; fetchedAt: number } | null = null;
+  const INTEL_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  let intelFetchInProgress = false;
+
+  async function refreshIntelCache(): Promise<any[]> {
+    if (intelFetchInProgress) {
+      // Already fetching — return stale data if available
+      if (intelCache) return intelCache.data;
+      await new Promise(r => setTimeout(r, 500));
+      return intelCache?.data ?? [];
+    }
+    intelFetchInProgress = true;
+    try {
+      const FEEDS = [
       // Original alt / right-leaning
       { name: "Guido Fawkes",          url: "https://order-order.com/feed/" },
       { name: "Spiked Online",         url: "https://www.spiked-online.com/feed/" },
@@ -1391,21 +1404,50 @@ export function registerRoutes(httpServer: Server, app: Express) {
       } catch { return []; }
     }
 
-    try {
       const results = await Promise.allSettled(FEEDS.map(f => fetchFeed(f.name, f.url)));
       const allItems: any[] = [];
       results.forEach(r => { if (r.status === "fulfilled") allItems.push(...r.value); });
-      // Sort by date descending
       allItems.sort((a, b) => {
         const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
         const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
         return db - da;
       });
-      return res.json(allItems.slice(0, 50));
+      const fresh = allItems.slice(0, 100);
+      intelCache = { data: fresh, fetchedAt: Date.now() };
+      console.log(`[intel] cache refreshed — ${fresh.length} stories from ${FEEDS.length} feeds`);
+      return fresh;
+    } finally {
+      intelFetchInProgress = false;
+    }
+  }
+
+  app.get("/api/intel/feed", async (req, res) => {
+    try {
+      // Serve from cache if still fresh
+      if (intelCache && (Date.now() - intelCache.fetchedAt) < INTEL_CACHE_TTL) {
+        res.setHeader("X-Cache", "HIT");
+        return res.json(intelCache.data);
+      }
+      // Cache stale or empty — if we have stale data, return it immediately
+      // and kick off a background refresh so the NEXT request is fast
+      if (intelCache) {
+        res.setHeader("X-Cache", "STALE");
+        refreshIntelCache().catch(() => {}); // background refresh
+        return res.json(intelCache.data);
+      }
+      // No cache at all (first request after boot) — must wait
+      res.setHeader("X-Cache", "MISS");
+      const data = await refreshIntelCache();
+      return res.json(data);
     } catch (e: any) {
       return res.status(500).json({ error: e.message });
     }
   });
+
+  // Pre-warm cache 15s after startup so the first visitor never waits
+  setTimeout(() => refreshIntelCache().catch(() => {}), 15_000);
+  // Refresh every 5 minutes in the background
+  setInterval(() => refreshIntelCache().catch(() => {}), INTEL_CACHE_TTL);
 
   // ─── YOUTUBE FEED PROXY ───────────────────────────────────────────────────────
   app.get("/api/youtube/feed", async (req, res) => {
