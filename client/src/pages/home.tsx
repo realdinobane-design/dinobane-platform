@@ -26,7 +26,7 @@ export default function HomePage() {
 
   const { data: videos = [] } = useQuery<Video[]>({
     queryKey: ["/api/youtube/feed"],
-    staleTime: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: articles = [] } = useQuery<Article[]>({

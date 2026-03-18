@@ -1719,28 +1719,56 @@ export function registerRoutes(httpServer: Server, app: Express) {
 async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
   const channelUrl = "https://www.youtube.com/@Dinobane-Clips/videos";
 
-  // 1. Try yt-dlp (most reliable — works even when RSS is blocked)
+  // Helper: parse yt-dlp JSON output into video array
+  function parseYtDlpOutput(stdout: string, methodName: string): any[] | null {
+    try {
+      const data = JSON.parse(stdout.trim());
+      const entries = (data.entries || []) as any[];
+      if (entries.length > 0) {
+        console.log(`[youtube] fetched ${entries.length} videos via ${methodName}`);
+        return entries.map((e: any, i: number) => ({
+          id: e.id,
+          title: (e.title || "DinoBane Video").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+          thumbnail: `https://img.youtube.com/vi/${e.id}/mqdefault.jpg`,
+          url: `https://www.youtube.com/watch?v=${e.id}`,
+          publishedAt: e.timestamp ? new Date(e.timestamp * 1000).toISOString()
+            : new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
+          viewCount: e.view_count ?? null,
+          duration: e.duration ?? null,
+        }));
+      }
+    } catch {}
+    return null;
+  }
+
+  // yt-dlp flags shared across all attempts
+  const ytdlpFlags = `--flat-playlist --dump-single-json --playlist-items 1-${limit} --no-warnings --extractor-retries 3 --socket-timeout 20`;
+
+  // 1a. Try yt-dlp via PATH (works locally + after nixpacks install)
   try {
-    const cmd = `yt-dlp --flat-playlist --dump-single-json --playlist-items 1-${limit} --no-warnings "${channelUrl}"`;
-    const { stdout } = await execAsync(cmd, { timeout: 30_000 });
-    const data = JSON.parse(stdout);
-    const entries = (data.entries || []) as any[];
-    if (entries.length > 0) {
-      console.log(`[youtube] fetched ${entries.length} videos via yt-dlp`);
-      return entries.map((e: any, i: number) => ({
-        id: e.id,
-        title: (e.title || "DinoBane Video").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
-        thumbnail: `https://img.youtube.com/vi/${e.id}/mqdefault.jpg`,
-        url: `https://www.youtube.com/watch?v=${e.id}`,
-        // yt-dlp flat mode doesn't always return timestamps; synthesise from index so newest is first
-        publishedAt: e.timestamp ? new Date(e.timestamp * 1000).toISOString()
-          : new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
-        viewCount: e.view_count ?? null,
-        duration: e.duration ?? null,
-      }));
-    }
+    const { stdout } = await execAsync(`yt-dlp ${ytdlpFlags} "${channelUrl}"`, { timeout: 45_000 });
+    const result = parseYtDlpOutput(stdout, "yt-dlp (PATH)");
+    if (result) return result;
   } catch (e: any) {
-    console.warn(`[youtube] yt-dlp failed: ${e.message}`);
+    console.warn(`[youtube] yt-dlp (PATH) failed: ${e.message?.slice(0, 120)}`);
+  }
+
+  // 1b. Try python3 -m yt_dlp (pip install fallback path)
+  try {
+    const { stdout } = await execAsync(`python3 -m yt_dlp ${ytdlpFlags} "${channelUrl}"`, { timeout: 45_000 });
+    const result = parseYtDlpOutput(stdout, "yt-dlp (python3 -m)");
+    if (result) return result;
+  } catch (e: any) {
+    console.warn(`[youtube] yt-dlp (python3 -m) failed: ${e.message?.slice(0, 120)}`);
+  }
+
+  // 1c. Try absolute path /usr/local/bin/yt-dlp
+  try {
+    const { stdout } = await execAsync(`/usr/local/bin/yt-dlp ${ytdlpFlags} "${channelUrl}"`, { timeout: 45_000 });
+    const result = parseYtDlpOutput(stdout, "yt-dlp (/usr/local/bin)");
+    if (result) return result;
+  } catch (e: any) {
+    console.warn(`[youtube] yt-dlp (/usr/local/bin) failed: ${e.message?.slice(0, 120)}`);
   }
 
   // 2. Try YouTube RSS feed directly
@@ -1760,7 +1788,7 @@ async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
     }
   } catch {}
 
-  // 3. Static fallback
+  // 3. Static fallback (updated 2026-03-18 — newest videos first)
   console.warn("[youtube] all fetch methods failed — using static fallback");
   return getFallbackVideos();
 }
@@ -1798,9 +1826,12 @@ function parseYouTubeFeed(xml: string): any[] {
 }
 
 function getFallbackVideos() {
-  // Real DinoBane video IDs as fallback if RSS is unavailable
+  // Static fallback — updated 2026-03-18 from yt-dlp. Used only if all live fetch methods fail.
   return [
-    { id: "Tyho3Qiq8eY", title: "Graham Moore — [Unfiltered]", thumbnail: "https://img.youtube.com/vi/Tyho3Qiq8eY/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Tyho3Qiq8eY", publishedAt: "2026-03-13T20:19:50+00:00" },
+    { id: "7pgalWg7Dzg", title: "This Is What Britain Could Actually Be", thumbnail: "https://img.youtube.com/vi/7pgalWg7Dzg/mqdefault.jpg", url: "https://www.youtube.com/watch?v=7pgalWg7Dzg", publishedAt: "2026-03-18T12:00:00+00:00" },
+    { id: "nxKsD97dqAo", title: "This Is The Proof That Terrifies Them", thumbnail: "https://img.youtube.com/vi/nxKsD97dqAo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=nxKsD97dqAo", publishedAt: "2026-03-17T12:00:00+00:00" },
+    { id: "ZliV-hUKp2M", title: "They Are Getting Desperate", thumbnail: "https://img.youtube.com/vi/ZliV-hUKp2M/mqdefault.jpg", url: "https://www.youtube.com/watch?v=ZliV-hUKp2M", publishedAt: "2026-03-16T12:00:00+00:00" },
+    { id: "Tyho3Qiq8eY", title: "Graham Moore - [ Unfiltered ]", thumbnail: "https://img.youtube.com/vi/Tyho3Qiq8eY/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Tyho3Qiq8eY", publishedAt: "2026-03-13T20:19:50+00:00" },
     { id: "glP5aWLwd6s", title: "Inside The Mind of a Leftist", thumbnail: "https://img.youtube.com/vi/glP5aWLwd6s/mqdefault.jpg", url: "https://www.youtube.com/watch?v=glP5aWLwd6s", publishedAt: "2026-03-12T13:54:12+00:00" },
     { id: "Xfz1TaCRblA", title: "They Buried This Footage For a Reason", thumbnail: "https://img.youtube.com/vi/Xfz1TaCRblA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Xfz1TaCRblA", publishedAt: "2026-03-12T13:02:10+00:00" },
     { id: "gfZDulfXDQU", title: "We're Taking It Back", thumbnail: "https://img.youtube.com/vi/gfZDulfXDQU/mqdefault.jpg", url: "https://www.youtube.com/watch?v=gfZDulfXDQU", publishedAt: "2026-03-11T12:23:38+00:00" },
@@ -1809,9 +1840,9 @@ function getFallbackVideos() {
     { id: "DFaVsor8JeI", title: "The 'DEBATE' Is Over", thumbnail: "https://img.youtube.com/vi/DFaVsor8JeI/mqdefault.jpg", url: "https://www.youtube.com/watch?v=DFaVsor8JeI", publishedAt: "2026-03-10T16:53:13+00:00" },
     { id: "fxEwgChVQEs", title: "The BATTLE LINES Have Been Drawn", thumbnail: "https://img.youtube.com/vi/fxEwgChVQEs/mqdefault.jpg", url: "https://www.youtube.com/watch?v=fxEwgChVQEs", publishedAt: "2026-03-09T14:21:40+00:00" },
     { id: "8oVK_gK_aN8", title: "There Is No 'SPLIT' on The 'Right Wing'", thumbnail: "https://img.youtube.com/vi/8oVK_gK_aN8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8oVK_gK_aN8", publishedAt: "2026-03-07T14:13:31+00:00" },
-    { id: "4NecXlxplf8", title: "The Cat's Out Of The Bag...", thumbnail: "https://img.youtube.com/vi/4NecXlxplf8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=4NecXlxplf8", publishedAt: "2026-03-05T19:58:39+00:00" },
     { id: "4dCSN4G0G68", title: "Nothing About This Makes Sense. We Need To Unite", thumbnail: "https://img.youtube.com/vi/4dCSN4G0G68/mqdefault.jpg", url: "https://www.youtube.com/watch?v=4dCSN4G0G68", publishedAt: "2026-03-05T14:56:36+00:00" },
     { id: "8qvL5O3faWg", title: "These Channels Are DANGEROUS", thumbnail: "https://img.youtube.com/vi/8qvL5O3faWg/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8qvL5O3faWg", publishedAt: "2026-03-05T12:09:24+00:00" },
+    { id: "28BGa1gqlXk", title: "This Is Why They DEMONISE The Working Class", thumbnail: "https://img.youtube.com/vi/28BGa1gqlXk/mqdefault.jpg", url: "https://www.youtube.com/watch?v=28BGa1gqlXk", publishedAt: "2026-03-04T12:00:00+00:00" },
   ];
 }
 
