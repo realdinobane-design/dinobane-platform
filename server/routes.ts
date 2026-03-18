@@ -1819,7 +1819,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
           </td>
         </tr>`).join("");
 
-      const today = new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+      // Load pre-optimised brand images as base64 for email embedding (no external deps)
+      const emailLogoPath = require('path').join(process.cwd(), 'client/public/brand/email-logo.jpg');
+      const emailHeroPath = require('path').join(process.cwd(), 'client/public/brand/email-hero.jpg');
+      const logoBase64 = (() => {
+        try {
+          return 'data:image/jpeg;base64,' + require('fs').readFileSync(emailLogoPath).toString('base64');
+        } catch { return ''; }
+      })();
+      const heroBase64 = (() => {
+        try {
+          return 'data:image/jpeg;base64,' + require('fs').readFileSync(emailHeroPath).toString('base64');
+        } catch { return ''; }
+      })();
+
+      const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
       const html = `
 <!DOCTYPE html>
@@ -1829,11 +1843,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;">
     <tr><td align="center" style="padding:32px 16px;">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;overflow:hidden;max-width:560px;width:100%;">
-        <!-- Header -->
+        <!-- Header with logo -->
         <tr>
-          <td style="background:#cc2a2a;padding:28px 32px;">
-            <span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:0.06em;">DINOBANE</span>
-            <span style="font-size:13px;color:rgba(255,255,255,0.75);display:block;margin-top:4px;">Weekly Dispatch — ${today}</span>
+          <td style="background:#cc2a2a;padding:20px 28px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align:middle;width:56px;">
+                  <img src="${logoBase64}" alt="DinoBane Logo" width="56" height="56" style="display:block;border-radius:6px;" />
+                </td>
+                <td style="vertical-align:middle;padding-left:14px;">
+                  <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.08em;display:block;line-height:1.1;">DINOBANE</span>
+                  <span style="font-size:12px;color:rgba(255,255,255,0.75);display:block;margin-top:3px;letter-spacing:0.04em;">Weekly Dispatch — ${today}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <!-- Hero image -->
+        <tr>
+          <td style="padding:0;line-height:0;">
+            <img src="${heroBase64}" alt="DinoBane" width="560" style="display:block;width:100%;max-width:560px;" />
           </td>
         </tr>
         <!-- Thank you message -->
