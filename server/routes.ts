@@ -22,6 +22,62 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 const PRICE_ID = process.env.STRIPE_PRICE_ID || "price_1TAtUxLgaM5ScSUDmOEucYog";
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+// ─── SHARED EMAIL ASSETS ──────────────────────────────────────────────────────
+// Pre-load logo once at startup; used by all email templates via CID attachment
+const EMAIL_LOGO_PATH = require('path').join(__dirname, '../client/public/brand/email-logo.jpg');
+let _emailLogoBuffer: Buffer | null = null;
+function getEmailLogo(): Buffer | null {
+  if (_emailLogoBuffer) return _emailLogoBuffer;
+  try { _emailLogoBuffer = require('fs').readFileSync(EMAIL_LOGO_PATH); return _emailLogoBuffer; } catch { return null; }
+}
+
+// Returns the standard branded header table rows (logo left, title right) + footer row
+// logoSrc should be "cid:logo" when sending with attachment, or omit for plain text fallback
+function emailHeader(subtitle: string): string {
+  return `
+        <tr>
+          <td style="background:#cc2a2a;padding:20px 28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="vertical-align:middle;width:56px;">
+                  <img src="cid:logo" alt="DinoBane" width="56" height="56" style="display:block;border-radius:6px;" />
+                </td>
+                <td style="vertical-align:middle;padding-left:14px;">
+                  <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.08em;display:block;line-height:1.1;">DINOBANE</span>
+                  <span style="font-size:12px;color:rgba(255,255,255,0.75);display:block;margin-top:3px;letter-spacing:0.04em;">${subtitle}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`;
+}
+function emailFooter(note: string): string {
+  return `
+        <tr>
+          <td style="background:#0d0d0d;border-top:1px solid #1a1a1a;padding:18px 28px;">
+            <p style="margin:0;font-size:11px;color:#444;line-height:1.6;">${note}</p>
+          </td>
+        </tr>`;
+}
+function emailWrapper(innerRows: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a0a;">
+    <tr><td align="center" style="padding:36px 16px;">
+      <table width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;background:#111;border:1px solid #1f1f1f;border-radius:4px;overflow:hidden;">
+        ${innerRows}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+function logoAttachment() {
+  const buf = getEmailLogo();
+  return buf ? [{ content: buf, filename: 'logo.jpg', contentType: 'image/jpeg', contentId: 'logo' }] : [];
+}
 
 // ─── EMAIL CLIENT (Resend) ────────────────────────────────────────────────────
 const resend = process.env.RESEND_API_KEY
@@ -96,109 +152,65 @@ ensureVerificationTokensTable();
 async function sendWelcomeEmail(email: string, displayName: string) {
   if (!resend) return;
   const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+  const channels = [
+    ["#general", "Main chat — anything goes"],
+    ["#news-links", "Drop links to stories you find"],
+    ["#video-discussion", "Discuss the latest videos"],
+    ["#off-topic", "Banter, memes, off-the-record"],
+  ];
+  const html = emailWrapper(`
+    ${emailHeader("Member Welcome")}
+    <tr>
+      <td style="padding:32px 28px 8px;">
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase;">You're In.</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#aaa;line-height:1.7;">Welcome to <strong style="color:#fff;">DinoBane</strong>, ${displayName}. Your membership is now active — you've got full access to everything below.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 28px 24px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #1f1f1f;border-radius:3px;background:#0d0d0d;">
+          ${channels.map(([ch, desc], i) => `
+          <tr>
+            <td style="padding:13px 18px;${i < channels.length - 1 ? 'border-bottom:1px solid #1a1a1a;' : ''}">
+              <span style="color:#cc2a2a;font-weight:700;font-size:13px;">${ch}&nbsp;</span>
+              <span style="color:#888;font-size:13px;">${desc}</span>
+            </td>
+          </tr>`).join('')}
+          <tr>
+            <td style="padding:13px 18px;border-top:1px solid #1a1a1a;">
+              <span style="color:#cc2a2a;font-weight:700;font-size:13px;">Media Vault&nbsp;</span>
+              <span style="color:#888;font-size:13px;">Members-only content &amp; exclusives</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding:4px 28px 28px;">
+        <a href="${appUrl}/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:15px 36px;text-decoration:none;border-radius:2px;">Enter the Community &rarr;</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 28px 24px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #2a2a2a;border-radius:3px;background:#141414;">
+          <tr>
+            <td style="padding:16px 18px;">
+              <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">Billing &amp; Account Issues?</p>
+              <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">Email us at <a href="mailto:realdinobane@gmail.com" style="color:#cc2a2a;text-decoration:none;font-weight:600;">realdinobane@gmail.com</a> and we'll sort it out for you.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    ${emailFooter("&copy; 2026 DinoBane. You're receiving this because you just became a member at <a href=\"" + appUrl + "\" style=\"color:#555;text-decoration:none;\">dinobane.com</a>. Cancel any time from your billing portal.")}
+  `);
   try {
     await resend.emails.send({
       from: "DinoBane <noreply@dinobane.com>",
       to: email,
       subject: "Welcome to DinoBane — You're in.",
-      html: `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to DinoBane</title></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a0a;">
-    <tr><td align="center" style="padding:40px 16px;">
-      <table width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;background:#111;border:1px solid #1f1f1f;border-radius:4px;overflow:hidden;">
-
-        <!-- Header / Logo -->
-        <tr>
-          <td style="background:#0d0d0d;border-bottom:2px solid #cc2a2a;padding:28px 36px;">
-            <table cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td>
-                  <!-- SVG logo as inline text -->
-                  <span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">DINO</span><span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#cc2a2a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">BANE</span>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- Hero banner -->
-        <tr>
-          <td style="padding:0;">
-            <img src="${appUrl}/brand/hero2.jpg" alt="DinoBane" width="520" style="display:block;width:100%;max-width:520px;height:140px;object-fit:cover;opacity:0.7;" />
-          </td>
-        </tr>
-
-        <!-- Body -->
-        <tr>
-          <td style="padding:36px 36px 12px;">
-            <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">You're In.</h1>
-            <p style="margin:0 0 24px;font-size:15px;color:#aaaaaa;line-height:1.7;">Welcome to the <strong style="color:#fff;">DinoBane</strong> community, ${displayName}. Your membership is now active — you've got full access to everything below.</p>
-          </td>
-        </tr>
-
-        <!-- Feature list -->
-        <tr>
-          <td style="padding:0 36px 28px;">
-            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #1f1f1f;border-radius:3px;background:#0d0d0d;">
-              ${[
-                ["#general", "Main chat — anything goes"],
-                ["#news-links", "Drop links to stories you find"],
-                ["#video-discussion", "Discuss the latest videos"],
-                ["#off-topic", "Banter, memes, off-the-record"],
-              ].map(([ch, desc]) => `
-              <tr>
-                <td style="padding:13px 18px;border-bottom:1px solid #1a1a1a;">
-                  <span style="color:#cc2a2a;font-weight:700;font-size:13px;">${ch}&nbsp;</span>
-                  <span style="color:#888;font-size:13px;">${desc}</span>
-                </td>
-              </tr>`).join('')}
-              <tr>
-                <td style="padding:13px 18px;">
-                  <span style="color:#cc2a2a;font-weight:700;font-size:13px;">Media Vault&nbsp;</span>
-                  <span style="color:#888;font-size:13px;">Members-only content &amp; exclusives</span>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- CTA button -->
-        <tr>
-          <td align="center" style="padding:4px 36px 32px;">
-            <a href="${appUrl}/#/community" style="display:inline-block;background:#cc2a2a;color:#ffffff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:15px 36px;text-decoration:none;border-radius:2px;">Enter the Community &rarr;</a>
-          </td>
-        </tr>
-
-        <!-- Support note -->
-        <tr>
-          <td style="padding:0 36px 32px;">
-            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #2a2a2a;border-radius:3px;background:#141414;padding:0;">
-              <tr>
-                <td style="padding:16px 18px;">
-                  <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">Billing &amp; Account Issues?</p>
-                  <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">Email us directly at <a href="mailto:realdinobane@gmail.com" style="color:#cc2a2a;text-decoration:none;font-weight:600;">realdinobane@gmail.com</a> and we'll sort it out for you.</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="background:#0d0d0d;border-top:1px solid #1a1a1a;padding:20px 36px;">
-            <p style="margin:0;font-size:11px;color:#444;line-height:1.6;">&copy; 2026 DinoBane. All rights reserved.<br>You're receiving this because you just became a member at <a href="${appUrl}" style="color:#555;text-decoration:none;">dinobane.com</a>. Cancel any time from your billing portal.</p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>
-      `,
+      html,
+      attachments: logoAttachment(),
     });
     console.log(`[welcome-email] sent to ${email}`);
   } catch (e: any) {
@@ -209,33 +221,41 @@ async function sendWelcomeEmail(email: string, displayName: string) {
 // ─── ADMIN NEW MEMBER NOTIFICATION ─────────────────────────────────────────────
 async function notifyAdminNewMember(email: string, displayName: string) {
   if (!resend) return;
+  const html = emailWrapper(`
+    ${emailHeader("Admin Alert")}
+    <tr>
+      <td style="padding:28px 28px 8px;">
+        <h2 style="margin:0 0 20px;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;">New Member Joined</h2>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #1f1f1f;border-radius:3px;background:#0d0d0d;">
+          <tr>
+            <td style="padding:14px 18px;border-bottom:1px solid #1a1a1a;">
+              <span style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Name</span><br/>
+              <span style="color:#fff;font-size:15px;font-weight:700;margin-top:4px;display:block;">${displayName}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 18px;">
+              <span style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Email</span><br/>
+              <span style="color:#cc2a2a;font-size:15px;font-weight:700;margin-top:4px;display:block;">${email}</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 28px 28px;">
+        <a href="https://dinobane.com/#/admin/users" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 24px;text-decoration:none;border-radius:2px;">View in Admin Panel &rarr;</a>
+      </td>
+    </tr>
+    ${emailFooter("Sent automatically by DinoBane when a new paid member joins.")}
+  `);
   try {
     await resend.emails.send({
       from: "DinoBane <noreply@dinobane.com>",
       to: "realdinobane@gmail.com",
       subject: `⭐ New member: ${displayName}`,
-      html: `
-        <div style="background:#0a0a0a;color:#fff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:36px 32px;border:1px solid #1f1f1f;">
-          <div style="margin-bottom:20px;border-bottom:2px solid #cc2a2a;padding-bottom:16px;">
-            <span style="font-size:22px;font-weight:900;letter-spacing:3px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:3px;color:#cc2a2a;">BANE</span>
-          </div>
-          <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">New Member Joined</h2>
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #1f1f1f;border-radius:3px;background:#111;">
-            <tr><td style="padding:14px 18px;border-bottom:1px solid #1a1a1a;">
-              <span style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Name</span><br/>
-              <span style="color:#fff;font-size:15px;font-weight:600;">${displayName}</span>
-            </td></tr>
-            <tr><td style="padding:14px 18px;">
-              <span style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Email</span><br/>
-              <span style="color:#cc2a2a;font-size:15px;font-weight:600;">${email}</span>
-            </td></tr>
-          </table>
-          <div style="margin-top:20px;">
-            <a href="https://dinobane.com/#/admin/users" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 24px;text-decoration:none;border-radius:2px;">View in Admin Panel →</a>
-          </div>
-          <p style="margin:20px 0 0;font-size:11px;color:#444;">Sent automatically by DinoBane when a new paid member is created.</p>
-        </div>
-      `,
+      html,
+      attachments: logoAttachment(),
     });
     console.log(`[admin-notify] new member notification sent for ${email}`);
   } catch (e: any) {
@@ -263,41 +283,18 @@ async function maybeSendMentionEmail(mentionedUsername: string, mentionedByUsern
       from: "DinoBane <noreply@dinobane.com>",
       to: mentionedUser.email,
       subject: `📣 @${mentionedByUsername} mentioned you in the DinoBane community`,
-      html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;">
-    <tr><td align="center" style="padding:32px 16px;">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;overflow:hidden;max-width:560px;width:100%;">
-        <!-- Header -->
+      html: emailWrapper(`
+        ${emailHeader("Community Alert")}
         <tr>
-          <td style="background:#cc2a2a;padding:24px 32px;">
-            <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.05em;">DINOBANE</span>
-            <span style="font-size:13px;color:rgba(255,255,255,0.7);display:block;margin-top:2px;">Community Alert</span>
+          <td style="padding:28px 28px 12px;">
+            <p style="margin:0 0 14px;font-size:16px;color:#e5e5e5;">Hey <strong>@${mentionedUser.username}</strong>,</p>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#aaa;"><strong style="color:#fff;">@${mentionedByUsername}</strong> mentioned you in <strong style="color:#fff;">#${channelLabel}</strong>. Head over to the community to see what they said.</p>
+            <a href="https://dinobane.com/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:2px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">View Message &rarr;</a>
           </td>
         </tr>
-        <!-- Body -->
-        <tr>
-          <td style="padding:32px;color:#e5e5e5;">
-            <p style="margin:0 0 16px;font-size:16px;">Hey <strong>@${mentionedUser.username}</strong>,</p>
-            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;"><strong>@${mentionedByUsername}</strong> mentioned you in <strong>#${channelLabel}</strong>. Head over to the community to see what they said.</p>
-            <a href="https://dinobane.com/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:700;">View Message →</a>
-          </td>
-        </tr>
-        <!-- Footer -->
-        <tr>
-          <td style="padding:20px 32px;border-top:1px solid #222;">
-            <p style="margin:0;font-size:12px;color:#555;">You're receiving this because you're a DinoBane member. You'll receive at most one of these per day.</p>
-            <p style="margin:8px 0 0;font-size:12px;"><a href="https://dinobane.com" style="color:#cc2a2a;">dinobane.com</a></p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+        ${emailFooter("You're receiving this because you're a DinoBane member. At most one of these per day.")}
+      `),
+      attachments: logoAttachment(),
     });
     console.log(`[mention-email] sent to ${mentionedUser.email} (mentioned by @${mentionedByUsername} in #${channel})`);
   } catch (e: any) {
@@ -445,19 +442,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
           from: "DinoBane <noreply@dinobane.com>",
           to: user.email,
           subject: emailSubject,
-          html: `
-            <div style="background:#0a0a0a;color:#fff;font-family:sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;">
-              <div style="margin-bottom:32px;">
-                <span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#cc2a2a;">BANE</span>
-              </div>
-              <h2 style="font-size:20px;font-weight:700;margin:0 0 12px;">Verify your email</h2>
-              <p style="color:#aaa;font-size:14px;margin:0 0 28px;line-height:1.6;">${emailBody}</p>
-              <a href="${verifyUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">
-                ${buttonText}
-              </a>
-              <p style="color:#555;font-size:12px;margin:28px 0 0;">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
-            </div>
-          `,
+          html: emailWrapper(`
+            ${emailHeader("Account Verification")}
+            <tr>
+              <td style="padding:28px 28px 12px;">
+                <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;">Verify your email</h2>
+                <p style="color:#aaa;font-size:14px;margin:0 0 24px;line-height:1.7;">${emailBody}</p>
+                <a href="${verifyUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">${buttonText}</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px 24px;">
+                <p style="color:#555;font-size:11px;margin:0;">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
+              </td>
+            </tr>
+            ${emailFooter("&copy; 2026 DinoBane &mdash; <a href=\"https://dinobane.com\" style=\"color:#555;text-decoration:none;\">dinobane.com</a>")}
+          `),
+          attachments: logoAttachment(),
         });
       } else {
         // No Resend key — log the verify URL (dev/fallback)
@@ -624,17 +625,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
       from: "DinoBane <noreply@dinobane.com>",
       to: user.email,
       subject: "Reset your DinoBane password",
-      html: `
-        <div style="background:#0a0a0a;color:#fff;font-family:sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;">
-          <div style="margin-bottom:24px;">
-            <span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#fff;">DINO</span><span style="font-size:22px;font-weight:900;letter-spacing:2px;color:#cc2a2a;">BANE</span>
-          </div>
-          <h2 style="font-size:18px;font-weight:700;margin:0 0 12px;">Reset your password</h2>
-          <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Hi ${user.displayName}, click the button below to reset your password. This link expires in 1 hour.</p>
-          <a href="${resetUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a>
-          <p style="color:#555;font-size:11px;margin-top:32px;">If you didn\'t request this, ignore this email. Your password won\'t change.</p>
-        </div>
-      `,
+      html: emailWrapper(`
+        ${emailHeader("Account Security")}
+        <tr>
+          <td style="padding:28px 28px 12px;">
+            <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;">Reset your password</h2>
+            <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Hi ${user.displayName}, click the button below to reset your password. This link expires in 1 hour.</p>
+            <a href="${resetUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 28px 24px;">
+            <p style="color:#555;font-size:11px;margin:0;">If you didn't request this, ignore this email. Your password won't change.</p>
+          </td>
+        </tr>
+        ${emailFooter("&copy; 2026 DinoBane &mdash; <a href=\"https://dinobane.com\" style=\"color:#555;text-decoration:none;\">dinobane.com</a>")}
+      `),
+      attachments: logoAttachment(),
     }).catch(() => {});
 
     return res.json({ ok: true });
@@ -1322,7 +1329,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
             from: "DinoBane <noreply@dinobane.com>",
             to: adminEmail,
             subject: `[TEST] 📣 @TestUser mentioned you in the DinoBane community`,
-            html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;"><tr><td align="center" style="padding:32px 16px;"><table width="560" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;overflow:hidden;max-width:560px;width:100%;"><tr><td style="background:#cc2a2a;padding:24px 32px;"><span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.05em;">DINOBANE</span><span style="font-size:13px;color:rgba(255,255,255,0.7);display:block;margin-top:2px;">Community Alert — TEST</span></td></tr><tr><td style="padding:32px;color:#e5e5e5;"><p style="margin:0 0 16px;font-size:16px;">Hey <strong>@AdminUser</strong>,</p><p style="margin:0 0 24px;font-size:15px;line-height:1.6;"><strong>@TestUser</strong> mentioned you in <strong>#General</strong>. Head over to the community to see what they said.</p><a href="${appUrl}/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:700;">View Message &rarr;</a></td></tr><tr><td style="padding:20px 32px;border-top:1px solid #222;"><p style="margin:0;font-size:12px;color:#555;">TEST EMAIL — This is how a mention notification looks to members.</p></td></tr></table></td></tr></table></body></html>`,
+            html: emailWrapper(`
+              ${emailHeader("Community Alert — TEST")}
+              <tr>
+                <td style="padding:28px 28px 12px;">
+                  <p style="margin:0 0 14px;font-size:16px;color:#e5e5e5;">Hey <strong>@AdminUser</strong>,</p>
+                  <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#aaa;"><strong style="color:#fff;">@TestUser</strong> mentioned you in <strong style="color:#fff;">#General</strong>. Head over to the community to see what they said.</p>
+                  <a href="${appUrl}/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:2px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">View Message &rarr;</a>
+                </td>
+              </tr>
+              ${emailFooter("TEST EMAIL — This is how a mention notification looks to members.")}
+            `),
+            attachments: logoAttachment(),
           });
           break;
 
@@ -1331,7 +1349,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
             from: "DinoBane <noreply@dinobane.com>",
             to: adminEmail,
             subject: `[TEST] Reset your DinoBane password`,
-            html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;"><tr><td align="center" style="padding:32px 16px;"><table width="520" cellpadding="0" cellspacing="0" style="background:#111;border-radius:4px;overflow:hidden;max-width:520px;width:100%;border:1px solid #1f1f1f;"><tr><td style="background:#0d0d0d;border-bottom:2px solid #cc2a2a;padding:28px 36px;"><span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#fff;">DINO</span><span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#cc2a2a;">BANE</span></td></tr><tr><td style="padding:36px;"><h2 style="margin:0 0 16px;font-size:18px;color:#fff;font-weight:700;">Password Reset Request</h2><p style="margin:0 0 24px;font-size:15px;color:#aaa;line-height:1.7;">Click the button below to reset your password. This link expires in 1 hour.</p><a href="${appUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:1px;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a><p style="margin:24px 0 0;font-size:12px;color:#555;">If you didn't request this, ignore this email.</p></td></tr><tr><td style="background:#0d0d0d;border-top:1px solid #1a1a1a;padding:16px 36px;"><p style="margin:0;font-size:11px;color:#444;">TEST EMAIL — &copy; 2026 DinoBane</p></td></tr></table></td></tr></table></body></html>`,
+            html: emailWrapper(`
+              ${emailHeader("Account Security — TEST")}
+              <tr>
+                <td style="padding:28px 28px 12px;">
+                  <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;">Reset your password</h2>
+                  <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
+                  <a href="${appUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 28px 24px;">
+                  <p style="color:#555;font-size:11px;margin:0;">TEST EMAIL — If you didn't request this, ignore this email.</p>
+                </td>
+              </tr>
+              ${emailFooter("TEST EMAIL — &copy; 2026 DinoBane")}
+            `),
+            attachments: logoAttachment(),
           });
           break;
 
@@ -1791,10 +1825,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
           </td>
         </tr>`).join("");
 
-      // Load brand images as CID inline attachments (Gmail-safe — no data: URIs)
+      // Load hero image (logo is handled by shared logoAttachment() helper)
       const fsp = require('fs');
       const pathMod = require('path');
-      const logoBuffer = (() => { try { return fsp.readFileSync(pathMod.join(process.cwd(), 'client/public/brand/email-logo.jpg')); } catch { return null; } })();
       const heroBuffer = (() => { try { return fsp.readFileSync(pathMod.join(process.cwd(), 'client/public/brand/email-hero.jpg')); } catch { return null; } })();
 
       const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -1861,9 +1894,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
 </body>
 </html>`;
 
-      // CID attachments — logo and hero only (thumbnails use direct URLs to stay under Gmail's 102KB limit)
-      const attachments: any[] = [];
-      if (logoBuffer) attachments.push({ content: logoBuffer, filename: 'logo.jpg', contentType: 'image/jpeg', contentId: 'logo' });
+      // CID attachments — logo (shared helper) + hero; thumbnails use direct URLs to stay under 102KB
+      const attachments: any[] = [...logoAttachment()];
       if (heroBuffer) attachments.push({ content: heroBuffer, filename: 'hero.jpg', contentType: 'image/jpeg', contentId: 'hero' });
 
       // Send to all recipients
