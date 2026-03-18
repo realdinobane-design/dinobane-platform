@@ -1537,7 +1537,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── INTEL / NEWS RSS FEED ──────────────────────────────────────────────────
   // ─── INTEL FEED CACHE — avoids fetching 26 RSS feeds on every page load ────────
   let intelCache: { data: any[]; fetchedAt: number } | null = null;
-  const INTEL_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  const INTEL_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
   let intelFetchInProgress = false;
 
   async function refreshIntelCache(): Promise<any[]> {
@@ -1647,37 +1647,38 @@ export function registerRoutes(httpServer: Server, app: Express) {
       });
       const top100 = allItems.slice(0, 100);
 
-      // Enrich items missing inline images — fetch only the <head> of the article (cheap)
-      // Limit to 30 concurrent enrichment requests to avoid hammering
-      async function fetchOgImage(url: string): Promise<string | null> {
-        try {
-          const r = await fetch(url, {
-            signal: AbortSignal.timeout(4000),
-            headers: { "User-Agent": "Mozilla/5.0", "Range": "bytes=0-16384" },
-          });
-          if (!r.ok) return null;
-          const chunk = await r.text();
-          return chunk.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
-            || chunk.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
-            || chunk.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1]
-            || null;
-        } catch { return null; }
-      }
+      // Cache immediately with RSS-only images — users get fast response
+      intelCache = { data: top100, fetchedAt: Date.now() };
+      console.log(`[intel] cache refreshed — ${top100.length} stories from ${FEEDS.length} feeds`);
 
-      const needsEnrichment = top100.filter((item: any) => !item.image).slice(0, 30);
-      if (needsEnrichment.length > 0) {
-        const enriched = await Promise.allSettled(needsEnrichment.map((item: any) => fetchOgImage(item.link)));
-        enriched.forEach((result, i) => {
-          if (result.status === "fulfilled" && result.value) {
-            needsEnrichment[i].image = result.value;
-          }
+      // Background enrichment: fetch og:image for stories missing inline images
+      // Runs AFTER cache is set so it never blocks a user request
+      ;(async () => {
+        async function fetchOgImage(url: string): Promise<string | null> {
+          try {
+            const r = await fetch(url, {
+              signal: AbortSignal.timeout(2500),
+              headers: { "User-Agent": "Mozilla/5.0", "Range": "bytes=0-16384" },
+            });
+            if (!r.ok) return null;
+            const chunk = await r.text();
+            return chunk.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+              || chunk.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+              || chunk.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1]
+              || null;
+          } catch { return null; }
+        }
+        const noImage = top100.filter((item: any) => !item.image).slice(0, 30);
+        if (!noImage.length) return;
+        const results = await Promise.allSettled(noImage.map((item: any) => fetchOgImage(item.link)));
+        let enriched = 0;
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled" && r.value) { noImage[i].image = r.value; enriched++; }
         });
-      }
+        if (enriched > 0) console.log(`[intel] enriched ${enriched} story images in background`);
+      })().catch(() => {});
 
-      const fresh = top100;
-      intelCache = { data: fresh, fetchedAt: Date.now() };
-      console.log(`[intel] cache refreshed — ${fresh.length} stories from ${FEEDS.length} feeds`);
-      return fresh;
+      return top100;
     } finally {
       intelFetchInProgress = false;
     }
