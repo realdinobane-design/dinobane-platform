@@ -1302,13 +1302,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const { emailId } = req.body;
     if (!emailId) return res.status(400).json({ error: "emailId required" });
 
-    const adminEmail = check.user.email;
+    const adminEmail = check.adminUser.email;
     const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
 
     try {
       switch (emailId) {
         case "welcome":
-          await sendWelcomeEmail(adminEmail, check.user.displayName || "DinoBane Admin");
+          await sendWelcomeEmail(adminEmail, check.adminUser.displayName || "DinoBane Admin");
           break;
 
         case "newsletter":
