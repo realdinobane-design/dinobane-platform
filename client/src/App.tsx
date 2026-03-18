@@ -17,6 +17,7 @@ import RegisterPage from "@/pages/register";
 import ProfilePage from "@/pages/profile";
 import MediaVaultPage from "@/pages/media-vault";
 import AdminUsersPage from "@/pages/admin-users";
+import AdminEmailsPage from "@/pages/admin-emails";
 import MembersPage from "@/pages/members";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -78,6 +79,7 @@ function AppRoutes() {
       <Route path="/profile">{() => <AuthRoute component={ProfilePage} />}</Route>
       <Route path="/admin/users">{() => <AuthRoute component={AdminUsersPage} />}</Route>
       <Route path="/admin/members">{() => <AuthRoute component={MembersPage} />}</Route>
+      <Route path="/admin/emails">{() => <AuthRoute component={AdminEmailsPage} />}</Route>
 
       <Route component={NotFound} />
     </Switch>

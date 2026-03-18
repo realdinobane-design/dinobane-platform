@@ -1201,6 +1201,166 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ user: safeUser, messages: messages.slice(0, 50), mentionCount });
   });
 
+  // ─── ADMIN EMAIL CONTROL CENTRE ──────────────────────────────────────────────
+
+  // GET /api/admin/emails/config — returns all email template metadata + schedule info
+  app.get("/api/admin/emails/config", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+
+    // Calculate next newsletter send time (next Sunday 02:00 UTC = 09:00 Bangkok)
+    const now = new Date();
+    const nextSunday = new Date(now);
+    const daysUntilSunday = (7 - now.getUTCDay()) % 7 || 7;
+    nextSunday.setUTCDate(now.getUTCDate() + daysUntilSunday);
+    nextSunday.setUTCHours(2, 0, 0, 0);
+
+    const allUsers = await storage.getAllUsers();
+    const memberCount = allUsers.filter(u => u.isMember && u.email).length;
+
+    return res.json({
+      emails: [
+        {
+          id: "welcome",
+          name: "Welcome Email",
+          description: "Sent automatically when someone subscribes and pays their first £5.",
+          trigger: "Automatic — on successful Stripe payment",
+          schedule: null,
+          nextSend: null,
+          recipients: "New member only",
+          recipientCount: null,
+          subject: "Welcome to DinoBane — You're in.",
+          canTestSend: true,
+          canManualTrigger: false,
+        },
+        {
+          id: "newsletter",
+          name: "Weekly Newsletter",
+          description: "Sent every Sunday at 9 AM Bangkok time. Shows top 5 videos uploaded that week. Skipped if no new videos.",
+          trigger: "Automatic — every Sunday 09:00 Bangkok (02:00 UTC)",
+          schedule: "Sunday 09:00 Bangkok",
+          nextSend: nextSunday.toISOString(),
+          recipients: "All paid members",
+          recipientCount: memberCount,
+          subject: "📺 DinoBane Weekly — [N] new videos this week",
+          canTestSend: true,
+          canManualTrigger: true,
+        },
+        {
+          id: "mention",
+          name: "Mention Notification",
+          description: "Sent when a member is @mentioned in the community chat. Max once per day per user to avoid spam.",
+          trigger: "Automatic — on @mention in community chat",
+          schedule: null,
+          nextSend: null,
+          recipients: "Mentioned member only",
+          recipientCount: null,
+          subject: "📣 @[user] mentioned you in the DinoBane community",
+          canTestSend: true,
+          canManualTrigger: false,
+        },
+        {
+          id: "password-reset",
+          name: "Password Reset",
+          description: "Sent when a user requests a password reset. Contains a secure one-time link valid for 1 hour.",
+          trigger: "Automatic — on password reset request",
+          schedule: null,
+          nextSend: null,
+          recipients: "Requesting user only",
+          recipientCount: null,
+          subject: "Reset your DinoBane password",
+          canTestSend: true,
+          canManualTrigger: false,
+        },
+        {
+          id: "admin-new-member",
+          name: "Admin: New Member Alert",
+          description: "Sent to the admin email (realdinobane@gmail.com) whenever a new member joins. Includes their name and email.",
+          trigger: "Automatic — on new paid member",
+          schedule: null,
+          nextSend: null,
+          recipients: "Admin only (realdinobane@gmail.com)",
+          recipientCount: 1,
+          subject: "⭐ New member: [display name]",
+          canTestSend: true,
+          canManualTrigger: false,
+        },
+      ],
+      stats: {
+        memberCount,
+        resendConfigured: !!resend,
+      },
+    });
+  });
+
+  // POST /api/admin/emails/test-send — send a test copy of any template to admin email
+  app.post("/api/admin/emails/test-send", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    if (!resend) return res.status(503).json({ error: "Resend not configured — set RESEND_API_KEY env var" });
+
+    const { emailId } = req.body;
+    if (!emailId) return res.status(400).json({ error: "emailId required" });
+
+    const adminEmail = check.user.email;
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+
+    try {
+      switch (emailId) {
+        case "welcome":
+          await sendWelcomeEmail(adminEmail, check.user.displayName || "DinoBane Admin");
+          break;
+
+        case "newsletter":
+          await sendWeeklyNewsletter(true, adminEmail);
+          break;
+
+        case "mention":
+          await resend.emails.send({
+            from: "DinoBane <noreply@dinobane.com>",
+            to: adminEmail,
+            subject: `[TEST] 📣 @TestUser mentioned you in the DinoBane community`,
+            html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;"><tr><td align="center" style="padding:32px 16px;"><table width="560" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;overflow:hidden;max-width:560px;width:100%;"><tr><td style="background:#cc2a2a;padding:24px 32px;"><span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.05em;">DINOBANE</span><span style="font-size:13px;color:rgba(255,255,255,0.7);display:block;margin-top:2px;">Community Alert — TEST</span></td></tr><tr><td style="padding:32px;color:#e5e5e5;"><p style="margin:0 0 16px;font-size:16px;">Hey <strong>@AdminUser</strong>,</p><p style="margin:0 0 24px;font-size:15px;line-height:1.6;"><strong>@TestUser</strong> mentioned you in <strong>#General</strong>. Head over to the community to see what they said.</p><a href="${appUrl}/#/community" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:700;">View Message &rarr;</a></td></tr><tr><td style="padding:20px 32px;border-top:1px solid #222;"><p style="margin:0;font-size:12px;color:#555;">TEST EMAIL — This is how a mention notification looks to members.</p></td></tr></table></td></tr></table></body></html>`,
+          });
+          break;
+
+        case "password-reset":
+          await resend.emails.send({
+            from: "DinoBane <noreply@dinobane.com>",
+            to: adminEmail,
+            subject: `[TEST] Reset your DinoBane password`,
+            html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;"><tr><td align="center" style="padding:32px 16px;"><table width="520" cellpadding="0" cellspacing="0" style="background:#111;border-radius:4px;overflow:hidden;max-width:520px;width:100%;border:1px solid #1f1f1f;"><tr><td style="background:#0d0d0d;border-bottom:2px solid #cc2a2a;padding:28px 36px;"><span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#fff;">DINO</span><span style="font-size:26px;font-weight:900;letter-spacing:3px;color:#cc2a2a;">BANE</span></td></tr><tr><td style="padding:36px;"><h2 style="margin:0 0 16px;font-size:18px;color:#fff;font-weight:700;">Password Reset Request</h2><p style="margin:0 0 24px;font-size:15px;color:#aaa;line-height:1.7;">Click the button below to reset your password. This link expires in 1 hour.</p><a href="${appUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:1px;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a><p style="margin:24px 0 0;font-size:12px;color:#555;">If you didn't request this, ignore this email.</p></td></tr><tr><td style="background:#0d0d0d;border-top:1px solid #1a1a1a;padding:16px 36px;"><p style="margin:0;font-size:11px;color:#444;">TEST EMAIL — &copy; 2026 DinoBane</p></td></tr></table></td></tr></table></body></html>`,
+          });
+          break;
+
+        case "admin-new-member":
+          await notifyAdminNewMember(adminEmail, "Test Member");
+          break;
+
+        default:
+          return res.status(400).json({ error: `Unknown emailId: ${emailId}` });
+      }
+
+      return res.json({ ok: true, sentTo: adminEmail });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  // POST /api/admin/emails/trigger-newsletter — manually fire the newsletter right now
+  app.post("/api/admin/emails/trigger-newsletter", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    if (!resend) return res.status(503).json({ error: "Resend not configured" });
+    try {
+      await sendWeeklyNewsletter();
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
   // GET: any paid member can view all media
   // POST/DELETE: admin only
@@ -1575,7 +1735,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
   setInterval(() => syncYouTubeArticles("interval"), 30 * 60 * 1000);
 
   // ─── WEEKLY NEWSLETTER — every Sunday at 9 AM Bangkok (02:00 UTC) ─────────────
-  async function sendWeeklyNewsletter() {
+  // testMode: if true, send only to testEmail (skips the "no new videos" guard)
+  async function sendWeeklyNewsletter(testMode = false, testEmail?: string) {
     if (!resend) return;
     try {
       // Fetch the YouTube RSS feed for the latest videos
@@ -1587,8 +1748,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
         return t >= oneWeekAgo;
       }).slice(0, 5);
 
-      // If no new videos this week, skip sending
-      if (thisWeek.length === 0) {
+      // In test mode, use at least the 3 most recent videos if none are "this week"
+      const videosToShow = (testMode && thisWeek.length === 0) ? allVideos.slice(0, 3) : thisWeek;
+
+      // If no new videos this week, skip sending (production only)
+      if (!testMode && thisWeek.length === 0) {
         console.log("[newsletter] no new videos this week — skipping");
         return;
       }
@@ -1596,10 +1760,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // Get all paying members
       const allUsers = await storage.getAllUsers();
       const members = allUsers.filter(u => u.isMember && u.email);
-      if (members.length === 0) { console.log("[newsletter] no members to send to"); return; }
+      // In test mode override recipients to just the test email
+      const recipients = testMode && testEmail ? [{ email: testEmail }] : members;
+      if (recipients.length === 0) { console.log("[newsletter] no recipients"); return; }
 
       // Build the video cards HTML
-      const videoCards = thisWeek.map((v, i) => `
+      const videoCards = videosToShow.map((v, i) => `
         <tr>
           <td style="padding:0 0 24px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:8px;overflow:hidden;">
@@ -1612,7 +1778,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               </tr>
               <tr>
                 <td style="padding:16px 20px;">
-                  <p style="margin:0 0 4px;font-size:11px;color:#cc2a2a;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Video ${i + 1} of ${thisWeek.length}</p>
+                  <p style="margin:0 0 4px;font-size:11px;color:#cc2a2a;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Video ${i + 1} of ${videosToShow.length}</p>
                   <a href="${v.url}" style="font-size:16px;font-weight:700;color:#fff;text-decoration:none;line-height:1.4;display:block;margin-bottom:12px;">${v.title}</a>
                   <a href="${v.url}" style="display:inline-block;background:#cc2a2a;color:#fff;text-decoration:none;padding:8px 20px;border-radius:5px;font-size:13px;font-weight:700;">Watch Now →</a>
                 </td>
@@ -1642,7 +1808,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         <tr>
           <td style="padding:28px 32px 8px;">
             <p style="margin:0 0 12px;font-size:17px;font-weight:700;color:#fff;">This week on DinoBane</p>
-            <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#bbb;">Thank you for your continued support — it genuinely means everything. Here are the ${thisWeek.length} video${thisWeek.length > 1 ? "s" : ""} I uploaded this week. Watch, share, and keep exposing the truth.</p>
+            <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#bbb;">${testMode ? "[TEST EMAIL] " : ""}Thank you for your continued support — it genuinely means everything. Here are the ${videosToShow.length} video${videosToShow.length > 1 ? "s" : ""} I uploaded this week. Watch, share, and keep exposing the truth.</p>
           </td>
         </tr>
         <!-- Video cards -->
@@ -1670,14 +1836,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
 </body>
 </html>`;
 
-      // Send to all members
+      // Send to all recipients
       let sent = 0;
-      for (const member of members) {
+      for (const member of recipients) {
         try {
           await resend.emails.send({
             from: "DinoBane <noreply@dinobane.com>",
             to: member.email,
-            subject: `📺 DinoBane Weekly — ${thisWeek.length} new video${thisWeek.length > 1 ? "s" : ""} this week`,
+            subject: `${testMode ? "[TEST] " : ""}📺 DinoBane Weekly — ${videosToShow.length} new video${videosToShow.length > 1 ? "s" : ""} this week`,
             html,
           });
           sent++;
@@ -1685,7 +1851,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
           console.error(`[newsletter] failed to send to ${member.email}:`, e.message);
         }
       }
-      console.log(`[newsletter] sent to ${sent}/${members.length} members`);
+      console.log(`[newsletter] sent to ${sent}/${recipients.length} ${testMode ? "test recipients" : "members"}`);
     } catch (e: any) {
       console.error("[newsletter] error:", e.message);
     }
