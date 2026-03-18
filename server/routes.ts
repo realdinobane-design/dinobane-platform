@@ -1608,11 +1608,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
             const r = block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\/${tag}>|<${tag}[^>]*>([^<]*)<\/${tag}>`));
             return r ? (r[1] || r[2] || "").trim() : "";
           };
-          const title = getTag("title");
+          const decodeEntities = (s: string) => s
+            .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&apos;/g, "'")
+            .replace(/&#(\d+);/g, (_: string, n: string) => String.fromCharCode(parseInt(n, 10)))
+            .replace(/&#x([0-9a-fA-F]+);/g, (_: string, h: string) => String.fromCharCode(parseInt(h, 16)))
+            .replace(/&nbsp;/g, " ").replace(/&ndash;/g, "–").replace(/&mdash;/g, "—")
+            .replace(/&lsquo;/g, "\u2018").replace(/&rsquo;/g, "\u2019")
+            .replace(/&ldquo;/g, "\u201C").replace(/&rdquo;/g, "\u201D");
+          const title = decodeEntities(getTag("title"));
           const link = getTag("link") || block.match(/<link[^>]+href=["']([^"']+)["']/)?.[1] || "";
           const pubDate = getTag("pubDate") || getTag("published") || getTag("updated") || "";
           const desc = getTag("description") || getTag("summary") || getTag("content");
-          const cleanDesc = desc.replace(/<[^>]+>/g, "").slice(0, 200).trim();
+          const cleanDesc = decodeEntities(desc.replace(/<[^>]+>/g, "")).slice(0, 200).trim();
           // Extract inline image from RSS (media:thumbnail, media:content, enclosure, or img inside description)
           const inlineImage =
             block.match(/media:thumbnail[^>]+url=["']([^"']+)["']/i)?.[1] ||
