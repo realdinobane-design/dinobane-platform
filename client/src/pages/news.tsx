@@ -267,7 +267,7 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
 
         {/* Headline — large, bold, Clash Display */}
         <h3
-          className="text-xl font-black text-white leading-snug group-hover:text-[#cc2a2a] transition-colors mb-3"
+          className="text-xl font-black text-white leading-snug group-hover:text-[#cc2a2a] transition-colors mb-3 tracking-wide"
           style={{ fontFamily: "'Clash Display', sans-serif" }}
         >
           {item.title}
