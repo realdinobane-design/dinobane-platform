@@ -1767,40 +1767,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const recipients = testMode && testEmail ? [{ email: testEmail }] : members;
       if (recipients.length === 0) { console.log("[newsletter] no recipients"); return; }
 
-      // Fetch thumbnails as Buffers for CID inline attachment (Gmail-safe)
-      const thumbBuffers = await Promise.all(
-        videosToShow.map(async (v, i) => {
-          if (!v.thumbnail) return null;
-          try {
-            return await new Promise<Buffer | null>((resolve) => {
-              const https = require('https');
-              const http = require('http');
-              const client = v.thumbnail!.startsWith('https') ? https : http;
-              const req = client.get(v.thumbnail!, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res: any) => {
-                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                  // follow redirect
-                  const rClient = res.headers.location.startsWith('https') ? https : http;
-                  rClient.get(res.headers.location, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (r2: any) => {
-                    const chunks: Buffer[] = [];
-                    r2.on('data', (c: Buffer) => chunks.push(c));
-                    r2.on('end', () => resolve(Buffer.concat(chunks)));
-                    r2.on('error', () => resolve(null));
-                  }).on('error', () => resolve(null));
-                  return;
-                }
-                const chunks: Buffer[] = [];
-                res.on('data', (c: Buffer) => chunks.push(c));
-                res.on('end', () => resolve(Buffer.concat(chunks)));
-                res.on('error', () => resolve(null));
-              });
-              req.on('error', () => resolve(null));
-              req.setTimeout(8000, () => { req.destroy(); resolve(null); });
-            });
-          } catch { return null; }
-        })
-      );
-
-      // Build the video cards HTML — reference thumbnails by CID
+      // Build the video cards HTML — use direct YouTube thumbnail URLs
+      // (kept out of email MIME body to stay under Gmail's 102KB clip threshold)
       const videoCards = videosToShow.map((v, i) => `
         <tr>
           <td style="padding:0 0 24px;">
@@ -1808,7 +1776,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               <tr>
                 <td style="padding:0;">
                   <a href="${v.url}" style="display:block;">
-                    <img src="cid:thumb${i}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
+                    <img src="${v.thumbnail || ''}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
                   </a>
                 </td>
               </tr>
@@ -1893,13 +1861,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
 </body>
 </html>`;
 
-      // Build CID attachments array — logo, hero, then one per thumbnail
+      // CID attachments — logo and hero only (thumbnails use direct URLs to stay under Gmail's 102KB limit)
       const attachments: any[] = [];
       if (logoBuffer) attachments.push({ content: logoBuffer, filename: 'logo.jpg', contentType: 'image/jpeg', contentId: 'logo' });
       if (heroBuffer) attachments.push({ content: heroBuffer, filename: 'hero.jpg', contentType: 'image/jpeg', contentId: 'hero' });
-      thumbBuffers.forEach((buf, i) => {
-        if (buf) attachments.push({ content: buf, filename: `thumb${i}.jpg`, contentType: 'image/jpeg', contentId: `thumb${i}` });
-      });
 
       // Send to all recipients
       let sent = 0;
