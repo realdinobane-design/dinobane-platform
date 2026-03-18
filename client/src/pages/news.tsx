@@ -176,7 +176,7 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
         <div
           className="flex gap-0 whitespace-nowrap"
           style={{
-            animation: "ticker 60s linear infinite",
+            animation: "ticker 15s linear infinite",
           }}
         >
           {[...tickerItems, ...tickerItems].map((item, i) => (
