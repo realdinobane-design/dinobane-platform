@@ -1,15 +1,17 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/App";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Crown, Upload, Image, Film, Trash2, Copy, Check,
-  Loader2, Lock, Vault, CloudUpload, PlayCircle
+  Crown, Upload, Image, Film, Trash2,
+  Loader2, Lock, Vault, CloudUpload,
+  Heart, MessageCircle, X, Send, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface MediaItem {
   id: number;
   name: string;
@@ -19,6 +21,29 @@ interface MediaItem {
   uploadedAt: string;
 }
 
+interface MediaComment {
+  id: number;
+  mediaId: number;
+  userId: number;
+  content: string;
+  createdAt: string;
+  user: {
+    id: number;
+    displayName: string;
+    username: string;
+    avatarInitials: string;
+    avatarColor: string;
+    avatarUrl?: string;
+    email: string;
+  };
+}
+
+interface LikeState {
+  count: number;
+  liked: boolean;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_IMAGE_MB = 5;
 const MAX_VIDEO_MB = 50;
 const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
@@ -29,39 +54,39 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-/* ─── Lock screens ─────────────────────────────────────────── */
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+// ─── Lock screens ─────────────────────────────────────────────────────────────
+const BrandLogo = () => (
+  <svg width="52" height="52" viewBox="0 0 100 100" fill="none" aria-hidden="true" className="mb-6">
+    <rect width="100" height="100" rx="8" fill="#111" />
+    <polygon points="15,10 50,45 85,10 95,20 60,55 95,90 85,100 50,65 15,100 5,90 40,55 5,20" fill="#cc2a2a" />
+    <rect x="18" y="42" width="64" height="16" fill="#111" />
+    <text x="50" y="57" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontSize="15" fontWeight="900" fill="white" letterSpacing="1">DINOBANE</text>
+  </svg>
+);
+
 function SignInLock() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
-      {/* Brand stripe */}
       <div className="w-1 h-16 bg-[#cc2a2a] rounded-full mb-8" />
-
-      {/* Logo mark */}
-      <svg width="52" height="52" viewBox="0 0 100 100" fill="none" aria-hidden="true" className="mb-6">
-        <rect width="100" height="100" rx="8" fill="#111" />
-        <polygon
-          points="15,10 50,45 85,10 95,20 60,55 95,90 85,100 50,65 15,100 5,90 40,55 5,20"
-          fill="#cc2a2a"
-        />
-        <rect x="18" y="42" width="64" height="16" fill="#111" />
-        <text x="50" y="57" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontSize="15" fontWeight="900" fill="white" letterSpacing="1">DINOBANE</text>
-      </svg>
-
+      <BrandLogo />
       <Lock size={28} className="text-[#cc2a2a] mb-4" />
-      <h2
-        className="text-2xl font-black text-white uppercase tracking-widest mb-2"
-        style={{ fontFamily: "'Clash Display', sans-serif" }}
-      >
+      <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
         Sign In Required
       </h2>
-      <p className="text-sm text-zinc-500 max-w-xs mb-8">
-        You need to be signed in to access the Media Vault.
-      </p>
+      <p className="text-sm text-zinc-500 max-w-xs mb-8">You need to be signed in to access the Media Vault.</p>
       <Link href="/login">
-        <Button
-          className="bg-[#cc2a2a] hover:bg-[#b02222] text-white font-bold uppercase tracking-wider px-8 py-2.5 text-sm"
-          data-testid="button-signin-vault"
-        >
+        <Button className="bg-[#cc2a2a] hover:bg-[#b02222] text-white font-bold uppercase tracking-wider px-8 py-2.5 text-sm" data-testid="button-signin-vault">
           Sign In
         </Button>
       </Link>
@@ -72,38 +97,16 @@ function SignInLock() {
 function MembersOnlyLock() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
-      {/* Brand stripe */}
       <div className="w-1 h-16 bg-[#cc2a2a] rounded-full mb-8" />
-
-      {/* Logo mark */}
-      <svg width="52" height="52" viewBox="0 0 100 100" fill="none" aria-hidden="true" className="mb-6">
-        <rect width="100" height="100" rx="8" fill="#111" />
-        <polygon
-          points="15,10 50,45 85,10 95,20 60,55 95,90 85,100 50,65 15,100 5,90 40,55 5,20"
-          fill="#cc2a2a"
-        />
-        <rect x="18" y="42" width="64" height="16" fill="#111" />
-        <text x="50" y="57" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontSize="15" fontWeight="900" fill="white" letterSpacing="1">DINOBANE</text>
-      </svg>
-
+      <BrandLogo />
       <Crown size={28} className="text-yellow-400 mb-4" />
-      <h2
-        className="text-2xl font-black text-white uppercase tracking-widest mb-2"
-        style={{ fontFamily: "'Clash Display', sans-serif" }}
-      >
+      <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
         Members Only
       </h2>
-      <p className="text-sm text-zinc-500 max-w-xs mb-2">
-        The Media Vault is an exclusive space for DinoBane paid members.
-      </p>
-      <p className="text-xs text-zinc-600 mb-8">
-        Upload images, store video clips, and share media with the community.
-      </p>
+      <p className="text-sm text-zinc-500 max-w-xs mb-2">The Media Vault is an exclusive space for DinoBane paid members.</p>
+      <p className="text-xs text-zinc-600 mb-8">Upload images, store video clips, and share media with the community.</p>
       <Link href="/membership">
-        <Button
-          className="bg-[#cc2a2a] hover:bg-[#b02222] text-white font-bold uppercase tracking-wider px-8 py-2.5 text-sm gap-2"
-          data-testid="button-join-vault"
-        >
+        <Button className="bg-[#cc2a2a] hover:bg-[#b02222] text-white font-bold uppercase tracking-wider px-8 py-2.5 text-sm gap-2" data-testid="button-join-vault">
           <Crown size={14} /> Join for £5/month
         </Button>
       </Link>
@@ -111,15 +114,8 @@ function MembersOnlyLock() {
   );
 }
 
-/* ─── Drag-and-drop upload zone ──────────────────────────────── */
-function UploadZone({
-  onFile,
-  accept,
-  maxMB,
-  label,
-  icon: Icon,
-  uploading,
-}: {
+// ─── Upload zone ──────────────────────────────────────────────────────────────
+function UploadZone({ onFile, accept, maxMB, label, icon: Icon, uploading }: {
   onFile: (f: File) => void;
   accept: string;
   maxMB: number;
@@ -130,62 +126,384 @@ function UploadZone({
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) onFile(file);
-  };
-
   return (
     <div
       onDragOver={e => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
+      onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}
       onClick={() => inputRef.current?.click()}
-      className={`
-        relative flex flex-col items-center justify-center gap-3 p-8 rounded-sm cursor-pointer
-        border-2 border-dashed transition-all select-none
-        ${dragging
-          ? "border-[#cc2a2a] bg-[#cc2a2a]/5"
-          : "border-zinc-800 bg-[#111] hover:border-zinc-600 hover:bg-zinc-900/60"
-        }
-      `}
+      className={`relative flex flex-col items-center justify-center gap-3 p-8 rounded-sm cursor-pointer border-2 border-dashed transition-all select-none
+        ${dragging ? "border-[#cc2a2a] bg-[#cc2a2a]/5" : "border-zinc-800 bg-[#111] hover:border-zinc-600 hover:bg-zinc-900/60"}`}
       data-testid={`dropzone-${label.toLowerCase().replace(" ", "-")}`}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={e => e.target.files?.[0] && onFile(e.target.files[0])}
-      />
-      {uploading ? (
-        <Loader2 size={28} className="text-[#cc2a2a] animate-spin" />
-      ) : (
-        <Icon size={28} className={dragging ? "text-[#cc2a2a]" : "text-zinc-500"} />
-      )}
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
+      {uploading ? <Loader2 size={28} className="text-[#cc2a2a] animate-spin" /> : <Icon size={28} className={dragging ? "text-[#cc2a2a]" : "text-zinc-500"} />}
       <div className="text-center">
         <p className="text-sm font-semibold text-white">{label}</p>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          Drag & drop or click · max {maxMB}MB
-        </p>
+        <p className="text-xs text-zinc-500 mt-0.5">Drag & drop or click · max {maxMB}MB</p>
       </div>
-      {dragging && (
-        <div className="absolute inset-0 rounded-sm bg-[#cc2a2a]/10 pointer-events-none border-2 border-[#cc2a2a]" />
-      )}
+      {dragging && <div className="absolute inset-0 rounded-sm bg-[#cc2a2a]/10 pointer-events-none border-2 border-[#cc2a2a]" />}
     </div>
   );
 }
 
-/* ─── Main page ──────────────────────────────────────────────── */
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+function UserAvatar({ user, size = 28 }: { user: MediaComment["user"]; size?: number }) {
+  return (
+    <div
+      className="rounded-full flex items-center justify-center text-white font-bold shrink-0 overflow-hidden"
+      style={{ width: size, height: size, background: user.avatarColor, fontSize: size * 0.35 }}
+    >
+      {user.avatarUrl
+        ? <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
+        : user.avatarInitials}
+    </div>
+  );
+}
+
+// ─── Lightbox modal ───────────────────────────────────────────────────────────
+function MediaLightbox({
+  item,
+  items,
+  onClose,
+  onNavigate,
+  currentUser,
+  isAdmin,
+}: {
+  item: MediaItem;
+  items: MediaItem[];
+  onClose: () => void;
+  onNavigate: (item: MediaItem) => void;
+  currentUser: { id: number; email: string; displayName: string; avatarInitials: string; avatarColor: string; avatarUrl?: string };
+  isAdmin: boolean;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [commentText, setCommentText] = useState("");
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  const currentIndex = items.findIndex(i => i.id === item.id);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < items.length - 1;
+
+  // Close on Escape, navigate on arrow keys
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && hasPrev) onNavigate(items[currentIndex - 1]);
+      if (e.key === "ArrowRight" && hasNext) onNavigate(items[currentIndex + 1]);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [currentIndex, hasPrev, hasNext]);
+
+  // Likes
+  const { data: likeState, isLoading: likesLoading } = useQuery<LikeState>({
+    queryKey: ["/api/media", item.id, "likes"],
+    queryFn: async () => {
+      const res = await fetch(`/api/media/${item.id}/likes`, { credentials: "include" });
+      if (!res.ok) return { count: 0, liked: false };
+      return res.json();
+    },
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/media/${item.id}/likes`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(["/api/media", item.id, "likes"], data);
+      // also invalidate the grid summary
+      qc.invalidateQueries({ queryKey: ["/api/media", item.id, "likes"] });
+    },
+  });
+
+  // Comments
+  const { data: comments = [], isLoading: commentsLoading } = useQuery<MediaComment[]>({
+    queryKey: ["/api/media", item.id, "comments"],
+    queryFn: async () => {
+      const res = await fetch(`/api/media/${item.id}/comments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [comments.length]);
+
+  const commentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", `/api/media/${item.id}/comments`, { content });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/media", item.id, "comments"] });
+      setCommentText("");
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: number) => {
+      const res = await apiRequest("DELETE", `/api/media/comments/${commentId}`, {});
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/media", item.id, "comments"] }),
+  });
+
+  const deleteMediaMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/media/${item.id}`, {});
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/media"] });
+      toast({ title: "Deleted" });
+      onClose();
+    },
+  });
+
+  const submitComment = () => {
+    const trimmed = commentText.trim();
+    if (!trimmed) return;
+    commentMutation.mutate(trimmed);
+  };
+
+  return (
+    /* Backdrop */
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Panel */}
+      <div className="relative flex flex-col md:flex-row w-full max-w-5xl mx-4 max-h-[92vh] bg-[#0d0d0d] border border-zinc-800 rounded-sm overflow-hidden shadow-2xl">
+
+        {/* ── Left: media ── */}
+        <div className="relative flex items-center justify-center bg-black md:w-[60%] min-h-[240px] md:min-h-0">
+          {item.type === "image"
+            ? <img src={item.dataUrl} alt={item.name} className="w-full h-full object-contain max-h-[55vh] md:max-h-[92vh]" />
+            : <video src={item.dataUrl} controls controlsList="nodownload" className="w-full max-h-[55vh] md:max-h-[92vh]" autoPlay />
+          }
+
+          {/* Nav arrows */}
+          {hasPrev && (
+            <button
+              onClick={() => onNavigate(items[currentIndex - 1])}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-sm transition-colors"
+              data-testid="button-lightbox-prev"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          {hasNext && (
+            <button
+              onClick={() => onNavigate(items[currentIndex + 1])}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-sm transition-colors"
+              data-testid="button-lightbox-next"
+            >
+              <ChevronRight size={20} />
+            </button>
+          )}
+        </div>
+
+        {/* ── Right: info + comments ── */}
+        <div className="flex flex-col md:w-[40%] min-h-0 border-t md:border-t-0 md:border-l border-zinc-800">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-zinc-200 truncate">{item.name}</p>
+              <p className="text-xs text-zinc-600">{formatBytes(item.size)}</p>
+            </div>
+            <div className="flex items-center gap-2 ml-3 shrink-0">
+              {isAdmin && (
+                <button
+                  onClick={() => deleteMediaMutation.mutate()}
+                  disabled={deleteMediaMutation.isPending}
+                  className="text-red-500 hover:text-red-400 p-1.5 rounded-sm hover:bg-red-950/30 transition-colors"
+                  title="Delete media"
+                  data-testid="button-lightbox-delete"
+                >
+                  {deleteMediaMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                </button>
+              )}
+              <button onClick={onClose} className="text-zinc-400 hover:text-white p-1.5 rounded-sm hover:bg-zinc-800 transition-colors" data-testid="button-lightbox-close">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Like bar */}
+          <div className="flex items-center gap-4 px-4 py-3 border-b border-zinc-800 shrink-0">
+            <button
+              onClick={() => likeMutation.mutate()}
+              disabled={likeMutation.isPending || likesLoading}
+              className="flex items-center gap-1.5 transition-colors group"
+              data-testid="button-lightbox-like"
+            >
+              <Heart
+                size={18}
+                className={`transition-colors ${likeState?.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : "text-zinc-500 group-hover:text-[#cc2a2a]"}`}
+              />
+              <span className={`text-sm font-semibold ${likeState?.liked ? "text-[#cc2a2a]" : "text-zinc-400"}`}>
+                {likeState?.count ?? 0}
+              </span>
+            </button>
+            <div className="flex items-center gap-1.5 text-zinc-500">
+              <MessageCircle size={16} />
+              <span className="text-sm">{comments.length}</span>
+            </div>
+          </div>
+
+          {/* Comments list */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
+            {commentsLoading && (
+              <div className="flex items-center gap-2 text-zinc-600">
+                <Loader2 size={14} className="animate-spin" /> <span className="text-xs">Loading comments...</span>
+              </div>
+            )}
+            {!commentsLoading && comments.length === 0 && (
+              <p className="text-xs text-zinc-600 text-center py-4">No comments yet. Be the first!</p>
+            )}
+            {comments.map(c => (
+              <div key={c.id} className="flex gap-2.5 group/comment" data-testid={`comment-${c.id}`}>
+                <UserAvatar user={c.user} size={28} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="text-xs font-semibold text-zinc-300">{c.user.displayName}</span>
+                    <span className="text-xs text-zinc-600">{timeAgo(c.createdAt)}</span>
+                    {/* Delete: own comment or admin */}
+                    {(isAdmin || c.userId === Number((currentUser as any).id)) && (
+                      <button
+                        onClick={() => deleteCommentMutation.mutate(c.id)}
+                        className="ml-auto opacity-0 group-hover/comment:opacity-100 text-zinc-600 hover:text-red-400 transition-all"
+                        title="Delete comment"
+                        data-testid={`button-delete-comment-${c.id}`}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-zinc-300 leading-snug break-words">{c.content}</p>
+                </div>
+              </div>
+            ))}
+            <div ref={commentsEndRef} />
+          </div>
+
+          {/* Comment input */}
+          <div className="px-4 py-3 border-t border-zinc-800 shrink-0">
+            <div className="flex items-center gap-2">
+              <UserAvatar user={currentUser as any} size={26} />
+              <input
+                type="text"
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitComment(); } }}
+                placeholder="Add a comment…"
+                maxLength={500}
+                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-sm px-3 py-1.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors"
+                data-testid="input-comment"
+              />
+              <button
+                onClick={submitComment}
+                disabled={commentMutation.isPending || !commentText.trim()}
+                className="text-[#cc2a2a] hover:text-[#ff3333] disabled:text-zinc-700 transition-colors p-1"
+                data-testid="button-submit-comment"
+              >
+                {commentMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Compact like/comment count strip (shown on cards in the grid) ─────────────
+function MediaCardStats({ mediaId }: { mediaId: number }) {
+  const { data } = useQuery<LikeState>({
+    queryKey: ["/api/media", mediaId, "likes"],
+    queryFn: async () => {
+      const res = await fetch(`/api/media/${mediaId}/likes`, { credentials: "include" });
+      if (!res.ok) return { count: 0, liked: false };
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  const { data: comments = [] } = useQuery<MediaComment[]>({
+    queryKey: ["/api/media", mediaId, "comments"],
+    queryFn: async () => {
+      const res = await fetch(`/api/media/${mediaId}/comments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  return (
+    <div className="flex items-center gap-3 px-2.5 py-1.5 border-t border-zinc-800/60">
+      <span className="flex items-center gap-1 text-xs text-zinc-500">
+        <Heart size={11} className={data?.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />
+        {data?.count ?? 0}
+      </span>
+      <span className="flex items-center gap-1 text-xs text-zinc-500">
+        <MessageCircle size={11} />
+        {comments.length}
+      </span>
+    </div>
+  );
+}
+
+// ─── Video card stats (same but inline row) ───────────────────────────────────
+function VideoCardStats({ mediaId }: { mediaId: number }) {
+  const { data: likeState } = useQuery<LikeState>({
+    queryKey: ["/api/media", mediaId, "likes"],
+    queryFn: async () => {
+      const res = await fetch(`/api/media/${mediaId}/likes`, { credentials: "include" });
+      if (!res.ok) return { count: 0, liked: false };
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  const { data: comments = [] } = useQuery<MediaComment[]>({
+    queryKey: ["/api/media", mediaId, "comments"],
+    queryFn: async () => {
+      const res = await fetch(`/api/media/${mediaId}/comments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  return (
+    <>
+      <span className="flex items-center gap-1 text-xs text-zinc-500">
+        <Heart size={12} className={likeState?.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />
+        {likeState?.count ?? 0}
+      </span>
+      <span className="flex items-center gap-1 text-xs text-zinc-500">
+        <MessageCircle size={12} />
+        {comments.length}
+      </span>
+    </>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function MediaVaultPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
-  const [copied, setCopied] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"images" | "videos">("images");
+  const [lightboxItem, setLightboxItem] = useState<MediaItem | null>(null);
 
   if (!user) return <SignInLock />;
   if (!user.isMember) return <MembersOnlyLock />;
@@ -199,26 +517,10 @@ export default function MediaVaultPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/media/${id}`, {});
-      if (!res.ok) throw new Error("Delete failed");
-      return res.json();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/media"] });
-      toast({ title: "Deleted" });
-    },
-  });
-
   const handleFileUpload = async (file: File, type: "image" | "video") => {
     const maxMB = type === "image" ? MAX_IMAGE_MB : MAX_VIDEO_MB;
     if (file.size > maxMB * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: `Max size is ${maxMB}MB for ${type}s.`,
-        variant: "destructive",
-      });
+      toast({ title: "File too large", description: `Max size is ${maxMB}MB for ${type}s.`, variant: "destructive" });
       return;
     }
     setUploading(true);
@@ -229,16 +531,8 @@ export default function MediaVaultPage() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const res = await apiRequest("POST", "/api/media", {
-        name: file.name,
-        type,
-        dataUrl,
-        size: file.size,
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Upload failed");
-      }
+      const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, size: file.size });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Upload failed"); }
       await qc.invalidateQueries({ queryKey: ["/api/media"] });
       toast({ title: "Uploaded", description: file.name });
       setActiveTab(type === "image" ? "images" : "videos");
@@ -249,239 +543,189 @@ export default function MediaVaultPage() {
     }
   };
 
-  const copyUrl = (id: number, dataUrl: string) => {
-    navigator.clipboard.writeText(dataUrl);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
   const isAdmin = ADMIN_EMAILS.has(user.email);
   const images = media.filter(m => m.type === "image");
   const videos = media.filter(m => m.type === "video");
+  const tabItems = activeTab === "images" ? images : videos;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-
-      {/* ── Page header ── */}
-      <div className="mb-8">
-        {/* Red accent bar */}
-        <div className="w-10 h-1 bg-[#cc2a2a] rounded-full mb-4" />
-        <div className="flex items-center gap-3 mb-1">
-          <Vault size={22} className="text-[#cc2a2a]" />
-          <h1
-            className="text-2xl font-black text-white uppercase tracking-widest"
-            style={{ fontFamily: "'Clash Display', sans-serif" }}
-          >
-            Media Vault
-          </h1>
-        </div>
-        <p className="text-sm text-zinc-500 ml-9">
-          Private media library — images &amp; videos for community use.
-        </p>
-      </div>
-
-      {/* ── Upload zones (admin only) ── */}
-      {isAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <UploadZone
-            onFile={f => handleFileUpload(f, "image")}
-            accept="image/*"
-            maxMB={MAX_IMAGE_MB}
-            label="Upload Image"
-            icon={CloudUpload}
-            uploading={uploading}
-          />
-          <UploadZone
-            onFile={f => handleFileUpload(f, "video")}
-            accept="video/*"
-            maxMB={MAX_VIDEO_MB}
-            label="Upload Video"
-            icon={Film}
-            uploading={uploading}
-          />
-        </div>
+    <>
+      {/* ── Lightbox ── */}
+      {lightboxItem && (
+        <MediaLightbox
+          item={lightboxItem}
+          items={tabItems}
+          onClose={() => setLightboxItem(null)}
+          onNavigate={setLightboxItem}
+          currentUser={user}
+          isAdmin={isAdmin}
+        />
       )}
 
-      {/* ── Loading ── */}
-      {isLoading && (
-        <div className="flex items-center gap-2.5 text-zinc-500 py-8">
-          <Loader2 size={16} className="animate-spin text-[#cc2a2a]" />
-          <span className="text-sm">Loading vault...</span>
-        </div>
-      )}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
 
-      {/* ── Empty state ── */}
-      {!isLoading && media.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-zinc-800 rounded-sm text-center">
-          <Upload size={32} className="text-zinc-700 mb-4" />
-          <p className="text-sm font-semibold text-zinc-400">No media yet</p>
-          <p className="text-xs text-zinc-600 mt-1">
-            {isAdmin ? "Use the upload zones above to add images or videos." : "No media has been uploaded yet."}
-          </p>
-        </div>
-      )}
-
-      {/* ── Tabs ── */}
-      {!isLoading && media.length > 0 && (
-        <>
-          <div className="flex items-center gap-1 mb-6 border-b border-zinc-800">
-            <button
-              onClick={() => setActiveTab("images")}
-              className={`
-                flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px
-                ${activeTab === "images"
-                  ? "border-[#cc2a2a] text-[#cc2a2a]"
-                  : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }
-              `}
-              data-testid="tab-images"
-            >
-              <Image size={13} />
-              Images
-              <span className="text-xs font-normal text-zinc-600 ml-0.5">({images.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("videos")}
-              className={`
-                flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px
-                ${activeTab === "videos"
-                  ? "border-[#cc2a2a] text-[#cc2a2a]"
-                  : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }
-              `}
-              data-testid="tab-videos"
-            >
-              <Film size={13} />
-              Videos
-              <span className="text-xs font-normal text-zinc-600 ml-0.5">({videos.length})</span>
-            </button>
+        {/* ── Page header ── */}
+        <div className="mb-8">
+          <div className="w-10 h-1 bg-[#cc2a2a] rounded-full mb-4" />
+          <div className="flex items-center gap-3 mb-1">
+            <Vault size={22} className="text-[#cc2a2a]" />
+            <h1 className="text-2xl font-black text-white uppercase tracking-widest" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              Media Vault
+            </h1>
           </div>
+          <p className="text-sm text-zinc-500 ml-9">Private media library — images &amp; videos for community use.</p>
+        </div>
 
-          {/* ── Image grid ── */}
-          {activeTab === "images" && (
-            <section>
-              {images.length === 0 ? (
-                <div className="py-12 text-center border border-dashed border-zinc-800 rounded-sm">
-                  <Image size={28} className="text-zinc-700 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-500">No images uploaded yet.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {images.map(item => (
-                    <div
-                      key={item.id}
-                      className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden group relative"
-                      data-testid={`card-image-${item.id}`}
-                    >
-                      {/* Thumbnail */}
-                      <div className="aspect-square overflow-hidden bg-zinc-900">
-                        <img
-                          src={item.dataUrl}
-                          alt={item.name}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                      </div>
+        {/* ── Upload zones (admin only) ── */}
+        {isAdmin && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <UploadZone onFile={f => handleFileUpload(f, "image")} accept="image/*" maxMB={MAX_IMAGE_MB} label="Upload Image" icon={CloudUpload} uploading={uploading} />
+            <UploadZone onFile={f => handleFileUpload(f, "video")} accept="video/*" maxMB={MAX_VIDEO_MB} label="Upload Video" icon={Film} uploading={uploading} />
+          </div>
+        )}
 
-                      {/* Info strip */}
-                      <div className="px-2.5 py-2">
-                        <p className="text-xs font-medium text-zinc-300 truncate leading-tight">{item.name}</p>
-                        <p className="text-xs text-zinc-600 mt-0.5">{formatBytes(item.size)}</p>
-                      </div>
+        {/* ── Loading ── */}
+        {isLoading && (
+          <div className="flex items-center gap-2.5 text-zinc-500 py-8">
+            <Loader2 size={16} className="animate-spin text-[#cc2a2a]" />
+            <span className="text-sm">Loading vault...</span>
+          </div>
+        )}
 
-                      {/* Hover overlay actions */}
-                      <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/50 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => copyUrl(item.id, item.dataUrl)}
-                          className="bg-[#111] text-white p-2 rounded-sm hover:bg-zinc-800 transition-colors"
-                          title="Copy data URL"
-                          data-testid={`button-copy-${item.id}`}
-                        >
-                          {copied === item.id ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => deleteMutation.mutate(item.id)}
-                            className="bg-[#cc2a2a]/20 text-red-400 p-2 rounded-sm hover:bg-[#cc2a2a]/40 transition-colors"
-                            title="Delete"
-                            data-testid={`button-delete-${item.id}`}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
+        {/* ── Empty state ── */}
+        {!isLoading && media.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 border border-dashed border-zinc-800 rounded-sm text-center">
+            <Upload size={32} className="text-zinc-700 mb-4" />
+            <p className="text-sm font-semibold text-zinc-400">No media yet</p>
+            <p className="text-xs text-zinc-600 mt-1">
+              {isAdmin ? "Use the upload zones above to add images or videos." : "No media has been uploaded yet."}
+            </p>
+          </div>
+        )}
 
-          {/* ── Video list ── */}
-          {activeTab === "videos" && (
-            <section>
-              {videos.length === 0 ? (
-                <div className="py-12 text-center border border-dashed border-zinc-800 rounded-sm">
-                  <Film size={28} className="text-zinc-700 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-500">No videos uploaded yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {videos.map(item => (
-                    <div
-                      key={item.id}
-                      className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden"
-                      data-testid={`card-video-${item.id}`}
-                    >
-                      {/* Video player */}
-                      <div className="relative bg-black">
-                        <video
-                          src={item.dataUrl}
-                          controls
-                          controlsList="nodownload"
-                          className="w-full max-h-80"
-                          preload="metadata"
-                        />
-                      </div>
+        {/* ── Tabs ── */}
+        {!isLoading && media.length > 0 && (
+          <>
+            <div className="flex items-center gap-1 mb-6 border-b border-zinc-800">
+              {(["images", "videos"] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px
+                    ${activeTab === tab ? "border-[#cc2a2a] text-[#cc2a2a]" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+                  data-testid={`tab-${tab}`}
+                >
+                  {tab === "images" ? <Image size={13} /> : <Film size={13} />}
+                  {tab}
+                  <span className="text-xs font-normal text-zinc-600 ml-0.5">({tab === "images" ? images.length : videos.length})</span>
+                </button>
+              ))}
+            </div>
 
-                      {/* Footer row */}
-                      <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800/60">
-                        {/* Left — red accent + file name */}
-                        <div className="w-0.5 h-8 bg-[#cc2a2a] rounded-full shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-zinc-200 truncate leading-tight">{item.name}</p>
-                          <p className="text-xs text-zinc-600 mt-0.5">{formatBytes(item.size)}</p>
+            {/* ── Image grid ── */}
+            {activeTab === "images" && (
+              <section>
+                {images.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed border-zinc-800 rounded-sm">
+                    <Image size={28} className="text-zinc-700 mx-auto mb-3" />
+                    <p className="text-sm text-zinc-500">No images uploaded yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {images.map(item => (
+                      <div
+                        key={item.id}
+                        className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden group cursor-pointer"
+                        onClick={() => setLightboxItem(item)}
+                        data-testid={`card-image-${item.id}`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="aspect-square overflow-hidden bg-zinc-900 relative">
+                          <img
+                            src={item.dataUrl}
+                            alt={item.name}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          {/* Expand hint on hover */}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                              </svg>
+                            </div>
+                          </div>
                         </div>
+                        {/* File name */}
+                        <div className="px-2.5 pt-2 pb-1">
+                          <p className="text-xs font-medium text-zinc-300 truncate leading-tight">{item.name}</p>
+                        </div>
+                        {/* Like + comment counts */}
+                        <MediaCardStats mediaId={item.id} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => copyUrl(item.id, item.dataUrl)}
-                            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 rounded-sm transition-colors"
-                            data-testid={`button-copy-video-${item.id}`}
-                          >
-                            {copied === item.id ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
-                            {copied === item.id ? "Copied" : "Copy URL"}
-                          </button>
-                          {isAdmin && (
+            {/* ── Video list ── */}
+            {activeTab === "videos" && (
+              <section>
+                {videos.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed border-zinc-800 rounded-sm">
+                    <Film size={28} className="text-zinc-700 mx-auto mb-3" />
+                    <p className="text-sm text-zinc-500">No videos uploaded yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {videos.map(item => (
+                      <div
+                        key={item.id}
+                        className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden"
+                        data-testid={`card-video-${item.id}`}
+                      >
+                        {/* Video player */}
+                        <div className="relative bg-black">
+                          <video src={item.dataUrl} controls controlsList="nodownload" className="w-full max-h-80" preload="metadata" />
+                        </div>
+                        {/* Footer row */}
+                        <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800/60">
+                          <div className="w-0.5 h-8 bg-[#cc2a2a] rounded-full shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-zinc-200 truncate leading-tight">{item.name}</p>
+                            <p className="text-xs text-zinc-600 mt-0.5">{formatBytes(item.size)}</p>
+                          </div>
+                          {/* Stats + comment button */}
+                          <div className="flex items-center gap-3 shrink-0">
+                            <VideoCardStats mediaId={item.id} />
                             <button
-                              onClick={() => deleteMutation.mutate(item.id)}
-                              className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-400 border border-red-900/40 hover:border-red-700/60 px-3 py-1.5 rounded-sm transition-colors"
-                              data-testid={`button-delete-video-${item.id}`}
+                              onClick={() => setLightboxItem(item)}
+                              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 rounded-sm transition-colors"
+                              data-testid={`button-open-video-${item.id}`}
                             >
-                              <Trash2 size={12} /> Delete
+                              <MessageCircle size={12} /> Comment
                             </button>
-                          )}
+                            {isAdmin && (
+                              <button
+                                onClick={() => setLightboxItem(item)}
+                                className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-400 border border-red-900/40 hover:border-red-700/60 px-3 py-1.5 rounded-sm transition-colors"
+                                data-testid={`button-manage-video-${item.id}`}
+                              >
+                                <Trash2 size={12} /> Manage
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-        </>
-      )}
-    </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 }

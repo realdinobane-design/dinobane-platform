@@ -1,14 +1,13 @@
-import { eq, desc, ilike } from "drizzle-orm";
+import { eq, desc, ilike, and, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
 import {
-  users, messages, articles, media,
+  users, messages, articles, media, mediaLikes, mediaComments,
   type User, type InsertUser,
   type Message, type InsertMessage,
   type Article, type InsertArticle,
-  type Media,
+  type Media, type MediaLike, type MediaComment,
 } from "@shared/schema";
-import { media } from "@shared/schema";
 
 // ─── INTERFACE ────────────────────────────────────────────────────────────────
 export interface IStorage {
@@ -31,6 +30,14 @@ export interface IStorage {
   getAllMedia(): Promise<Media[]>;
   createMedia(data: { userId: number; name: string; type: string; dataUrl: string; size: number }): Promise<Media>;
   deleteMedia(id: number, userId: number): Promise<void>;
+  // Media likes
+  toggleMediaLike(mediaId: number, userId: number): Promise<{ liked: boolean; count: number }>;
+  getMediaLikeCount(mediaId: number): Promise<number>;
+  hasUserLikedMedia(mediaId: number, userId: number): Promise<boolean>;
+  // Media comments
+  getMediaComments(mediaId: number): Promise<(MediaComment & { user: User })[]>;
+  createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: User }>;
+  deleteMediaComment(id: number, userId: number, isAdmin: boolean): Promise<void>;
   getArticleById(id: number): Promise<Article | undefined>;
   createArticle(data: InsertArticle): Promise<Article>;
   updateArticle(id: number, data: Partial<InsertArticle>): Promise<Article>;
@@ -162,6 +169,62 @@ class DrizzleStorage implements IStorage {
   async deleteMedia(id: number, userId: number): Promise<void> {
     await db.delete(media).where(eq(media.id, id));
   }
+
+  // ─── Media likes ─────────────────────────────────────────────────────────
+  async toggleMediaLike(mediaId: number, userId: number): Promise<{ liked: boolean; count: number }> {
+    const existing = await db.select().from(mediaLikes)
+      .where(and(eq(mediaLikes.mediaId, mediaId), eq(mediaLikes.userId, userId)))
+      .limit(1);
+    if (existing.length > 0) {
+      await db.delete(mediaLikes).where(eq(mediaLikes.id, existing[0].id));
+      const count = await this.getMediaLikeCount(mediaId);
+      return { liked: false, count };
+    } else {
+      await db.insert(mediaLikes).values({ mediaId, userId });
+      const count = await this.getMediaLikeCount(mediaId);
+      return { liked: true, count };
+    }
+  }
+
+  async getMediaLikeCount(mediaId: number): Promise<number> {
+    const rows = await db.select({ count: sql<number>`count(*)::int` })
+      .from(mediaLikes).where(eq(mediaLikes.mediaId, mediaId));
+    return rows[0]?.count ?? 0;
+  }
+
+  async hasUserLikedMedia(mediaId: number, userId: number): Promise<boolean> {
+    const rows = await db.select().from(mediaLikes)
+      .where(and(eq(mediaLikes.mediaId, mediaId), eq(mediaLikes.userId, userId)))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  // ─── Media comments ───────────────────────────────────────────────────────
+  async getMediaComments(mediaId: number): Promise<(MediaComment & { user: User })[]> {
+    const rows = await db.select().from(mediaComments)
+      .where(eq(mediaComments.mediaId, mediaId))
+      .orderBy(mediaComments.createdAt);
+    const result = [];
+    for (const row of rows) {
+      const user = await this.getUserById(row.userId);
+      if (user) result.push({ ...row, user });
+    }
+    return result;
+  }
+
+  async createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: User }> {
+    const [comment] = await db.insert(mediaComments).values(data).returning();
+    const user = await this.getUserById(data.userId);
+    return { ...comment, user: user! };
+  }
+
+  async deleteMediaComment(id: number, userId: number, isAdmin: boolean): Promise<void> {
+    if (isAdmin) {
+      await db.delete(mediaComments).where(eq(mediaComments.id, id));
+    } else {
+      await db.delete(mediaComments).where(and(eq(mediaComments.id, id), eq(mediaComments.userId, userId)));
+    }
+  }
 }
 
 export const storage = new DrizzleStorage();
@@ -213,6 +276,20 @@ export async function runMigrationsAndSeed() {
       data_url    text NOT NULL,
       size        integer NOT NULL,
       uploaded_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS media_likes (
+      id         serial PRIMARY KEY,
+      media_id   integer NOT NULL,
+      user_id    integer NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now(),
+      UNIQUE(media_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS media_comments (
+      id         serial PRIMARY KEY,
+      media_id   integer NOT NULL,
+      user_id    integer NOT NULL,
+      content    text NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now()
     );
   `);
 

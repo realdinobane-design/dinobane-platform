@@ -1445,6 +1445,76 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true });
   });
 
+  // ─── MEDIA LIKES ─────────────────────────────────────────────────────────────
+  // GET: returns like count + whether the current user has liked it
+  app.get("/api/media/:id/likes", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const [count, liked] = await Promise.all([
+      storage.getMediaLikeCount(id),
+      storage.hasUserLikedMedia(id, req.session.userId),
+    ]);
+    return res.json({ count, liked });
+  });
+
+  // POST: toggle like
+  app.post("/api/media/:id/likes", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const result = await storage.toggleMediaLike(id, req.session.userId);
+    return res.json(result);
+  });
+
+  // ─── MEDIA COMMENTS ──────────────────────────────────────────────────────────
+  // GET: all comments for a media item
+  app.get("/api/media/:id/comments", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const comments = await storage.getMediaComments(id);
+    return res.json(comments);
+  });
+
+  // POST: add a comment
+  app.post("/api/media/:id/comments", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const { content } = req.body;
+    if (!content || typeof content !== "string" || content.trim().length === 0)
+      return res.status(400).json({ error: "Comment cannot be empty" });
+    if (content.trim().length > 500)
+      return res.status(400).json({ error: "Comment too long (max 500 chars)" });
+    const comment = await storage.createMediaComment({
+      mediaId: id,
+      userId: req.session.userId,
+      content: content.trim(),
+    });
+    return res.json(comment);
+  });
+
+  // DELETE: remove a comment (own comment, or admin)
+  app.delete("/api/media/comments/:commentId", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const commentId = parseInt(req.params.commentId);
+    if (isNaN(commentId)) return res.status(400).json({ error: "Invalid ID" });
+    const isAdmin = ADMIN_EMAILS.has(user.email);
+    await storage.deleteMediaComment(commentId, req.session.userId, isAdmin);
+    return res.json({ ok: true });
+  });
+
   // ─── LINK PREVIEW ────────────────────────────────────────────────────────────
   // Fetches Open Graph / Twitter card metadata for a URL (used by chat)
   app.get("/api/link-preview", async (req, res) => {

@@ -66,3 +66,26 @@ export const media = pgTable("media", {
 export const insertMediaSchema = createInsertSchema(media).omit({ id: true, uploadedAt: true });
 export type InsertMedia = z.infer<typeof insertMediaSchema>;
 export type Media = typeof media.$inferSelect;
+
+// ─── MEDIA LIKES ─────────────────────────────────────────────────────────────
+export const mediaLikes = pgTable("media_likes", {
+  id: serial("id").primaryKey(),
+  mediaId: integer("media_id").notNull(),
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type MediaLike = typeof mediaLikes.$inferSelect;
+
+// ─── MEDIA COMMENTS ──────────────────────────────────────────────────────────
+export const mediaComments = pgTable("media_comments", {
+  id: serial("id").primaryKey(),
+  mediaId: integer("media_id").notNull(),
+  userId: integer("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertMediaCommentSchema = createInsertSchema(mediaComments).omit({ id: true, createdAt: true });
+export type InsertMediaComment = z.infer<typeof insertMediaCommentSchema>;
+export type MediaComment = typeof mediaComments.$inferSelect;
