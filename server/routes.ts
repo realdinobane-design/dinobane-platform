@@ -1739,30 +1739,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── WEEKLY NEWSLETTER — every Sunday at 9 AM Bangkok (02:00 UTC) ─────────────
   // testMode: if true, send only to testEmail (skips the "no new videos" guard)
 
-  // ─── FETCH THUMBNAIL AS BASE64 DATA URI ──────────────────────────────────────
-  async function fetchImageAsBase64(url: string): Promise<string> {
-    return new Promise((resolve) => {
-      const client = url.startsWith('https') ? https : http;
-      const req = client.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          // follow one redirect
-          fetchImageAsBase64(res.headers.location).then(resolve).catch(() => resolve(url));
-          return;
-        }
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => {
-          const buf = Buffer.concat(chunks);
-          const ct = res.headers['content-type'] || 'image/jpeg';
-          resolve(`data:${ct};base64,${buf.toString('base64')}`);
-        });
-        res.on('error', () => resolve(url)); // fallback to original URL on error
-      });
-      req.on('error', () => resolve(url));
-      req.setTimeout(8000, () => { req.destroy(); resolve(url); });
-    });
-  }
-
   async function sendWeeklyNewsletter(testMode = false, testEmail?: string) {
     if (!resend) return;
     try {
@@ -1791,12 +1767,40 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const recipients = testMode && testEmail ? [{ email: testEmail }] : members;
       if (recipients.length === 0) { console.log("[newsletter] no recipients"); return; }
 
-      // Fetch thumbnails as base64 data URIs to avoid Gmail attaching them as separate files
-      const thumbnails = await Promise.all(
-        videosToShow.map(v => v.thumbnail ? fetchImageAsBase64(v.thumbnail) : Promise.resolve(''))
+      // Fetch thumbnails as Buffers for CID inline attachment (Gmail-safe)
+      const thumbBuffers = await Promise.all(
+        videosToShow.map(async (v, i) => {
+          if (!v.thumbnail) return null;
+          try {
+            return await new Promise<Buffer | null>((resolve) => {
+              const https = require('https');
+              const http = require('http');
+              const client = v.thumbnail!.startsWith('https') ? https : http;
+              const req = client.get(v.thumbnail!, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res: any) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                  // follow redirect
+                  const rClient = res.headers.location.startsWith('https') ? https : http;
+                  rClient.get(res.headers.location, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (r2: any) => {
+                    const chunks: Buffer[] = [];
+                    r2.on('data', (c: Buffer) => chunks.push(c));
+                    r2.on('end', () => resolve(Buffer.concat(chunks)));
+                    r2.on('error', () => resolve(null));
+                  }).on('error', () => resolve(null));
+                  return;
+                }
+                const chunks: Buffer[] = [];
+                res.on('data', (c: Buffer) => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', () => resolve(null));
+              });
+              req.on('error', () => resolve(null));
+              req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+            });
+          } catch { return null; }
+        })
       );
 
-      // Build the video cards HTML
+      // Build the video cards HTML — reference thumbnails by CID
       const videoCards = videosToShow.map((v, i) => `
         <tr>
           <td style="padding:0 0 24px;">
@@ -1804,7 +1808,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               <tr>
                 <td style="padding:0;">
                   <a href="${v.url}" style="display:block;">
-                    <img src="${thumbnails[i] || v.thumbnail}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
+                    <img src="cid:thumb${i}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
                   </a>
                 </td>
               </tr>
@@ -1819,19 +1823,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
           </td>
         </tr>`).join("");
 
-      // Load pre-optimised brand images as base64 for email embedding (no external deps)
-      const emailLogoPath = require('path').join(process.cwd(), 'client/public/brand/email-logo.jpg');
-      const emailHeroPath = require('path').join(process.cwd(), 'client/public/brand/email-hero.jpg');
-      const logoBase64 = (() => {
-        try {
-          return 'data:image/jpeg;base64,' + require('fs').readFileSync(emailLogoPath).toString('base64');
-        } catch { return ''; }
-      })();
-      const heroBase64 = (() => {
-        try {
-          return 'data:image/jpeg;base64,' + require('fs').readFileSync(emailHeroPath).toString('base64');
-        } catch { return ''; }
-      })();
+      // Load brand images as CID inline attachments (Gmail-safe — no data: URIs)
+      const fsp = require('fs');
+      const pathMod = require('path');
+      const logoBuffer = (() => { try { return fsp.readFileSync(pathMod.join(process.cwd(), 'client/public/brand/email-logo.jpg')); } catch { return null; } })();
+      const heroBuffer = (() => { try { return fsp.readFileSync(pathMod.join(process.cwd(), 'client/public/brand/email-hero.jpg')); } catch { return null; } })();
 
       const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -1849,7 +1845,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="vertical-align:middle;width:56px;">
-                  <img src="${logoBase64}" alt="DinoBane Logo" width="56" height="56" style="display:block;border-radius:6px;" />
+                  <img src="cid:logo" alt="DinoBane Logo" width="56" height="56" style="display:block;border-radius:6px;" />
                 </td>
                 <td style="vertical-align:middle;padding-left:14px;">
                   <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.08em;display:block;line-height:1.1;">DINOBANE</span>
@@ -1862,7 +1858,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         <!-- Hero image -->
         <tr>
           <td style="padding:0;line-height:0;">
-            <img src="${heroBase64}" alt="DinoBane" width="560" style="display:block;width:100%;max-width:560px;" />
+            <img src="cid:hero" alt="DinoBane" width="560" style="display:block;width:100%;max-width:560px;" />
           </td>
         </tr>
         <!-- Thank you message -->
@@ -1897,6 +1893,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
 </body>
 </html>`;
 
+      // Build CID attachments array — logo, hero, then one per thumbnail
+      const attachments: any[] = [];
+      if (logoBuffer) attachments.push({ content: logoBuffer, filename: 'logo.jpg', contentType: 'image/jpeg', contentId: 'logo' });
+      if (heroBuffer) attachments.push({ content: heroBuffer, filename: 'hero.jpg', contentType: 'image/jpeg', contentId: 'hero' });
+      thumbBuffers.forEach((buf, i) => {
+        if (buf) attachments.push({ content: buf, filename: `thumb${i}.jpg`, contentType: 'image/jpeg', contentId: `thumb${i}` });
+      });
+
       // Send to all recipients
       let sent = 0;
       for (const member of recipients) {
@@ -1906,6 +1910,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             to: member.email,
             subject: `${testMode ? "[TEST] " : ""}📺 DinoBane Weekly — ${videosToShow.length} new video${videosToShow.length > 1 ? "s" : ""} this week`,
             html,
+            attachments,
           });
           sent++;
         } catch (e: any) {
