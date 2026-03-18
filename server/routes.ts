@@ -1715,9 +1715,32 @@ export function registerRoutes(httpServer: Server, app: Express) {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+// ─── ENSURE YT-DLP IS AVAILABLE (self-healing install at runtime) ───────────
+let ytDlpEnsured = false;
+async function ensureYtDlp(): Promise<void> {
+  if (ytDlpEnsured) return;
+  try {
+    await execAsync("yt-dlp --version", { timeout: 5_000 });
+    ytDlpEnsured = true;
+    return; // already installed
+  } catch {}
+  // Not found — try pip install (works on Railway Nixpacks with python3)
+  try {
+    console.log("[youtube] yt-dlp not found, installing via pip...");
+    await execAsync("pip install -U yt-dlp --quiet", { timeout: 60_000 });
+    ytDlpEnsured = true;
+    console.log("[youtube] yt-dlp installed successfully");
+  } catch (e: any) {
+    console.warn(`[youtube] pip install yt-dlp failed: ${e.message?.slice(0, 100)}`);
+  }
+}
+
 // ─── YOUTUBE VIDEO FETCHER (yt-dlp primary, RSS fallback) ────────────────────
 async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
   const channelUrl = "https://www.youtube.com/@Dinobane-Clips/videos";
+
+  // Ensure yt-dlp is installed (self-heals if nixpacks build didn't include it)
+  await ensureYtDlp();
 
   // Helper: parse yt-dlp JSON output into video array
   function parseYtDlpOutput(stdout: string, methodName: string): any[] | null {
