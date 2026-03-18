@@ -203,42 +203,42 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
       rel="noopener noreferrer"
       className="group block bg-[#111] border border-[#1e1e1e] hover:border-[#cc2a2a]/50 rounded-sm transition-all duration-200 overflow-hidden"
       data-testid={`story-card-${index}`}
-      style={{ borderLeft: `3px solid ${accentColor}` }}
+      style={{ borderLeft: `4px solid ${accentColor}` }}
     >
-      <div className="p-5">
+      <div className="px-6 py-5">
         {/* Tag row */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
           {newsDump && (
-            <span className="text-[10px] font-black tracking-widest px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-sm uppercase">
+            <span className="text-[11px] font-black tracking-widest px-2.5 py-1 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-sm uppercase">
               📢 NEWS DUMP
             </span>
           )}
           {viral && (
-            <span className="flex items-center gap-1 text-[10px] font-black tracking-widest px-2 py-0.5 bg-[#cc2a2a]/20 text-red-400 border border-[#cc2a2a]/30 rounded-sm uppercase">
-              <Flame size={10} />
+            <span className="flex items-center gap-1 text-[11px] font-black tracking-widest px-2.5 py-1 bg-[#cc2a2a]/20 text-red-400 border border-[#cc2a2a]/30 rounded-sm uppercase">
+              <Flame size={11} />
               VIRAL
             </span>
           )}
           {suppressed && (
-            <span className="flex items-center gap-1 text-[10px] font-black tracking-widest px-2 py-0.5 bg-purple-900/30 text-purple-300 border border-purple-700/40 rounded-sm uppercase">
-              <EyeOff size={10} />
+            <span className="flex items-center gap-1 text-[11px] font-black tracking-widest px-2.5 py-1 bg-purple-900/30 text-purple-300 border border-purple-700/40 rounded-sm uppercase">
+              <EyeOff size={11} />
               SUPPRESSED
             </span>
           )}
           {meta?.type === "alt" && (
-            <span className="text-[10px] font-black tracking-widest px-2 py-0.5 bg-[#1a1a1a] text-zinc-400 border border-zinc-700/50 rounded-sm uppercase">
+            <span className="text-[11px] font-black tracking-widest px-2.5 py-1 bg-[#1a1a1a] text-zinc-400 border border-zinc-700/50 rounded-sm uppercase">
               ALT SOURCE
             </span>
           )}
           {category && (
-            <span className="text-[10px] font-semibold tracking-wide px-2 py-0.5 bg-[#1a1a1a] text-zinc-500 border border-zinc-800 rounded-sm uppercase">
+            <span className="text-[11px] font-semibold tracking-wide px-2.5 py-1 bg-[#1a1a1a] text-zinc-500 border border-zinc-800 rounded-sm uppercase">
               {category}
             </span>
           )}
           {/* Time — pushed to far right */}
           {item.pubDate && (
-            <span className="ml-auto flex items-center gap-1 text-[11px] text-zinc-600">
-              <Clock size={10} />
+            <span className="ml-auto flex items-center gap-1.5 text-xs text-zinc-500">
+              <Clock size={11} />
               {timeAgo(item.pubDate)}
             </span>
           )}
@@ -246,20 +246,23 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
 
         {/* Source name — prominent, coloured */}
         <div
-          className="text-xs font-black tracking-widest uppercase mb-2"
+          className="text-sm font-black tracking-widest uppercase mb-2.5"
           style={{ color: accentColor }}
         >
           {item.source}
         </div>
 
-        {/* Headline — large and bold */}
-        <h3 className="text-base font-black text-white leading-snug group-hover:text-[#cc2a2a] transition-colors mb-3" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+        {/* Headline — large, bold, Clash Display */}
+        <h3
+          className="text-xl font-black text-white leading-snug group-hover:text-[#cc2a2a] transition-colors mb-3"
+          style={{ fontFamily: "'Clash Display', sans-serif" }}
+        >
           {item.title}
         </h3>
 
-        {/* Description — full 3 lines */}
+        {/* Description — 5 lines, larger text */}
         {item.description && (
-          <p className="text-sm text-zinc-400 line-clamp-3 leading-relaxed">
+          <p className="text-[15px] text-zinc-400 line-clamp-5 leading-relaxed">
             {item.description}
           </p>
         )}
@@ -579,7 +582,7 @@ export default function NewsPage() {
 
           {/* Feed */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-4">
+            <div className="px-4 py-5 max-w-3xl mx-auto">
 
               {/* Loading */}
               {isLoading && (
@@ -623,7 +626,7 @@ export default function NewsPage() {
 
               {/* Stories grid */}
               {!isLoading && sorted.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {sorted.map((item, i) => (
                     <StoryCard key={`${item.link}-${i}`} item={item} index={i} />
                   ))}
