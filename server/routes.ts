@@ -1613,8 +1613,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
           const pubDate = getTag("pubDate") || getTag("published") || getTag("updated") || "";
           const desc = getTag("description") || getTag("summary") || getTag("content");
           const cleanDesc = desc.replace(/<[^>]+>/g, "").slice(0, 200).trim();
+          // Extract inline image from RSS (media:thumbnail, media:content, enclosure, or img inside description)
+          const inlineImage =
+            block.match(/media:thumbnail[^>]+url=["']([^"']+)["']/i)?.[1] ||
+            block.match(/media:content[^>]+url=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/i)?.[1] ||
+            block.match(/<enclosure[^>]+type="image[^"]*"[^>]+url=["']([^"']+)["']/i)?.[1] ||
+            block.match(/<enclosure[^>]+url=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/i)?.[1] ||
+            desc.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ||
+            null;
           if (title && link) {
-            items.push({ title, link, pubDate, description: cleanDesc, source: name });
+            items.push({ title, link, pubDate, description: cleanDesc, source: name, image: inlineImage || null });
           }
         }
         return items.slice(0, 8);
@@ -1629,7 +1637,36 @@ export function registerRoutes(httpServer: Server, app: Express) {
         const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
         return db - da;
       });
-      const fresh = allItems.slice(0, 100);
+      const top100 = allItems.slice(0, 100);
+
+      // Enrich items missing inline images — fetch only the <head> of the article (cheap)
+      // Limit to 30 concurrent enrichment requests to avoid hammering
+      async function fetchOgImage(url: string): Promise<string | null> {
+        try {
+          const r = await fetch(url, {
+            signal: AbortSignal.timeout(4000),
+            headers: { "User-Agent": "Mozilla/5.0", "Range": "bytes=0-16384" },
+          });
+          if (!r.ok) return null;
+          const chunk = await r.text();
+          return chunk.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+            || chunk.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+            || chunk.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1]
+            || null;
+        } catch { return null; }
+      }
+
+      const needsEnrichment = top100.filter((item: any) => !item.image).slice(0, 30);
+      if (needsEnrichment.length > 0) {
+        const enriched = await Promise.allSettled(needsEnrichment.map((item: any) => fetchOgImage(item.link)));
+        enriched.forEach((result, i) => {
+          if (result.status === "fulfilled" && result.value) {
+            needsEnrichment[i].image = result.value;
+          }
+        });
+      }
+
+      const fresh = top100;
       intelCache = { data: fresh, fetchedAt: Date.now() };
       console.log(`[intel] cache refreshed — ${fresh.length} stories from ${FEEDS.length} feeds`);
       return fresh;

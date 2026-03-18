@@ -144,6 +144,7 @@ interface NewsItem {
   pubDate: string;
   description: string;
   source: string;
+  image?: string | null;
 }
 
 // ─── TICKER ───────────────────────────────────────────────────────────────────
@@ -205,6 +206,18 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
       data-testid={`story-card-${index}`}
       style={{ borderLeft: `4px solid ${accentColor}` }}
     >
+      {/* Source image — top of card, cropped banner */}
+      {item.image && (
+        <div className="w-full h-36 overflow-hidden bg-[#0d0d0d]">
+          <img
+            src={item.image}
+            alt=""
+            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-[1.02] transition-all duration-300"
+            loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).closest('.overflow-hidden')?.remove(); }}
+          />
+        </div>
+      )}
       <div className="px-6 py-5">
         {/* Tag row */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
