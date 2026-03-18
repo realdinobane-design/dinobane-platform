@@ -15,7 +15,7 @@ interface Video {
 export default function VideosPage() {
   const { data: videos = [], isLoading } = useQuery<Video[]>({
     queryKey: ["/api/youtube/feed"],
-    staleTime: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 5, // refresh every 5 min
   });
 
   return (

@@ -9,6 +9,9 @@ import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, insertArticleSchema } from "@shared/schema";
 import { z } from "zod";
 import crypto from "crypto";
+import { exec } from "child_process";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 
 // ─── STRIPE CLIENT ────────────────────────────────────────────────────────────
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -1406,41 +1409,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── YOUTUBE FEED PROXY ───────────────────────────────────────────────────────
   app.get("/api/youtube/feed", async (req, res) => {
-    const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
-    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-    let xml: string | null = null;
-
-    // Try direct fetch first (works server-side), then fallback proxies
-    const attempts = [
-      () => fetch(rssUrl, { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0" } }),
-      () => fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, { signal: AbortSignal.timeout(8000) }).then(async r => { const d = await r.json() as any; return new Response(d.contents); }),
-      () => fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`, { signal: AbortSignal.timeout(8000) }),
-    ];
-
-    for (const attempt of attempts) {
-      try {
-        const r = await attempt();
-        if (r.ok) { xml = await r.text(); break; }
-      } catch {}
-    }
-
-    if (xml && xml.includes("<feed")) {
-      const videos = parseYouTubeFeed(xml);
-      if (videos.length > 0) return res.json(videos);
-    }
-
-    return res.json(getFallbackVideos());
+    const videos = await fetchYouTubeVideos(15);
+    return res.json(videos);
   });
 
   // ─── RSS POLL — auto-generate articles for new videos ────────────────────────
   app.post("/api/youtube/sync", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     try {
-      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      const r = await fetch(rssUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-      const xml = await r.text();
-      const videos = parseYouTubeFeed(xml);
+      const videos = await fetchYouTubeVideos(15);
       const articles = await storage.getArticles();
       const existingVideoIds = new Set(articles.map((a: any) => a.videoId).filter(Boolean));
       const newVideos = videos.filter((v: any) => !existingVideoIds.has(v.id));
@@ -1467,12 +1444,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── AUTO-SYNC: poll YouTube RSS every 30 min, auto-generate articles ────────
   async function syncYouTubeArticles(reason = "scheduled") {
     try {
-      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      const r = await fetch(rssUrl, { signal: AbortSignal.timeout(10_000), headers: { "User-Agent": "Mozilla/5.0" } });
-      if (!r.ok) { console.log(`[sync] RSS fetch failed (${reason})`); return; }
-      const xml = await r.text();
-      const videos = parseYouTubeFeed(xml);
+      const videos = await fetchYouTubeVideos(15);
       const articles = await storage.getArticles();
       const existingVideoIds = new Set(articles.map((a: any) => a.videoId).filter(Boolean));
       const newVideos = videos.filter((v: any) => !existingVideoIds.has(v.id));
@@ -1510,19 +1482,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!resend) return;
     try {
       // Fetch the YouTube RSS feed for the latest videos
-      const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      let xml: string | null = null;
-      const proxies = [
-        () => fetch(rssUrl, { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0" } }),
-        () => fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, { signal: AbortSignal.timeout(8000) }).then(async r => { const d = await r.json() as any; return new Response(d.contents); }),
-      ];
-      for (const attempt of proxies) {
-        try { const r = await attempt(); if (r.ok) { xml = await r.text(); break; } } catch {}
-      }
-      if (!xml) { console.error("[newsletter] could not fetch YouTube feed"); return; }
-
-      const allVideos = parseYouTubeFeed(xml);
+      const allVideos = await fetchYouTubeVideos(15);
       // Filter to videos published in the last 7 days
       const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
       const thisWeek = allVideos.filter(v => {
@@ -1658,6 +1618,56 @@ export function registerRoutes(httpServer: Server, app: Express) {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+// ─── YOUTUBE VIDEO FETCHER (yt-dlp primary, RSS fallback) ────────────────────
+async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
+  const channelUrl = "https://www.youtube.com/@Dinobane-Clips/videos";
+
+  // 1. Try yt-dlp (most reliable — works even when RSS is blocked)
+  try {
+    const cmd = `yt-dlp --flat-playlist --dump-single-json --playlist-items 1-${limit} --no-warnings "${channelUrl}"`;
+    const { stdout } = await execAsync(cmd, { timeout: 30_000 });
+    const data = JSON.parse(stdout);
+    const entries = (data.entries || []) as any[];
+    if (entries.length > 0) {
+      console.log(`[youtube] fetched ${entries.length} videos via yt-dlp`);
+      return entries.map((e: any, i: number) => ({
+        id: e.id,
+        title: (e.title || "DinoBane Video").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+        thumbnail: `https://img.youtube.com/vi/${e.id}/mqdefault.jpg`,
+        url: `https://www.youtube.com/watch?v=${e.id}`,
+        // yt-dlp flat mode doesn't always return timestamps; synthesise from index so newest is first
+        publishedAt: e.timestamp ? new Date(e.timestamp * 1000).toISOString()
+          : new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
+        viewCount: e.view_count ?? null,
+        duration: e.duration ?? null,
+      }));
+    }
+  } catch (e: any) {
+    console.warn(`[youtube] yt-dlp failed: ${e.message}`);
+  }
+
+  // 2. Try YouTube RSS feed directly
+  try {
+    const channelId = "UCEJTJU2HaQfSfKbxJcPlh7Q";
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    const r = await fetch(rssUrl, { signal: AbortSignal.timeout(10_000), headers: { "User-Agent": "Mozilla/5.0" } });
+    if (r.ok) {
+      const xml = await r.text();
+      if (xml.includes("<feed")) {
+        const videos = parseYouTubeFeed(xml);
+        if (videos.length > 0) {
+          console.log(`[youtube] fetched ${videos.length} videos via RSS`);
+          return videos;
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Static fallback
+  console.warn("[youtube] all fetch methods failed — using static fallback");
+  return getFallbackVideos();
+}
+
 function parseYouTubeFeed(xml: string): any[] {
   try {
     const entries: any[] = [];
