@@ -945,6 +945,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── COMMUNITY (MESSAGES) ────────────────────────────────────────────────────
+  // GET /api/community/members — public list of paid members (username + display name + avatar)
+  app.get("/api/community/members", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Members only" });
+    const me = await storage.getUserById(req.session.userId);
+    if (!me?.isMember) return res.status(403).json({ error: "Membership required" });
+    const all = await storage.getAllUsers();
+    const members = all
+      .filter(u => u.isMember)
+      .map(u => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        avatarInitials: u.avatarInitials,
+        avatarColor: u.avatarColor,
+        avatarUrl: u.avatarUrl ?? null,
+      }))
+      .sort((a, b) => a.username.localeCompare(b.username));
+    return res.json(members);
+  });
+
   app.get("/api/messages/:channel", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Members only" });
     const user = await storage.getUserById(req.session.userId);

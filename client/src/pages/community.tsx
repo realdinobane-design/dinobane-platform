@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { Crown, Hash, Send, Users, Loader2, Image, X } from "lucide-react";
+import { Crown, Hash, Send, Users, Loader2, Image, X, ChevronDown, ChevronRight, Star } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,15 @@ interface MessageWithUser {
     avatarUrl?: string;
     username: string;
   };
+}
+
+interface MemberSummary {
+  id: number;
+  username: string;
+  displayName: string;
+  avatarInitials: string;
+  avatarColor: string;
+  avatarUrl?: string | null;
 }
 
 interface LinkPreview {
@@ -142,10 +151,21 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
 }) {
   const [draft, setDraft] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null); // base64 data URL
+  const [membersOpen, setMembersOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: membersList = [] } = useQuery<MemberSummary[]>({
+    queryKey: ["/api/community/members"],
+    queryFn: async () => {
+      const res = await fetch("/api/community/members", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60000,
+  });
 
   const { data: messages = [], isLoading } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/messages", activeChannel],
@@ -247,6 +267,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
+          {/* Channels */}
           <p className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">Channels</p>
           {CHANNELS.map(ch => (
             <button
@@ -264,6 +285,65 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
               {ch.label}
             </button>
           ))}
+
+          {/* ── Members collapsible ── */}
+          <div className="mt-4 px-1">
+            {/* Toggle header */}
+            <button
+              onClick={() => setMembersOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-zinc-800/60 transition-colors group"
+              data-testid="button-toggle-members"
+            >
+              {/* Gold star */}
+              <Star size={12} className="text-yellow-400 fill-yellow-400 shrink-0" />
+              {/* Label */}
+              <span className="flex-1 text-xs font-bold uppercase tracking-widest text-yellow-400 text-left">
+                Members
+              </span>
+              {/* Count badge */}
+              <span className="text-xs text-yellow-500/70 font-mono mr-1">{membersList.length}</span>
+              {/* Chevron — rotates when open */}
+              <ChevronDown
+                size={13}
+                className={cn(
+                  "text-yellow-400/70 shrink-0 transition-transform duration-200",
+                  membersOpen ? "rotate-0" : "-rotate-90"
+                )}
+              />
+            </button>
+
+            {/* Expanded list */}
+            {membersOpen && (
+              <div className="mt-1 pl-2 space-y-0.5">
+                {membersList.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => insertMention(m.username)}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-zinc-800/60 transition-colors group/member text-left"
+                    title={`Click to @mention ${m.username}`}
+                    data-testid={`button-member-${m.id}`}
+                  >
+                    {/* Mini avatar */}
+                    <div
+                      className="h-5 w-5 rounded-full flex items-center justify-center text-white shrink-0 overflow-hidden"
+                      style={{ background: m.avatarColor, fontSize: 8, fontWeight: 700 }}
+                    >
+                      {m.avatarUrl
+                        ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
+                        : m.avatarInitials
+                      }
+                    </div>
+                    <span className="text-xs text-zinc-400 group-hover/member:text-zinc-200 transition-colors truncate">
+                      @{m.username}
+                    </span>
+                  </button>
+                ))}
+                {membersList.length === 0 && (
+                  <p className="text-xs text-zinc-600 px-2 py-1">No members yet.</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Current user */}
