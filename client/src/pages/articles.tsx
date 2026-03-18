@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ArrowRight, Youtube, Loader2, BookOpen, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
+import { TOPICS, detectTopic, topicMeta, type TopicId } from "@/lib/topics";
 
 interface Article {
   id: number;
@@ -19,15 +20,53 @@ interface Article {
   publishedAt: string;
 }
 
+// ─── TOPIC FILTER PILLS ───────────────────────────────────────────────────────
+function TopicPills({ active, onChange }: { active: TopicId | "all"; onChange: (t: TopicId | "all") => void }) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-6">
+      <button
+        onClick={() => onChange("all")}
+        className={`text-xs px-3 py-1.5 rounded-sm border font-bold tracking-wide transition-colors ${
+          active === "all"
+            ? "bg-[#cc2a2a] text-white border-[#cc2a2a]"
+            : "bg-card text-muted-foreground border-border hover:text-white hover:border-[#cc2a2a]/50"
+        }`}
+      >
+        All
+      </button>
+      {TOPICS.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(active === t.id ? "all" : t.id)}
+          className={`text-xs px-3 py-1.5 rounded-sm border font-bold tracking-wide transition-colors ${
+            active === t.id
+              ? "text-black border-transparent"
+              : "bg-card text-muted-foreground border-border hover:text-white"
+          }`}
+          style={active === t.id ? { background: t.color, borderColor: t.color } : {}}
+          data-testid={`article-topic-filter-${t.id}`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ArticlesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [ytUrl, setYtUrl] = useState("");
+  const [activeTopic, setActiveTopic] = useState<TopicId | "all">("all");
 
   const { data: articles = [], isLoading } = useQuery<Article[]>({
     queryKey: ["/api/articles"],
   });
+
+  const filtered = activeTopic === "all"
+    ? articles
+    : articles.filter(a => detectTopic(a.title) === activeTopic);
 
   const generateMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -55,12 +94,21 @@ export default function ArticlesPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-black text-white mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>
             Written Analysis
           </h1>
-          <p className="text-muted-foreground text-sm">Video breakdowns converted to text. Share, reference, archive.</p>
+          <p className="text-muted-foreground text-sm">
+            Video breakdowns converted to text. Share, reference, archive.
+            {activeTopic !== "all" && (
+              <span className="ml-2 text-zinc-500">
+                · showing{" "}
+                <span style={{ color: topicMeta(activeTopic).color }}>{topicMeta(activeTopic).label}</span>
+                {" "}({filtered.length})
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -99,6 +147,9 @@ export default function ArticlesPage() {
         </div>
       )}
 
+      {/* ─── TOPIC FILTER PILLS ───────────────────────────────────────────── */}
+      <TopicPills active={activeTopic} onChange={setActiveTopic} />
+
       {/* ─── ARTICLES LIST ─────────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="flex flex-col gap-4">
@@ -110,37 +161,56 @@ export default function ArticlesPage() {
             </div>
           ))}
         </div>
+      ) : filtered.length === 0 && articles.length > 0 ? (
+        /* Empty filtered state */
+        <div className="text-center py-16 text-muted-foreground text-sm">
+          No <span style={{ color: topicMeta(activeTopic).color }}>{topicMeta(activeTopic).label}</span> articles yet.{" "}
+          <button onClick={() => setActiveTopic("all")} className="text-red-400 hover:underline">
+            Clear filter
+          </button>
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {articles.map(a => (
-            <Link
-              key={a.id}
-              href={`/articles/${a.id}`}
-              className="group flex gap-4 p-5 rounded-lg bg-card border border-border hover:border-red-800/60 transition-all"
-              data-testid={`link-article-${a.id}`}
-            >
-              {a.thumbnail && (
-                <div className="hidden sm:block flex-shrink-0 w-32 aspect-video rounded overflow-hidden">
-                  <img src={a.thumbnail} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+          {filtered.map(a => {
+            const topic = detectTopic(a.title);
+            const meta = topicMeta(topic);
+            return (
+              <Link
+                key={a.id}
+                href={`/articles/${a.id}`}
+                className="group flex gap-4 p-5 rounded-lg bg-card border border-border hover:border-red-800/60 transition-all"
+                data-testid={`link-article-${a.id}`}
+              >
+                {a.thumbnail && (
+                  <div className="hidden sm:block flex-shrink-0 w-32 aspect-video rounded overflow-hidden">
+                    <img src={a.thumbnail} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {/* Topic pill */}
+                    <span
+                      className="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-sm"
+                      style={{ background: `${meta.color}33`, color: meta.color, border: `1px solid ${meta.color}55` }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span className="tag-pill bg-red-900/30 text-red-400">
+                      <BookOpen size={9} /> Analysis
+                    </span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(a.publishedAt), "d MMMM yyyy")}</span>
+                  </div>
+                  <h3 className="font-bold text-white leading-tight mb-2 group-hover:text-red-400 transition-colors" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                    {a.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{a.summary}</p>
+                  <div className="flex items-center gap-1 mt-3 text-xs text-red-400 font-medium">
+                    Read full analysis <ArrowRight size={11} />
+                  </div>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="tag-pill bg-red-900/30 text-red-400">
-                    <BookOpen size={9} /> Analysis
-                  </span>
-                  <span className="text-xs text-muted-foreground">{format(new Date(a.publishedAt), "d MMMM yyyy")}</span>
-                </div>
-                <h3 className="font-bold text-white leading-tight mb-2 group-hover:text-red-400 transition-colors" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                  {a.title}
-                </h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">{a.summary}</p>
-                <div className="flex items-center gap-1 mt-3 text-xs text-red-400 font-medium">
-                  Read full analysis <ArrowRight size={11} />
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
 
           {articles.length === 0 && (
             <div className="text-center py-16 text-muted-foreground">
