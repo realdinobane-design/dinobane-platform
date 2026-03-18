@@ -978,9 +978,29 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── ARTICLES ────────────────────────────────────────────────────────────────
-  app.get("/api/articles", async (req, res) => {
+  // Articles cache — 2 min TTL, invalidated on write
+  let articlesCache: { data: any[]; fetchedAt: number } | null = null;
+  const ARTICLES_CACHE_TTL = 2 * 60 * 1000;
+  async function getArticlesCached() {
+    if (articlesCache && (Date.now() - articlesCache.fetchedAt) < ARTICLES_CACHE_TTL) return articlesCache.data;
     const articles = await storage.getArticles();
-    return res.json(articles);
+    articlesCache = { data: articles, fetchedAt: Date.now() };
+    return articles;
+  }
+  function invalidateArticlesCache() { articlesCache = null; }
+
+  app.get("/api/articles", async (req, res) => {
+    if (articlesCache && (Date.now() - articlesCache.fetchedAt) < ARTICLES_CACHE_TTL) {
+      res.setHeader("X-Cache", "HIT");
+      return res.json(articlesCache.data);
+    }
+    if (articlesCache) {
+      res.setHeader("X-Cache", "STALE");
+      getArticlesCached().catch(() => {});
+      return res.json(articlesCache.data);
+    }
+    res.setHeader("X-Cache", "MISS");
+    return res.json(await getArticlesCached());
   });
 
   app.get("/api/articles/:id", async (req, res) => {
@@ -1024,6 +1044,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       isPublic: true,
     });
 
+    invalidateArticlesCache();
     return res.json(article);
   });
 
@@ -1450,31 +1471,64 @@ export function registerRoutes(httpServer: Server, app: Express) {
   setInterval(() => refreshIntelCache().catch(() => {}), INTEL_CACHE_TTL);
 
   // ─── YOUTUBE FEED PROXY ───────────────────────────────────────────────────────
+  // YouTube feed cache — 10 min TTL (yt-dlp is slow, no need to run it on every request)
+  let youtubeCache: { data: any[]; fetchedAt: number } | null = null;
+  const YOUTUBE_CACHE_TTL = 10 * 60 * 1000;
+  let youtubeFetchInProgress = false;
+  async function getYoutubeCached(): Promise<any[]> {
+    if (youtubeCache && (Date.now() - youtubeCache.fetchedAt) < YOUTUBE_CACHE_TTL) return youtubeCache.data;
+    if (youtubeFetchInProgress) return youtubeCache?.data ?? getFallbackVideos();
+    youtubeFetchInProgress = true;
+    try {
+      const videos = await fetchYouTubeVideos(15);
+      youtubeCache = { data: videos, fetchedAt: Date.now() };
+      return videos;
+    } finally {
+      youtubeFetchInProgress = false;
+    }
+  }
+
   app.get("/api/youtube/feed", async (req, res) => {
-    const videos = await fetchYouTubeVideos(15);
-    return res.json(videos);
+    if (youtubeCache && (Date.now() - youtubeCache.fetchedAt) < YOUTUBE_CACHE_TTL) {
+      res.setHeader("X-Cache", "HIT");
+      return res.json(youtubeCache.data);
+    }
+    if (youtubeCache) {
+      // Stale — return immediately, refresh in background
+      res.setHeader("X-Cache", "STALE");
+      getYoutubeCached().catch(() => {});
+      return res.json(youtubeCache.data);
+    }
+    res.setHeader("X-Cache", "MISS");
+    return res.json(await getYoutubeCached());
   });
+
+  // Pre-warm YouTube cache 20s after startup
+  setTimeout(() => getYoutubeCached().catch(() => {}), 20_000);
+  // Refresh every 10 minutes in the background
+  setInterval(() => getYoutubeCached().catch(() => {}), YOUTUBE_CACHE_TTL);
 
   // ─── RSS POLL — auto-generate articles for new videos ────────────────────────
   app.post("/api/youtube/sync", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     try {
-      const videos = await fetchYouTubeVideos(15);
+      const videos = await getYoutubeCached();
       const articles = await storage.getArticles();
       const existingVideoIds = new Set(articles.map((a: any) => a.videoId).filter(Boolean));
       const newVideos = videos.filter((v: any) => !existingVideoIds.has(v.id));
       const created: any[] = [];
       for (const v of newVideos) {
-        const content = await generateArticleAI(v.title, `https://www.youtube.com/watch?v=${v.id}`);
+        const content2 = await generateArticleAI(v.title, `https://www.youtube.com/watch?v=${v.id}`);
         const article = await storage.createArticle({
           title: v.title,
-          content,
+          content: content2,
           summary: `Written analysis of "${v.title}" — key arguments and context from the latest DinoBane video.`,
           youtubeUrl: `https://www.youtube.com/watch?v=${v.id}`,
           videoId: v.id,
           thumbnail: v.thumbnail,
           isPublic: true,
         });
+        invalidateArticlesCache();
         created.push(article);
       }
       return res.json({ synced: created.length, newArticles: created });
@@ -1486,7 +1540,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── AUTO-SYNC: poll YouTube RSS every 30 min, auto-generate articles ────────
   async function syncYouTubeArticles(reason = "scheduled") {
     try {
-      const videos = await fetchYouTubeVideos(15);
+      const videos = await getYoutubeCached();
       const articles = await storage.getArticles();
       const existingVideoIds = new Set(articles.map((a: any) => a.videoId).filter(Boolean));
       const newVideos = videos.filter((v: any) => !existingVideoIds.has(v.id));
@@ -1504,6 +1558,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             thumbnail: v.thumbnail,
             isPublic: true,
           });
+          invalidateArticlesCache();
           console.log(`[sync] article created: ${v.title}`);
         } catch (e: any) {
           console.error(`[sync] failed to generate article for ${v.id}:`, e.message);
