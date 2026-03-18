@@ -9,6 +9,8 @@ import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, insertArticleSchema } from "@shared/schema";
 import { z } from "zod";
 import crypto from "crypto";
+import https from "https";
+import http from "http";
 import { exec } from "child_process";
 import { promisify } from "util";
 const execAsync = promisify(exec);
@@ -1736,6 +1738,31 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── WEEKLY NEWSLETTER — every Sunday at 9 AM Bangkok (02:00 UTC) ─────────────
   // testMode: if true, send only to testEmail (skips the "no new videos" guard)
+
+  // ─── FETCH THUMBNAIL AS BASE64 DATA URI ──────────────────────────────────────
+  async function fetchImageAsBase64(url: string): Promise<string> {
+    return new Promise((resolve) => {
+      const client = url.startsWith('https') ? https : http;
+      const req = client.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          // follow one redirect
+          fetchImageAsBase64(res.headers.location).then(resolve).catch(() => resolve(url));
+          return;
+        }
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const buf = Buffer.concat(chunks);
+          const ct = res.headers['content-type'] || 'image/jpeg';
+          resolve(`data:${ct};base64,${buf.toString('base64')}`);
+        });
+        res.on('error', () => resolve(url)); // fallback to original URL on error
+      });
+      req.on('error', () => resolve(url));
+      req.setTimeout(8000, () => { req.destroy(); resolve(url); });
+    });
+  }
+
   async function sendWeeklyNewsletter(testMode = false, testEmail?: string) {
     if (!resend) return;
     try {
@@ -1764,6 +1791,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const recipients = testMode && testEmail ? [{ email: testEmail }] : members;
       if (recipients.length === 0) { console.log("[newsletter] no recipients"); return; }
 
+      // Fetch thumbnails as base64 data URIs to avoid Gmail attaching them as separate files
+      const thumbnails = await Promise.all(
+        videosToShow.map(v => v.thumbnail ? fetchImageAsBase64(v.thumbnail) : Promise.resolve(''))
+      );
+
       // Build the video cards HTML
       const videoCards = videosToShow.map((v, i) => `
         <tr>
@@ -1772,7 +1804,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               <tr>
                 <td style="padding:0;">
                   <a href="${v.url}" style="display:block;">
-                    <img src="${v.thumbnail}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
+                    <img src="${thumbnails[i] || v.thumbnail}" alt="${v.title.replace(/"/g, '&quot;')}" width="100%" style="display:block;border-radius:8px 8px 0 0;max-width:100%;" />
                   </a>
                 </td>
               </tr>
