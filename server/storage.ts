@@ -140,7 +140,8 @@ class DrizzleStorage implements IStorage {
       .select()
       .from(messages)
       .where(eq(messages.userId, userId))
-      .orderBy(desc(messages.createdAt));
+      .orderBy(desc(messages.createdAt))
+      .limit(100);
 
     if (rows.length === 0) return [];
 
