@@ -22,6 +22,8 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
 
   getMessages(channel: string): Promise<(Message & { user: User })[]>;
+  getReplies(parentId: number): Promise<(Message & { user: User })[]>;
+  getReplyCount(parentId: number): Promise<number>;
   createMessage(data: InsertMessage): Promise<Message & { user: User }>;
 
   getArticles(): Promise<Article[]>;
@@ -111,10 +113,11 @@ class DrizzleStorage implements IStorage {
   }
 
   async getMessages(channel: string): Promise<(Message & { user: User })[]> {
+    // Only return top-level posts (no parentId)
     const rows = await db
       .select()
       .from(messages)
-      .where(eq(messages.channel, channel))
+      .where(and(eq(messages.channel, channel), sql`${messages.parentId} IS NULL`))
       .orderBy(messages.createdAt);
 
     if (rows.length === 0) return [];
@@ -125,6 +128,31 @@ class DrizzleStorage implements IStorage {
     return rows
       .map(m => ({ ...m, user: userMap.get(m.userId)! }))
       .filter(m => m.user);
+  }
+
+  async getReplies(parentId: number): Promise<(Message & { user: User })[]> {
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.parentId, parentId))
+      .orderBy(messages.createdAt);
+
+    if (rows.length === 0) return [];
+
+    const allUsers = await db.select().from(users);
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    return rows
+      .map(m => ({ ...m, user: userMap.get(m.userId)! }))
+      .filter(m => m.user);
+  }
+
+  async getReplyCount(parentId: number): Promise<number> {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(eq(messages.parentId, parentId));
+    return row?.count ?? 0;
   }
 
   async createMessage(data: InsertMessage): Promise<Message & { user: User }> {
@@ -328,6 +356,11 @@ export async function runMigrationsAndSeed() {
       content    text NOT NULL,
       created_at timestamp NOT NULL DEFAULT now()
     );
+  `);
+
+  // Add parent_id column to messages if it doesn't exist yet (idempotent)
+  await pool.query(`
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_id integer;
   `);
 
 

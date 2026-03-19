@@ -1006,6 +1006,31 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // Get replies for a post
+  app.get("/api/messages/:id/replies", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Members only" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Membership required" });
+    const parentId = parseInt(req.params.id);
+    if (isNaN(parentId)) return res.status(400).json({ error: "Invalid id" });
+    const replies = await storage.getReplies(parentId);
+    return res.json(replies);
+  });
+
+  // Get reply count for multiple posts at once
+  app.post("/api/messages/reply-counts", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Members only" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Membership required" });
+    const { ids } = req.body as { ids: number[] };
+    if (!Array.isArray(ids)) return res.status(400).json({ error: "ids must be array" });
+    const counts: Record<number, number> = {};
+    await Promise.all(ids.map(async id => {
+      counts[id] = await storage.getReplyCount(id);
+    }));
+    return res.json(counts);
+  });
+
   // ─── ARTICLES ────────────────────────────────────────────────────────────────
   // Articles cache — 2 min TTL, invalidated on write
   let articlesCache: { data: any[]; fetchedAt: number } | null = null;

@@ -5,9 +5,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Crown, Hash, Send, Users, Loader2, Image, X,
+  Crown, Hash, Send, Users, Loader2, Image as ImageIcon, X,
   ChevronDown, Star, MessageSquare, Newspaper,
-  Video, Coffee, Shield,
+  Video, Coffee, Shield, CornerDownRight, ChevronRight,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useEffect, useRef } from "react";
@@ -20,6 +20,7 @@ interface MessageWithUser {
   userId: number;
   channel: string;
   content: string;
+  parentId?: number | null;
   createdAt: string;
   user: {
     id: number;
@@ -77,6 +78,19 @@ function renderMessageContent(content: string) {
     .replace(/@([a-zA-Z0-9_]+)/g, '<span class="text-[#cc2a2a] font-semibold">@$1</span>');
 }
 
+function UserAvatar({ user, size = "md" }: { user: MessageWithUser["user"]; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "h-7 w-7" : "h-9 w-9";
+  const textSize = size === "sm" ? "text-[9px]" : "text-xs";
+  return (
+    <Avatar className={cn(dim, "ring-1 ring-white/5 shrink-0")}>
+      {user.avatarUrl && <AvatarFallback className="p-0"><img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover rounded-full" /></AvatarFallback>}
+      <AvatarFallback className={cn(textSize, "font-bold text-white")} style={{ background: user.avatarColor }}>
+        {user.avatarInitials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 // ─── LINK PREVIEW ─────────────────────────────────────────────────────────────
 
 function LinkPreviewCard({ url }: { url: string }) {
@@ -92,7 +106,7 @@ function LinkPreviewCard({ url }: { url: string }) {
   });
 
   if (isLoading) return (
-    <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 bg-[#111] border border-[#1e1e1e] rounded-sm px-3 py-2 w-fit">
+    <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 bg-[#0f0f0f] border border-[#222] rounded-sm px-3 py-2 w-fit">
       <Loader2 size={11} className="animate-spin" /> Fetching preview…
     </div>
   );
@@ -101,14 +115,11 @@ function LinkPreviewCard({ url }: { url: string }) {
   return (
     <a
       href={url} target="_blank" rel="noopener noreferrer"
-      className="mt-2 flex gap-0 border border-[#1e1e1e] hover:border-[#cc2a2a]/40 rounded-sm overflow-hidden bg-[#111] max-w-sm transition-colors group"
+      className="mt-2 flex gap-0 border border-[#222] hover:border-[#cc2a2a]/40 rounded-sm overflow-hidden bg-[#0f0f0f] max-w-sm transition-colors group"
     >
       {data.image && (
-        <img
-          src={data.image} alt=""
-          className="w-20 h-20 object-cover flex-shrink-0"
-          onError={e => (e.currentTarget.style.display = "none")}
-        />
+        <img src={data.image} alt="" className="w-20 h-20 object-cover flex-shrink-0"
+          onError={e => (e.currentTarget.style.display = "none")} />
       )}
       <div className="px-3 py-2 min-w-0 flex-1 border-l-2 border-[#cc2a2a]">
         <p className="text-xs font-bold text-white group-hover:text-[#cc2a2a] transition-colors line-clamp-2 leading-snug">{data.title}</p>
@@ -119,7 +130,292 @@ function LinkPreviewCard({ url }: { url: string }) {
   );
 }
 
-// ─── LOGGED-OUT GATE ──────────────────────────────────────────────────────────
+// ─── INLINE REPLY COMPOSER ────────────────────────────────────────────────────
+
+function ReplyComposer({
+  parentId, channel, user, onSuccess, onCancel,
+}: {
+  parentId: number; channel: string; user: any;
+  onSuccess: (msg: MessageWithUser) => void; onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  const sendMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", "/api/messages", { channel, content, parentId });
+      return res.json();
+    },
+    onSuccess: (msg) => { onSuccess(msg); },
+  });
+
+  const handleSend = () => {
+    if (sendMutation.isPending) return;
+    if (pendingImage) { sendMutation.mutate(pendingImage); return; }
+    const text = draft.trim();
+    if (!text) return;
+    sendMutation.mutate(text);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_CHAT_IMAGE_BYTES) { alert("Image too large. Max 2MB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => setPendingImage(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="mt-3 pl-4 border-l-2 border-[#cc2a2a]/30">
+      {pendingImage && (
+        <div className="mb-2 relative inline-block">
+          <img src={pendingImage} alt="Preview" className="max-h-20 max-w-[200px] rounded-sm border border-[#222] object-contain" />
+          <button onClick={() => setPendingImage(null)} className="absolute -top-1.5 -right-1.5 bg-[#cc2a2a] text-white rounded-full p-0.5 hover:bg-red-500 transition-colors">
+            <X size={10} />
+          </button>
+        </div>
+      )}
+      <div className="flex items-start gap-2">
+        <UserAvatar user={user} size="sm" />
+        <div className="flex-1 min-w-0">
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Write a reply…"
+            className="w-full resize-none bg-[#0f0f0f] border border-[#222] focus:border-[#cc2a2a]/50 rounded-sm px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-colors min-h-[38px] max-h-28"
+            rows={1}
+            style={{ lineHeight: "1.5" }}
+          />
+          <div className="flex items-center gap-2 mt-1.5">
+            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              className="h-7 w-7 flex items-center justify-center rounded-sm bg-[#111] border border-[#222] text-zinc-500 hover:text-white hover:border-[#cc2a2a]/40 transition-colors"
+              title="Attach image"
+              type="button"
+            >
+              <ImageIcon size={12} />
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={(!draft.trim() && !pendingImage) || sendMutation.isPending}
+              className="flex items-center gap-1.5 h-7 px-3 rounded-sm bg-[#cc2a2a] hover:bg-red-600 disabled:opacity-40 text-white text-xs font-bold transition-colors"
+            >
+              {sendMutation.isPending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+              Reply
+            </button>
+            <button onClick={onCancel} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── REPLY THREAD ─────────────────────────────────────────────────────────────
+
+function ReplyThread({
+  parentId, channel, user, initialCount,
+}: {
+  parentId: number; channel: string; user: any; initialCount: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const qc = useQueryClient();
+
+  const { data: replies = [], isLoading } = useQuery<MessageWithUser[]>({
+    queryKey: ["/api/messages", parentId, "replies"],
+    queryFn: async () => {
+      const res = await fetch(`/api/messages/${parentId}/replies`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: expanded,
+    staleTime: 30000,
+  });
+
+  const totalReplies = expanded ? replies.length : initialCount;
+
+  const handleNewReply = (msg: MessageWithUser) => {
+    qc.setQueryData(["/api/messages", parentId, "replies"], (old: MessageWithUser[] = []) => {
+      if (old.some(m => m.id === msg.id)) return old;
+      return [...old, msg];
+    });
+    setExpanded(true);
+    setReplying(false);
+  };
+
+  if (totalReplies === 0 && !replying) {
+    return (
+      <div className="mt-2">
+        <button
+          onClick={() => setReplying(true)}
+          className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-300 transition-colors py-0.5"
+        >
+          <CornerDownRight size={12} />
+          Reply
+        </button>
+        {replying && (
+          <ReplyComposer
+            parentId={parentId} channel={channel} user={user}
+            onSuccess={handleNewReply} onCancel={() => setReplying(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2">
+      {/* Reply count / expand toggle */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setExpanded(o => !o)}
+          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-white transition-colors py-0.5 group"
+        >
+          <ChevronRight
+            size={13}
+            className={cn("transition-transform duration-150", expanded ? "rotate-90" : "")}
+          />
+          <span className="font-semibold text-[#cc2a2a]">{totalReplies}</span>
+          <span>{totalReplies === 1 ? "reply" : "replies"}</span>
+        </button>
+        <button
+          onClick={() => { setExpanded(true); setReplying(true); }}
+          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors py-0.5"
+        >
+          <CornerDownRight size={12} />
+          Reply
+        </button>
+      </div>
+
+      {/* Expanded replies */}
+      {expanded && (
+        <div className="mt-2 pl-4 border-l-2 border-[#1e1e1e] space-y-3">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-xs text-zinc-600 py-2">
+              <Loader2 size={12} className="animate-spin" /> Loading replies…
+            </div>
+          ) : (
+            replies.map(reply => {
+              const isImage = reply.content.startsWith("data:image/");
+              const urls = !isImage ? extractUrls(reply.content) : [];
+              return (
+                <div key={reply.id} className="flex gap-2.5">
+                  <UserAvatar user={reply.user} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <span className="text-xs font-bold text-white">{reply.user.displayName}</span>
+                      <time className="text-[10px] text-zinc-600">
+                        {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+                      </time>
+                    </div>
+                    {!isImage && (
+                      <p
+                        className="text-sm text-zinc-300 leading-relaxed break-words"
+                        dangerouslySetInnerHTML={{ __html: renderMessageContent(reply.content) }}
+                      />
+                    )}
+                    {isImage && (
+                      <img src={reply.content} alt="Image" className="max-w-[240px] max-h-48 rounded-sm border border-[#222] mt-1 object-contain" />
+                    )}
+                    {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* Reply composer (when expanded) */}
+          {replying ? (
+            <ReplyComposer
+              parentId={parentId} channel={channel} user={user}
+              onSuccess={handleNewReply} onCancel={() => setReplying(false)}
+            />
+          ) : (
+            <button
+              onClick={() => setReplying(true)}
+              className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-300 transition-colors py-0.5"
+            >
+              <CornerDownRight size={12} />
+              Add a reply…
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── POST CARD ────────────────────────────────────────────────────────────────
+
+function PostCard({ msg, channel, user, replyCount }: {
+  msg: MessageWithUser; channel: string; user: any; replyCount: number;
+}) {
+  const isImage = msg.content.startsWith("data:image/");
+  const urls = !isImage ? extractUrls(msg.content) : [];
+
+  return (
+    <div className="bg-[#111] border border-[#1e1e1e] hover:border-[#2a2a2a] rounded-sm transition-colors overflow-hidden">
+      {/* Card header */}
+      <div className="px-4 pt-4 pb-3">
+        {/* Author row */}
+        <div className="flex items-start gap-3">
+          <UserAvatar user={msg.user} size="md" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-bold text-white leading-none">{msg.user.displayName}</span>
+              <span className="text-[10px] text-zinc-600">@{msg.user.username}</span>
+              <time className="text-[10px] text-zinc-600 ml-auto">
+                {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+              </time>
+            </div>
+
+            {/* Message body */}
+            <div className="mt-2">
+              {!isImage && (
+                <p
+                  className="text-[14px] text-zinc-200 leading-relaxed break-words"
+                  dangerouslySetInnerHTML={{ __html: renderMessageContent(msg.content) }}
+                />
+              )}
+              {isImage && (
+                <img
+                  src={msg.content}
+                  alt="Shared image"
+                  className="max-w-full max-h-72 rounded-sm border border-[#222] mt-1 object-contain"
+                />
+              )}
+              {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reply thread */}
+      <div className="px-4 pb-3 border-t border-[#181818] pt-2.5">
+        <ReplyThread
+          parentId={msg.id}
+          channel={channel}
+          user={user}
+          initialCount={replyCount}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── GATE PAGES ───────────────────────────────────────────────────────────────
 
 function GatePage({ isMember }: { isMember?: boolean }) {
   return (
@@ -183,7 +479,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [draft, setDraft] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -201,23 +497,36 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     staleTime: 60000,
   });
 
-  // Messages
-  const { data: messages = [], isLoading } = useQuery<MessageWithUser[]>({
+  // Top-level posts only
+  const { data: posts = [], isLoading } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/messages", activeChannel],
     queryFn: async () => {
       const res = await fetch(`/api/messages/${activeChannel}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load messages");
+      if (!res.ok) throw new Error("Failed to load");
       return res.json();
     },
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Bulk reply counts
+  const { data: replyCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ["/api/messages/reply-counts", activeChannel, posts.map(p => p.id).join(",")],
+    queryFn: async () => {
+      if (posts.length === 0) return {};
+      const res = await fetch("/api/messages/reply-counts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ids: posts.map(p => p.id) }),
+      });
+      if (!res.ok) return {};
+      return res.json();
+    },
+    enabled: posts.length > 0,
+    staleTime: 15000,
+  });
 
-  // WebSocket live updates
+  // WebSocket live updates for new top-level posts
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -226,18 +535,22 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
       ws = new WebSocket(wsUrl);
       ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
-        if (data.type === "new_message" && data.message.channel === activeChannel) {
+        if (data.type === "new_message" && data.message.channel === activeChannel && !data.message.parentId) {
           qc.setQueryData(["/api/messages", activeChannel], (old: MessageWithUser[] = []) => {
             if (old.some(m => m.id === data.message.id)) return old;
             return [...old, data.message];
           });
+        }
+        // If it's a reply, invalidate the reply cache for that parent
+        if (data.type === "new_message" && data.message.parentId) {
+          qc.invalidateQueries({ queryKey: ["/api/messages", data.message.parentId, "replies"] });
         }
       };
     } catch {}
     return () => { try { ws?.close(); } catch {} };
   }, [activeChannel]);
 
-  // Send message
+  // Post new top-level message
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
       const res = await apiRequest("POST", "/api/messages", { channel: activeChannel, content });
@@ -250,6 +563,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
       });
       setDraft("");
       setPendingImage(null);
+      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     },
   });
 
@@ -259,10 +573,6 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     const text = draft.trim();
     if (!text) return;
     sendMutation.mutate(text);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const insertMention = (username: string) => {
@@ -297,7 +607,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
           </div>
         </div>
 
-        {/* Channels section */}
+        {/* Channels */}
         <div className="px-3 pt-4 pb-2">
           <p className="text-[10px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Channels</p>
           <div className="space-y-0.5">
@@ -313,20 +623,9 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 )}
                 data-testid={`button-channel-${ch.id}`}
               >
-                <Hash
-                  size={14}
-                  className={cn(
-                    "shrink-0 transition-colors",
-                    activeChannel === ch.id ? "text-[#cc2a2a]" : "text-zinc-600"
-                  )}
-                />
+                <Hash size={14} className={cn("shrink-0 transition-colors", activeChannel === ch.id ? "text-[#cc2a2a]" : "text-zinc-600")} />
                 <div className="min-w-0">
-                  <p className={cn(
-                    "text-sm font-semibold leading-none truncate",
-                    activeChannel === ch.id ? "text-white" : ""
-                  )}>
-                    {ch.label}
-                  </p>
+                  <p className={cn("text-sm font-semibold leading-none truncate", activeChannel === ch.id ? "text-white" : "")}>{ch.label}</p>
                   <p className="text-[10px] text-zinc-600 mt-0.5 truncate">{ch.sub}</p>
                 </div>
               </button>
@@ -340,30 +639,18 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         <div className="px-3 pb-2 flex-1 overflow-y-auto">
           <button
             onClick={() => setMembersOpen(o => !o)}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-sm hover:bg-[#111] transition-colors group"
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-sm hover:bg-[#111] transition-colors"
             data-testid="button-toggle-members"
           >
             <Star size={12} className="text-yellow-400 fill-yellow-400 shrink-0" />
-            <span className="flex-1 text-[10px] font-black uppercase tracking-widest text-yellow-400 text-left">
-              Members
-            </span>
-            <span className="text-[10px] text-yellow-500/60 font-mono bg-yellow-500/10 px-1.5 py-0.5 rounded-sm">
-              {membersList.length}
-            </span>
-            <ChevronDown
-              size={12}
-              className={cn(
-                "text-yellow-400/50 shrink-0 transition-transform duration-200",
-                membersOpen ? "rotate-0" : "-rotate-90"
-              )}
-            />
+            <span className="flex-1 text-[10px] font-black uppercase tracking-widest text-yellow-400 text-left">Members</span>
+            <span className="text-[10px] text-yellow-500/60 font-mono bg-yellow-500/10 px-1.5 py-0.5 rounded-sm">{membersList.length}</span>
+            <ChevronDown size={12} className={cn("text-yellow-400/50 shrink-0 transition-transform duration-200", membersOpen ? "rotate-0" : "-rotate-90")} />
           </button>
 
           {membersOpen && (
             <div className="mt-1 space-y-0.5">
-              {membersList.length === 0 && (
-                <p className="text-[11px] text-zinc-700 px-3 py-2">No members yet.</p>
-              )}
+              {membersList.length === 0 && <p className="text-[11px] text-zinc-700 px-3 py-2">No members yet.</p>}
               {membersList.map(m => (
                 <button
                   key={m.id}
@@ -378,234 +665,139 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                   >
                     {m.avatarUrl
                       ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
-                      : m.avatarInitials
-                    }
+                      : m.avatarInitials}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">
-                      @{m.username}
-                    </p>
-                  </div>
+                  <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">@{m.username}</p>
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Current user footer */}
+        {/* User footer */}
         <div className="px-3 py-3 border-t border-[#1a1a1a] flex items-center gap-2.5 bg-[#0a0a0a]">
           <Avatar className="h-8 w-8 ring-2 ring-[#cc2a2a]/30">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} className="object-cover" />}
-            <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>
-              {user.avatarInitials}
-            </AvatarFallback>
+            {user.avatarUrl && <AvatarFallback className="p-0"><img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover rounded-full" /></AvatarFallback>}
+            <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>{user.avatarInitials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-white truncate">{user.displayName}</p>
-            <p className="text-[10px] text-yellow-500 flex items-center gap-1">
-              <Crown size={9} /> Member
-            </p>
+            <p className="text-[10px] text-yellow-500 flex items-center gap-1"><Crown size={9} /> Member</p>
           </div>
         </div>
       </aside>
 
-      {/* ── MAIN CHAT AREA ── */}
+      {/* ── MAIN AREA ── */}
       <div className="flex flex-col flex-1 min-w-0">
 
         {/* Channel header */}
         <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] flex items-center gap-3 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Hash size={16} className="text-[#cc2a2a]" />
-            <span className="font-black text-white text-base" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              {activeCh.label}
-            </span>
-          </div>
+          <Hash size={15} className="text-[#cc2a2a]" />
+          <span className="font-black text-white text-base" style={{ fontFamily: "'Clash Display', sans-serif" }}>{activeCh.label}</span>
           <div className="w-px h-4 bg-[#333] mx-1" />
           <p className="text-xs text-zinc-500 hidden sm:block">{activeCh.sub}</p>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-zinc-500 bg-[#111] border border-[#1e1e1e] rounded-sm px-2.5 py-1">
-              <Users size={11} className="text-green-400" />
-              <span className="text-green-400 font-semibold">{membersList.length}</span>
-              <span>members</span>
-            </div>
+          <div className="ml-auto flex items-center gap-1.5 text-xs text-zinc-500 bg-[#111] border border-[#1e1e1e] rounded-sm px-2.5 py-1">
+            <Users size={11} className="text-green-400" />
+            <span className="text-green-400 font-semibold">{membersList.length}</span>
+            <span>members</span>
           </div>
-
           {/* Mobile channel switcher */}
-          <div className="sm:hidden flex gap-1 ml-2">
+          <div className="sm:hidden flex gap-1">
             {CHANNELS.map(ch => (
-              <button
-                key={ch.id}
-                onClick={() => setActiveChannel(ch.id)}
-                className={cn(
-                  "px-2 py-1 text-[10px] rounded-sm font-bold uppercase tracking-wide transition-colors",
-                  activeChannel === ch.id
-                    ? "bg-[#cc2a2a]/20 text-[#cc2a2a] border border-[#cc2a2a]/30"
-                    : "text-zinc-500 hover:text-zinc-300 border border-transparent"
-                )}
-              >
+              <button key={ch.id} onClick={() => setActiveChannel(ch.id)}
+                className={cn("px-2 py-1 text-[10px] rounded-sm font-bold uppercase tracking-wide transition-colors",
+                  activeChannel === ch.id ? "bg-[#cc2a2a]/20 text-[#cc2a2a] border border-[#cc2a2a]/30" : "text-zinc-500 hover:text-zinc-300 border border-transparent")}>
                 #{ch.id.split("-")[0]}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Messages feed */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 size={20} className="animate-spin text-zinc-600" />
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-14 h-14 rounded-full bg-[#111] border border-[#1e1e1e] flex items-center justify-center mb-4">
-                <activeCh.Icon size={24} className="text-zinc-700" />
-              </div>
-              <p className="font-black text-white text-lg" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                #{activeCh.label}
-              </p>
-              <p className="text-sm text-zinc-600 mt-1">Be the first to post here.</p>
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {messages.map((msg, i) => {
-                const prevMsg = messages[i - 1];
-                const isGrouped = prevMsg
-                  && prevMsg.user.id === msg.user.id
-                  && (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 300000;
-                const isImage = msg.content.startsWith("data:image/");
-                const urls = !isImage ? extractUrls(msg.content) : [];
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex gap-3 group px-3 py-1.5 rounded-sm hover:bg-[#0f0f0f] transition-colors",
-                      isGrouped ? "mt-0" : "mt-4"
-                    )}
-                    data-testid={`message-${msg.id}`}
-                  >
-                    {/* Avatar / spacer */}
-                    <div className="w-9 flex-shrink-0 pt-0.5">
-                      {!isGrouped ? (
-                        <button onClick={() => insertMention(msg.user.username)} title={`@${msg.user.username}`}>
-                          <Avatar className="h-9 w-9 ring-1 ring-white/5 hover:ring-[#cc2a2a]/40 transition-all">
-                            {msg.user.avatarUrl && (
-                              <AvatarImage src={msg.user.avatarUrl} alt={msg.user.displayName} className="object-cover" />
-                            )}
-                            <AvatarFallback className="text-xs font-bold text-white" style={{ background: msg.user.avatarColor }}>
-                              {msg.user.avatarInitials}
-                            </AvatarFallback>
-                          </Avatar>
-                        </button>
-                      ) : null}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {!isGrouped && (
-                        <div className="flex items-baseline gap-2.5 mb-1">
-                          <button
-                            onClick={() => insertMention(msg.user.username)}
-                            className="text-sm font-bold text-white hover:text-[#cc2a2a] transition-colors leading-none"
-                          >
-                            {msg.user.displayName}
-                          </button>
-                          <time className="text-[10px] text-zinc-600">
-                            {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
-                          </time>
-                        </div>
-                      )}
-
-                      {!isImage && (
-                        <p
-                          className="text-[14px] text-zinc-300 leading-relaxed break-words"
-                          dangerouslySetInnerHTML={{ __html: renderMessageContent(msg.content) }}
-                        />
-                      )}
-                      {isImage && (
-                        <img
-                          src={msg.content}
-                          alt="Shared image"
-                          className="max-w-xs max-h-64 rounded-sm border border-[#1e1e1e] mt-1 object-contain"
-                        />
-                      )}
-                      {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
-                    </div>
+        {/* ── POST COMPOSE BOX ── */}
+        <div className="px-4 pt-4 pb-3 border-b border-[#1a1a1a] bg-[#0d0d0d] flex-shrink-0">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-[#111] border border-[#1e1e1e] focus-within:border-[#cc2a2a]/40 rounded-sm transition-colors">
+              {pendingImage && (
+                <div className="p-3 pb-0">
+                  <div className="relative inline-block">
+                    <img src={pendingImage} alt="Preview" className="max-h-24 max-w-xs rounded-sm border border-[#222] object-contain" />
+                    <button onClick={() => setPendingImage(null)} className="absolute -top-2 -right-2 bg-[#cc2a2a] text-white rounded-full p-0.5 hover:bg-red-500 transition-colors">
+                      <X size={11} />
+                    </button>
                   </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
+                </div>
+              )}
+              <div className="flex items-start gap-3 p-3">
+                <Avatar className="h-8 w-8 ring-1 ring-white/5 mt-0.5 shrink-0">
+                  {user.avatarUrl && <AvatarFallback className="p-0"><img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover rounded-full" /></AvatarFallback>}
+                  <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>{user.avatarInitials}</AvatarFallback>
+                </Avatar>
+                <textarea
+                  ref={textareaRef}
+                  value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder={`Post to #${activeCh.label} — use @username to mention someone`}
+                  className="flex-1 resize-none bg-transparent text-sm text-zinc-200 placeholder-zinc-600 outline-none min-h-[44px] max-h-40"
+                  rows={2}
+                  style={{ lineHeight: "1.5" }}
+                  data-testid="input-message"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-3 pb-3 pt-0 border-t border-[#1a1a1a]">
+                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-sm bg-[#0a0a0a] border border-[#222] text-zinc-500 hover:text-white hover:border-[#cc2a2a]/40 text-xs transition-colors"
+                  title="Attach image (max 2MB)" type="button"
+                >
+                  <ImageIcon size={13} /> Image
+                </button>
+                <div className="ml-auto flex items-center gap-3">
+                  <span className="text-[10px] text-zinc-600">Enter to post · Shift+Enter for new line</span>
+                  <button
+                    onClick={handleSend}
+                    disabled={(!draft.trim() && !pendingImage) || sendMutation.isPending}
+                    className="flex items-center gap-1.5 h-8 px-4 rounded-sm bg-[#cc2a2a] hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors"
+                    data-testid="button-send-message"
+                  >
+                    {sendMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                    Post
+                  </button>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* ── MESSAGE INPUT ── */}
-        <div className="px-5 pb-4 pt-3 border-t border-[#1a1a1a] bg-[#0d0d0d] flex-shrink-0">
-
-          {/* Pending image preview */}
-          {pendingImage && (
-            <div className="mb-3 relative inline-block">
-              <img
-                src={pendingImage} alt="Preview"
-                className="max-h-28 max-w-xs rounded-sm border border-[#1e1e1e] object-contain"
-              />
-              <button
-                onClick={() => setPendingImage(null)}
-                className="absolute -top-2 -right-2 bg-[#cc2a2a] text-white rounded-full p-0.5 hover:bg-red-500 transition-colors"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
-
-          <div className="flex items-end gap-2">
-            {/* Image upload */}
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-            <button
-              onClick={() => imageInputRef.current?.click()}
-              className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-sm bg-[#111] border border-[#1e1e1e] text-zinc-500 hover:text-white hover:border-[#cc2a2a]/50 transition-colors"
-              title="Attach image (max 2MB)"
-              type="button"
-            >
-              <Image size={15} />
-            </button>
-
-            {/* Text input */}
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  pendingImage
-                    ? "Add a caption (optional)…"
-                    : `Message #${activeCh.label.toLowerCase()} — use @username to mention`
-                }
-                className="w-full resize-none bg-[#111] border border-[#1e1e1e] focus:border-[#cc2a2a]/50 rounded-sm px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-colors min-h-[40px] max-h-32"
-                rows={1}
-                style={{ lineHeight: "1.5" }}
-                data-testid="input-message"
-              />
-            </div>
-
-            {/* Send button */}
-            <button
-              onClick={handleSend}
-              disabled={(!draft.trim() && !pendingImage) || sendMutation.isPending}
-              className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-sm bg-[#cc2a2a] hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
-              data-testid="button-send-message"
-            >
-              {sendMutation.isPending
-                ? <Loader2 size={15} className="animate-spin" />
-                : <Send size={15} />
-              }
-            </button>
+        {/* ── POSTS FEED ── */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={20} className="animate-spin text-zinc-600" />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-14 h-14 rounded-full bg-[#111] border border-[#1e1e1e] flex items-center justify-center mb-4">
+                  <activeCh.Icon size={22} className="text-zinc-700" />
+                </div>
+                <p className="font-black text-white text-lg" style={{ fontFamily: "'Clash Display', sans-serif" }}>#{activeCh.label}</p>
+                <p className="text-sm text-zinc-600 mt-1">Be the first to post here.</p>
+              </div>
+            ) : (
+              posts.map(post => (
+                <PostCard
+                  key={post.id}
+                  msg={post}
+                  channel={activeChannel}
+                  user={user}
+                  replyCount={replyCounts[post.id] ?? 0}
+                />
+              ))
+            )}
+            <div ref={feedEndRef} />
           </div>
-
-          <p className="text-[10px] text-zinc-700 mt-1.5 px-0.5">
-            Enter to send · Shift+Enter for new line · 📎 to attach an image (max 2MB)
-          </p>
         </div>
       </div>
     </div>

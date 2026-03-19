@@ -28,6 +28,7 @@ export const messages = pgTable("messages", {
   userId: integer("user_id").notNull(),
   channel: text("channel").notNull().default("general"),
   content: text("content").notNull(),
+  parentId: integer("parent_id"),   // null = top-level post; set = reply
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
