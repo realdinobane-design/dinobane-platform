@@ -90,3 +90,13 @@ export const mediaComments = pgTable("media_comments", {
 export const insertMediaCommentSchema = createInsertSchema(mediaComments).omit({ id: true, createdAt: true });
 export type InsertMediaComment = z.infer<typeof insertMediaCommentSchema>;
 export type MediaComment = typeof mediaComments.$inferSelect;
+
+// ─── APP SETTINGS ─────────────────────────────────────────────────────────────
+// Generic key-value store for admin-configurable settings
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;

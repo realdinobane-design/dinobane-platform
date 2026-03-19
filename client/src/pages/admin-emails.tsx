@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import {
   Mail, Clock, Users, Zap, CheckCircle2, AlertCircle,
   Send, Play, ChevronDown, ChevronUp, CalendarDays,
-  RefreshCw, ShieldAlert,
+  RefreshCw, ShieldAlert, Settings,
 } from "lucide-react";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -24,6 +24,8 @@ interface EmailConfig {
   subject: string;
   canTestSend: boolean;
   canManualTrigger: boolean;
+  sendTimeUtc?: string;
+  sendTimeBkk?: string;
 }
 
 interface EmailsConfigResponse {
@@ -56,16 +58,22 @@ function EmailCard({
   email,
   onTestSend,
   onTrigger,
+  onScheduleChange,
   isSending,
   isTriggering,
+  isScheduling,
 }: {
   email: EmailConfig;
   onTestSend: (id: string) => void;
   onTrigger: (id: string) => void;
+  onScheduleChange: (timeBkk: string) => void;
   isSending: boolean;
   isTriggering: boolean;
+  isScheduling: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
+  const [newTimeBkk, setNewTimeBkk] = useState(email.sendTimeBkk || "14:00");
   const accent = ACCENT_COLORS[email.id] || "#cc2a2a";
 
   return (
@@ -161,6 +169,57 @@ function EmailCard({
             )}
           </div>
 
+          {/* Intel-specific: send time editor */}
+          {email.id === "intel-briefing" && (
+            <div className="pt-3 border-t border-[#1a1a1a]">
+              <p className="text-[10px] font-black tracking-widest text-zinc-600 uppercase mb-3">Daily Send Time (Bangkok)</p>
+              {!editingTime ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0d0d0d] border border-[#2a2a2a] rounded-sm">
+                    <Clock size={13} className="text-[#f0c800]" />
+                    <span className="text-sm font-black text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                      {email.sendTimeBkk || "14:00"}
+                    </span>
+                    <span className="text-xs text-zinc-500 ml-1">Bangkok daily</span>
+                  </div>
+                  <button
+                    onClick={() => { setNewTimeBkk(email.sendTimeBkk || "14:00"); setEditingTime(true); }}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-sm bg-[#1a1a1a] border border-[#2a2a2a] text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors"
+                  >
+                    <Settings size={11} />
+                    Change Time
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={newTimeBkk}
+                      onChange={e => setNewTimeBkk(e.target.value)}
+                      className="bg-[#0d0d0d] border border-[#cc2a2a]/40 text-white text-sm font-bold px-3 py-2 rounded-sm focus:outline-none focus:border-[#cc2a2a]"
+                    />
+                    <span className="text-xs text-zinc-500">Bangkok time</span>
+                  </div>
+                  <button
+                    onClick={() => { onScheduleChange(newTimeBkk); setEditingTime(false); }}
+                    disabled={isScheduling}
+                    className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-sm bg-[#cc2a2a]/10 border border-[#cc2a2a]/30 text-red-400 hover:bg-[#cc2a2a]/20 transition-colors disabled:opacity-50"
+                  >
+                    {isScheduling ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingTime(false)}
+                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-wrap gap-3 pt-1 border-t border-[#1a1a1a]">
             {email.canTestSend && (
@@ -188,7 +247,7 @@ function EmailCard({
                 ) : (
                   <Play size={12} />
                 )}
-                Send to All Members Now
+                {email.id === "intel-briefing" ? "Send to All Members Now" : "Send to All Members Now"}
               </button>
             )}
           </div>
@@ -218,6 +277,7 @@ export default function AdminEmailsPage() {
 
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
+  const [schedulingIntel, setSchedulingIntel] = useState(false);
 
   const testSendMutation = useMutation({
     mutationFn: async (emailId: string) => {
@@ -241,20 +301,43 @@ export default function AdminEmailsPage() {
   const triggerMutation = useMutation({
     mutationFn: async (emailId: string) => {
       setTriggeringId(emailId);
-      const res = await apiRequest("POST", "/api/admin/emails/trigger-newsletter", {});
+      const endpoint = emailId === "intel-briefing"
+        ? "/api/admin/emails/trigger-intel"
+        : "/api/admin/emails/trigger-newsletter";
+      const res = await apiRequest("POST", endpoint, {});
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, emailId) => {
       setTriggeringId(null);
       qc.invalidateQueries({ queryKey: ["/api/admin/emails/config"] });
       toast({
-        title: "Newsletter dispatched",
+        title: emailId === "intel-briefing" ? "Intel Briefing dispatched" : "Newsletter dispatched",
         description: "Sent to all paid members right now.",
       });
     },
     onError: (e: any) => {
       setTriggeringId(null);
-      toast({ title: "Failed to trigger newsletter", description: e.message, variant: "destructive" });
+      toast({ title: "Failed to trigger", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: async (timeBkk: string) => {
+      setSchedulingIntel(true);
+      const res = await apiRequest("POST", "/api/admin/emails/intel-schedule", { timeBkk });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSchedulingIntel(false);
+      qc.invalidateQueries({ queryKey: ["/api/admin/emails/config"] });
+      toast({
+        title: "Send time updated",
+        description: `Intel briefing will now go out daily at ${data.timeBkk} Bangkok time.`,
+      });
+    },
+    onError: (e: any) => {
+      setSchedulingIntel(false);
+      toast({ title: "Failed to update schedule", description: e.message, variant: "destructive" });
     },
   });
 
@@ -321,22 +404,41 @@ export default function AdminEmailsPage() {
         </div>
       )}
 
-      {/* Schedule overview banner for newsletter */}
-      {data?.emails.find(e => e.id === "newsletter")?.nextSend && (
-        <div className="mb-6 flex items-center gap-3 p-4 bg-blue-900/10 border border-blue-800/30 rounded-sm">
-          <Clock size={16} className="text-blue-400 shrink-0" />
-          <div>
-            <span className="text-sm font-bold text-white">Next newsletter: </span>
-            <span className="text-sm text-zinc-300">
-              {format(new Date(data.emails.find(e => e.id === "newsletter")!.nextSend!), "EEEE d MMMM yyyy")}
-              {" at "}
-              <span className="text-blue-400 font-bold">9:00 AM Bangkok</span>
-              {" — "}
-              {formatDistanceToNow(new Date(data.emails.find(e => e.id === "newsletter")!.nextSend!), { addSuffix: true })}
-            </span>
+      {/* Schedule banners */}
+      <div className="mb-6 space-y-3">
+        {data?.emails.find(e => e.id === "newsletter")?.nextSend && (
+          <div className="flex items-center gap-3 p-4 bg-blue-900/10 border border-blue-800/30 rounded-sm">
+            <Clock size={16} className="text-blue-400 shrink-0" />
+            <div>
+              <span className="text-sm font-bold text-white">Next newsletter: </span>
+              <span className="text-sm text-zinc-300">
+                {format(new Date(data.emails.find(e => e.id === "newsletter")!.nextSend!), "EEEE d MMMM yyyy")}
+                {" at "}
+                <span className="text-blue-400 font-bold">9:00 AM Bangkok</span>
+                {" — "}
+                {formatDistanceToNow(new Date(data.emails.find(e => e.id === "newsletter")!.nextSend!), { addSuffix: true })}
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        {data?.emails.find(e => e.id === "intel-briefing")?.nextSend && (
+          <div className="flex items-center gap-3 p-4 bg-[#1a1400]/60 border border-[#f0c800]/20 rounded-sm">
+            <Clock size={16} className="text-[#f0c800] shrink-0" />
+            <div className="flex-1">
+              <span className="text-sm font-bold text-white">Next intel briefing: </span>
+              <span className="text-sm text-zinc-300">
+                {format(new Date(data.emails.find(e => e.id === "intel-briefing")!.nextSend!), "EEEE d MMMM yyyy")}
+                {" at "}
+                <span className="text-[#f0c800] font-bold">
+                  {data.emails.find(e => e.id === "intel-briefing")!.sendTimeBkk} Bangkok
+                </span>
+                {" — "}
+                {formatDistanceToNow(new Date(data.emails.find(e => e.id === "intel-briefing")!.nextSend!), { addSuffix: true })}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Email list */}
       {isLoading ? (
@@ -353,8 +455,10 @@ export default function AdminEmailsPage() {
               email={email}
               onTestSend={id => testSendMutation.mutate(id)}
               onTrigger={id => triggerMutation.mutate(id)}
+              onScheduleChange={timeBkk => scheduleMutation.mutate(timeBkk)}
               isSending={sendingId === email.id && testSendMutation.isPending}
               isTriggering={triggeringId === email.id && triggerMutation.isPending}
+              isScheduling={schedulingIntel && scheduleMutation.isPending}
             />
           ))}
         </div>

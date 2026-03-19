@@ -2,7 +2,7 @@ import { eq, desc, ilike, and, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
 import {
-  users, messages, articles, media, mediaLikes, mediaComments,
+  users, messages, articles, media, mediaLikes, mediaComments, appSettings,
   type User, type InsertUser,
   type Message, type InsertMessage,
   type Article, type InsertArticle,
@@ -45,6 +45,8 @@ export interface IStorage {
   getArticleById(id: number): Promise<Article | undefined>;
   createArticle(data: InsertArticle): Promise<Article>;
   updateArticle(id: number, data: Partial<InsertArticle>): Promise<Article>;
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<void>;
 }
 
 // ─── DRIZZLE STORAGE ──────────────────────────────────────────────────────────
@@ -289,6 +291,17 @@ class DrizzleStorage implements IStorage {
     } else {
       await db.delete(mediaComments).where(and(eq(mediaComments.id, id), eq(mediaComments.userId, userId)));
     }
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+    return row?.value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await db.insert(appSettings)
+      .values({ key, value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   }
 }
 

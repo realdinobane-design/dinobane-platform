@@ -147,6 +147,20 @@ async function ensureVerificationTokensTable() {
 }
 ensureVerificationTokensTable();
 
+async function ensureAppSettingsTable() {
+  try {
+    const { pool } = await import("./db");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+  } catch (e: any) { console.warn("[app-settings] table setup failed:", e.message); }
+}
+ensureAppSettingsTable();
+
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
@@ -1269,6 +1283,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
     nextSunday.setUTCDate(now.getUTCDate() + daysUntilSunday);
     nextSunday.setUTCHours(2, 0, 0, 0);
 
+    // Load intel briefing send time (default 14:00 Bangkok = 07:00 UTC)
+    const intelTimeStr = await storage.getSetting("intel_briefing_time_utc") || "07:00";
+    const [intelHour, intelMin] = intelTimeStr.split(":").map(Number);
+    const nextIntel = new Date(now);
+    nextIntel.setUTCHours(intelHour, intelMin, 0, 0);
+    if (nextIntel <= now) nextIntel.setUTCDate(nextIntel.getUTCDate() + 1); // if today's send already passed, next is tomorrow
+    // Bangkok display time (UTC+7)
+    const intelBkkHour = (intelHour + 7) % 24;
+    const intelBkkDisplay = `${String(intelBkkHour).padStart(2, "0")}:${String(intelMin).padStart(2, "0")}`;
+
     const allUsers = await storage.getAllUsers();
     const memberCount = allUsers.filter(u => u.isMember && u.email).length;
 
@@ -1342,12 +1366,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
         {
           id: "intel-briefing",
           name: "Intel Daily Briefing",
-          description: "A branded email digest of the top 8 UK political news stories from the intel feed — corruption, immigration, censorship, geopolitics, and suppressed stories. Includes VIRAL/SUPPRESSED tags and source images. Only sends when you manually trigger it.",
-          trigger: "Manual only — click Send Briefing below",
-          schedule: null,
-          nextSend: null,
-          recipients: "Admin only (realdinobane@gmail.com)",
-          recipientCount: 1,
+          description: `Sent daily at ${intelBkkDisplay} Bangkok time to all paid members. Top 8 UK political stories — corruption, immigration, censorship, geopolitics, and suppressed news. You can change the send time or fire it manually below.`,
+          trigger: `Automatic daily at ${intelBkkDisplay} Bangkok (${intelTimeStr} UTC)`,
+          schedule: `Daily ${intelBkkDisplay} Bangkok`,
+          nextSend: nextIntel.toISOString(),
+          sendTimeUtc: intelTimeStr,
+          sendTimeBkk: intelBkkDisplay,
+          recipients: "All paid members",
+          recipientCount: memberCount,
           subject: "🔴 DinoBane Intel — Daily Briefing [date]",
           canTestSend: true,
           canManualTrigger: true,
@@ -1497,6 +1523,32 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch (e: any) {
       return res.status(500).json({ error: e.message });
     }
+  });
+
+  // POST /api/admin/emails/intel-schedule — update the intel briefing send time
+  app.post("/api/admin/emails/intel-schedule", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { timeBkk } = req.body ?? {}; // expects "HH:MM" in Bangkok time
+    if (!timeBkk || !/^\d{2}:\d{2}$/.test(timeBkk)) {
+      return res.status(400).json({ error: "timeBkk must be HH:MM format" });
+    }
+    const [bkkHour, bkkMin] = timeBkk.split(":").map(Number);
+    if (bkkHour < 0 || bkkHour > 23 || bkkMin < 0 || bkkMin > 59) {
+      return res.status(400).json({ error: "Invalid time" });
+    }
+    // Convert Bangkok (UTC+7) to UTC
+    const utcHour = (bkkHour - 7 + 24) % 24;
+    const utcStr = `${String(utcHour).padStart(2, "0")}:${String(bkkMin).padStart(2, "0")}`;
+    await storage.setSetting("intel_briefing_time_utc", utcStr);
+    console.log(`[intel-schedule] updated to ${timeBkk} Bangkok (${utcStr} UTC)`);
+    return res.json({ ok: true, timeBkk, timeUtc: utcStr });
+  });
+
+  // GET /api/intel/schedule-info — returns current intel briefing send time (used by cron)
+  app.get("/api/intel/schedule-info", async (_req, res) => {
+    const sendTimeUtc = await storage.getSetting("intel_briefing_time_utc") || "07:00";
+    return res.json({ sendTimeUtc });
   });
 
   // POST /api/intel/auto-broadcast — internal endpoint called by daily cron
