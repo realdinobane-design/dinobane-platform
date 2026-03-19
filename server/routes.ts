@@ -1339,6 +1339,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
           canTestSend: true,
           canManualTrigger: false,
         },
+        {
+          id: "intel-briefing",
+          name: "Intel Daily Briefing",
+          description: "A branded email digest of the top 8 UK political news stories from the intel feed — corruption, immigration, censorship, geopolitics, and suppressed stories. Includes VIRAL/SUPPRESSED tags and source images. Only sends when you manually trigger it.",
+          trigger: "Manual only — click Send Briefing below",
+          schedule: null,
+          nextSend: null,
+          recipients: "Admin only (realdinobane@gmail.com)",
+          recipientCount: 1,
+          subject: "🔴 DinoBane Intel — Daily Briefing [date]",
+          canTestSend: true,
+          canManualTrigger: true,
+        },
       ],
       stats: {
         memberCount,
@@ -1418,6 +1431,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
           await notifyAdminNewMember(adminEmail, "Test Member");
           break;
 
+        case "intel-briefing":
+          await sendIntelBriefing(adminEmail);
+          break;
+
         default:
           return res.status(400).json({ error: `Unknown emailId: ${emailId}` });
       }
@@ -1440,6 +1457,125 @@ export function registerRoutes(httpServer: Server, app: Express) {
       return res.status(500).json({ error: e.message });
     }
   });
+
+  // POST /api/admin/emails/trigger-intel — manually fire the intel briefing (admin only)
+  app.post("/api/admin/emails/trigger-intel", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    if (!resend) return res.status(503).json({ error: "Resend not configured" });
+    const { testMode, testEmail } = req.body ?? {};
+    try {
+      const recipient = testMode ? (testEmail || check.adminUser.email) : check.adminUser.email;
+      await sendIntelBriefing(recipient);
+      return res.json({ ok: true, sentTo: recipient });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ─── INTEL BRIEFING EMAIL ────────────────────────────────────────────────────
+  // Sends a branded daily intel digest to the specified email address.
+  // Only fires when explicitly triggered by an admin — never auto-sends.
+  async function sendIntelBriefing(to: string) {
+    if (!resend) throw new Error("Resend not configured");
+
+    // Get top 8 stories from the intel cache (or refresh)
+    const allStories: any[] = await refreshIntelCache();
+    const top8 = allStories.slice(0, 8);
+
+    if (top8.length === 0) throw new Error("No intel stories available — feed may be empty");
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+    // Tag each story
+    function tagStory(item: any): { label: string; color: string; bg: string } {
+      const title = (item.title || "").toLowerCase();
+      const explosive = ["record","surge","exposed","scandal","leaked","shock","crisis","collapse","ban","fury","outrage","exclusive","breaking","court","arrest","cover"];
+      const isViral = explosive.some(w => title.includes(w));
+      const altSources = ["Guido Fawkes","Spiked Online","GB News","The Spectator","ZeroHedge","Breitbart London","The Daily Sceptic","The Conservative Woman","UnHerd","Reclaim The Net","The Gateway Pundit","Westmonster","The Critic","ConservativeHome"];
+      const isSuppressed = altSources.includes(item.source) && !isViral;
+      if (isViral) return { label: "🔥 VIRAL", color: "#ff4444", bg: "#2a0000" };
+      if (isSuppressed) return { label: "🕵️ SUPPRESSED", color: "#a78bfa", bg: "#1a0a2e" };
+      return { label: "📰 NEWS", color: "#aaa", bg: "#1a1a1a" };
+    }
+
+    // Story card HTML
+    const storyCards = top8.map((item: any, i: number) => {
+      const tag = tagStory(item);
+      const desc = (item.description || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 180);
+      const title = (item.title || "Untitled").replace(/&amp;/g,"&").replace(/&#\d+;/g,"").replace(/&[a-z]+;/g," ");
+      const link = item.link || "#";
+      const source = item.source || "";
+      const imgHtml = item.image
+        ? `<tr><td style="padding:0;"><img src="${item.image}" alt="" width="464" style="display:block;width:100%;max-width:464px;border-radius:4px 4px 0 0;max-height:180px;object-fit:cover;" /></td></tr>`
+        : "";
+      return `
+        <tr>
+          <td style="padding:0 0 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#1a1a1a;border-radius:4px;overflow:hidden;border:1px solid #2a2a2a;">
+              ${imgHtml}
+              <tr>
+                <td style="padding:16px 18px 6px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td>
+                        <span style="display:inline-block;background:${tag.bg};color:${tag.color};font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;">${tag.label}</span>
+                        <span style="display:inline-block;font-size:10px;color:#666;margin-left:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">${source}</span>
+                      </td>
+                      <td align="right" style="font-size:10px;color:#555;">#${i + 1}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 18px 0;">
+                  <a href="${link}" style="font-size:16px;font-weight:800;color:#fff;text-decoration:none;line-height:1.35;display:block;letter-spacing:0.01em;">${title}</a>
+                </td>
+              </tr>
+              ${desc ? `<tr><td style="padding:8px 18px 0;"><p style="margin:0;font-size:13px;color:#999;line-height:1.6;">${desc}</p></td></tr>` : ""}
+              <tr>
+                <td style="padding:12px 18px 16px;">
+                  <a href="${link}" style="display:inline-block;background:#cc2a2a;color:#fff;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:8px 18px;text-decoration:none;border-radius:2px;">Read Story &rarr;</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`;
+    }).join("");
+
+    const html = emailWrapper(`
+      ${emailHeader("Daily Intel Briefing — " + dateStr)}
+      <tr>
+        <td style="padding:20px 28px 8px;">
+          <p style="margin:0;font-size:13px;color:#aaa;line-height:1.6;">Top stories curated for the DinoBane intelligence feed. UK corruption, immigration, media censorship, geopolitics, and suppressed news — the stories they don't want you to see.</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 28px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            ${storyCards}
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:4px 28px 24px;">
+          <a href="https://dinobane.com/#/intel" style="display:inline-block;background:#111;border:1px solid #333;color:#aaa;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:10px 20px;text-decoration:none;border-radius:2px;">View Full Feed at dinobane.com &rarr;</a>
+        </td>
+      </tr>
+      ${emailFooter("&copy; 2026 DinoBane &mdash; <a href=\"https://dinobane.com\" style=\"color:#555;text-decoration:none;\">dinobane.com</a> &mdash; This briefing was manually sent by an admin.")}
+    `);
+
+    await resend.emails.send({
+      from: "DinoBane <noreply@dinobane.com>",
+      to,
+      subject: `🔴 DinoBane Intel — Daily Briefing ${dateStr}`,
+      html,
+      attachments: logoAttachment(),
+    });
+
+    console.log(`[intel-briefing] sent to ${to}`);
+  }
 
 
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
