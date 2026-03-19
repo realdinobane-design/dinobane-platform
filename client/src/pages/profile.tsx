@@ -313,6 +313,7 @@ export default function ProfilePage() {
       return res.json();
     },
     enabled: !!user,
+    staleTime: 0, // always fetch fresh on page visit
   });
 
   const { data: myMessages = [], isLoading: loadingMessages } = useQuery<MessageWithUser[]>({
@@ -323,6 +324,7 @@ export default function ProfilePage() {
       return res.json();
     },
     enabled: !!user,
+    staleTime: 0, // always fetch fresh on page visit
   });
 
   const updateMutation = useMutation({
