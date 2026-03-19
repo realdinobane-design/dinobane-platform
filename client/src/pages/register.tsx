@@ -32,13 +32,16 @@ export default function RegisterPage() {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   // Show error if redirected back from a failed email verification
+  // With hash routing, params sit inside the hash: "#/register?error=expired_token"
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const hashStr = window.location.hash;
+    const qIdx = hashStr.indexOf("?");
+    const params = new URLSearchParams(qIdx !== -1 ? hashStr.slice(qIdx + 1) : "");
     const err = params.get("error");
     if (err && TOKEN_ERROR_MESSAGES[err]) {
       setTokenError(TOKEN_ERROR_MESSAGES[err]);
-      // Strip the error param from the URL cleanly
-      window.history.replaceState({}, "", window.location.pathname);
+      // Strip the error param from the hash cleanly
+      window.history.replaceState({}, "", window.location.pathname + "#/register");
     }
   }, []);
 

@@ -682,7 +682,7 @@ export default function ProfilePage() {
                   </Button>
                   <p className="text-xs text-muted-foreground">
                     Forgot your password?{" "}
-                    <a href="/#/forgot-password" className="text-primary hover:underline">Reset via email</a>
+                    <Link href="/forgot-password" className="text-primary hover:underline">Reset via email</Link>
                   </p>
                 </div>
               </div>

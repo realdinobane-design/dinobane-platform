@@ -25,7 +25,10 @@ export default function MembershipPage() {
 
   // Handle Stripe redirect callbacks
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    // With hash routing, query params live inside window.location.hash e.g. "#/membership?success=1"
+    const hashStr = window.location.hash; // "#/membership?success=1"
+    const qIdx = hashStr.indexOf("?");
+    const params = new URLSearchParams(qIdx !== -1 ? hashStr.slice(qIdx + 1) : "");
 
     if (params.get("verified") === "1") {
       // Freshly verified — refetch user so nav updates, then auto-open checkout
