@@ -160,7 +160,7 @@ function EmailCard({
               <div>
                 <p className="text-[10px] font-black tracking-widest text-zinc-600 uppercase mb-1">Next Scheduled Send</p>
                 <p className="text-sm text-zinc-300">
-                  {format(new Date(email.nextSend), "EEEE d MMMM yyyy 'at' HH:mm")} UTC
+                  {format(new Date(email.nextSend), "EEEE d MMMM yyyy 'at' HH:mm")} GMT
                 </p>
                 <p className="text-xs text-zinc-600 mt-0.5">
                   = {format(new Date(new Date(email.nextSend).getTime() + 7 * 60 * 60 * 1000), "EEEE d MMMM yyyy 'at' HH:mm")} Bangkok

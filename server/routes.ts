@@ -1367,7 +1367,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
           id: "intel-briefing",
           name: "Intel Daily Briefing",
           description: `Sent daily at ${intelBkkDisplay} Bangkok time to all paid members. Top 8 UK political stories — corruption, immigration, censorship, geopolitics, and suppressed news. You can change the send time or fire it manually below.`,
-          trigger: `Automatic daily at ${intelBkkDisplay} Bangkok (${intelTimeStr} UTC)`,
+          trigger: `Automatic daily at ${intelBkkDisplay} Bangkok (${intelTimeStr} GMT)`,
           schedule: `Daily ${intelBkkDisplay} Bangkok`,
           nextSend: nextIntel.toISOString(),
           sendTimeUtc: intelTimeStr,
