@@ -216,7 +216,7 @@ async function sendWelcomeEmail(email: string, displayName: string) {
         </table>
       </td>
     </tr>
-    ${emailFooter("&copy; 2026 DinoBane. You're receiving this because you just became a member at <a href=\"" + appUrl + "\" style=\"color:#555;text-decoration:none;\">dinobane.com</a>. Cancel any time from your billing portal.")}
+    ${emailFooter("&copy; 2026 DinoBane. You're receiving this because you just became a member at <a href=\"" + appUrl + "\" style=\"color:#555;text-decoration:none;\">dinobane.com</a>. Cancel any time from your <a href=\"" + appUrl + "/#/profile\" style=\"color:#555;text-decoration:underline;\">billing portal</a>.")}
   `);
   try {
     await resend.emails.send({
@@ -258,7 +258,7 @@ async function notifyAdminNewMember(email: string, displayName: string) {
     </tr>
     <tr>
       <td style="padding:20px 28px 28px;">
-        <a href="https://dinobane.com/#/admin/users" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 24px;text-decoration:none;border-radius:2px;">View in Admin Panel &rarr;</a>
+        <a href="https://dinobane.com/#/admin/users" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 24px;text-decoration:none;border-radius:2px;">View in Admin Panel →</a>
       </td>
     </tr>
     ${emailFooter("Sent automatically by DinoBane when a new paid member joins.")}
@@ -1439,7 +1439,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
                 <td style="padding:28px 28px 12px;">
                   <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;">Reset your password</h2>
                   <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
-                  <a href="${appUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a>
+                  <a href="${appUrl}/#/forgot-password" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password →</a>
                 </td>
               </tr>
               <tr>
@@ -1981,7 +1981,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       ${emailHeader("Daily Intel Briefing — " + dateStr)}
       <tr><td style="padding:20px 28px 8px;"><p style="margin:0;font-size:13px;color:#aaa;line-height:1.6;">Top stories curated for the DinoBane intelligence feed. UK corruption, immigration, media censorship, geopolitics, and suppressed news — the stories they don't want you to see.</p></td></tr>
       <tr><td style="padding:8px 28px 0;"><table width="100%" cellpadding="0" cellspacing="0" border="0">${storyCards}</table></td></tr>
-      <tr><td style="padding:4px 28px 24px;"><a href="https://dinobane.com/#/intel" style="display:inline-block;background:#111;border:1px solid #333;color:#aaa;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:10px 20px;text-decoration:none;border-radius:2px;">View Full Feed at dinobane.com &rarr;</a></td></tr>
+      <tr><td style="padding:4px 28px 24px;"><a href="https://dinobane.com/#/news" style="display:inline-block;background:#111;border:1px solid #333;color:#aaa;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:10px 20px;text-decoration:none;border-radius:2px;">View Full Feed at dinobane.com &rarr;</a></td></tr>
       ${emailFooter("&copy; 2026 DinoBane &mdash; <a href=\"https://dinobane.com\" style=\"color:#555;text-decoration:none;\">dinobane.com</a> &mdash; This briefing was manually sent by an admin.")}
     `);
     await resend.emails.send({
@@ -2240,7 +2240,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #222;">
-            <p style="margin:0;font-size:12px;color:#555;">You're receiving this weekly digest because you're a DinoBane member. <a href="https://dinobane.com" style="color:#cc2a2a;">Manage your membership</a></p>
+            <p style="margin:0;font-size:12px;color:#555;">You're receiving this weekly digest because you're a DinoBane member. <a href="https://dinobane.com/#/profile" style="color:#cc2a2a;">Manage your membership</a></p>
             <p style="margin:6px 0 0;font-size:12px;"><a href="https://dinobane.com" style="color:#cc2a2a;">dinobane.com</a></p>
           </td>
         </tr>
