@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Crown, LogOut, User, AtSign, MessageSquare,
   Pencil, Check, X, ExternalLink, Hash, ShieldAlert, Loader2,
-  Palette, Upload, Trash2, ImageIcon,
+  Palette, Upload, Trash2, ImageIcon, KeyRound, Eye, EyeOff,
 } from "lucide-react";
 import { logout } from "@/lib/auth";
 import { formatDistanceToNow, format } from "date-fns";
@@ -368,6 +368,32 @@ export default function ProfilePage() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // ── Password change state ──
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      if (newPassword.length < 6) throw new Error("New password must be at least 6 characters");
+      if (newPassword !== confirmPassword) throw new Error("Passwords do not match");
+      const res = await apiRequest("POST", "/api/auth/change-password", { currentPassword, newPassword });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Password change failed");
+      return json;
+    },
+    onSuccess: () => {
+      toast({ title: "Password updated", description: "Your password has been changed successfully." });
+      setShowPasswordSection(false);
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+    },
+    onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
   const handleLogout = async () => {
     await logout();
     queryClient.setQueryData(["/api/auth/me"], null);
@@ -558,6 +584,111 @@ export default function ProfilePage() {
               <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
             </div>
           </div>
+
+          {/* ── Password row ── */}
+          <div className="py-2 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-foreground">Password</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Change your account password</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => {
+                  setShowPasswordSection(v => !v);
+                  setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+                }}
+                data-testid="button-change-password-toggle"
+              >
+                <KeyRound size={13} />
+                {showPasswordSection ? "Cancel" : "Change password"}
+              </Button>
+            </div>
+
+            {showPasswordSection && (
+              <div className="mt-4 space-y-3 bg-background/50 border border-border rounded-sm p-4">
+                {/* Current password */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current password</label>
+                  <div className="relative">
+                    <Input
+                      type={showCurrent ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      placeholder="Your current password"
+                      className="pr-10 bg-background border-border focus:border-primary text-sm"
+                      data-testid="input-current-password"
+                    />
+                    <button type="button" onClick={() => setShowCurrent(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                      {showCurrent ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New password */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">New password</label>
+                  <div className="relative">
+                    <Input
+                      type={showNew ? "text" : "password"}
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      className="pr-10 bg-background border-border focus:border-primary text-sm"
+                      data-testid="input-new-password"
+                    />
+                    <button type="button" onClick={() => setShowNew(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                      {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm new password */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Confirm new password</label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirm ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat new password"
+                      className="pr-10 bg-background border-border focus:border-primary text-sm"
+                      data-testid="input-confirm-password"
+                    />
+                    <button type="button" onClick={() => setShowConfirm(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                      {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-xs text-red-400">Passwords do not match</p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 pt-1">
+                  <Button
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest gap-1.5 text-xs"
+                    onClick={() => changePasswordMutation.mutate()}
+                    disabled={changePasswordMutation.isPending || !currentPassword || !newPassword || !confirmPassword}
+                    data-testid="button-save-password"
+                  >
+                    {changePasswordMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                    Update password
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Forgot your password?{" "}
+                    <a href="/#/forgot-password" className="text-primary hover:underline">Reset via email</a>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="pt-2 flex flex-col gap-2">
             <Button variant="outline" size="sm" className="gap-2 text-red-400 border-red-800/40 hover:bg-red-950/20 hover:text-red-300 w-fit" onClick={handleLogout} data-testid="button-profile-logout">
               <LogOut size={14} /> Sign out

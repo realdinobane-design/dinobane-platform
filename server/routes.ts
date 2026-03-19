@@ -681,6 +681,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true });
   });
 
+  // POST /api/auth/change-password — authenticated user changes their own password
+  app.post("/api/auth/change-password", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: "Current password and new password are required" });
+    if (newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters" });
+
+    const user = await storage.getUserById(req.session.userId);
+    if (!user || !user.password) return res.status(401).json({ error: "User not found" });
+
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(400).json({ error: "Current password is incorrect" });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await storage.updateUserProfile(req.session.userId, { password: hash });
+
+    return res.json({ ok: true });
+  });
+
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
