@@ -4,11 +4,16 @@ import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
-import { Crown, Hash, Send, Users, Loader2, Image, X, ChevronDown, ChevronRight, Star } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Crown, Hash, Send, Users, Loader2, Image, X,
+  ChevronDown, Star, MessageSquare, Newspaper,
+  Video, Coffee, Shield,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
 interface MessageWithUser {
   id: number;
@@ -44,33 +49,36 @@ interface LinkPreview {
   domain: string;
 }
 
+// ─── CHANNEL CONFIG ───────────────────────────────────────────────────────────
+
 const CHANNELS = [
-  { id: "general", label: "general", icon: Hash },
-  { id: "news-links", label: "news-links", icon: Hash },
-  { id: "video-discussion", label: "video-discussion", icon: Hash },
-  { id: "off-topic", label: "off-topic", icon: Hash },
+  { id: "general",          label: "General",          sub: "General chat",            Icon: MessageSquare },
+  { id: "news-links",       label: "News Links",       sub: "Share & discuss stories", Icon: Newspaper     },
+  { id: "video-discussion", label: "Video Discussion", sub: "Talk about the videos",   Icon: Video         },
+  { id: "off-topic",        label: "Off-Topic",        sub: "Everything else",         Icon: Coffee        },
 ];
 
-// Max image size for chat: 2MB
 const MAX_CHAT_IMAGE_BYTES = 2 * 1024 * 1024;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 function extractUrls(text: string): string[] {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return (text.match(urlRegex) || []).slice(0, 1); // first URL only
+  return (text.match(urlRegex) || []).slice(0, 1);
 }
 
-function renderMessageContent(content: string): string {
-  // If content is a data URL (image), render as img tag
-  if (content.startsWith("data:image/")) {
-    return `<img src="${content}" alt="Image" class="chat-image" style="max-width:320px;max-height:240px;border-radius:4px;display:block;margin-top:4px;" />`;
-  }
+function renderMessageContent(content: string) {
   return content
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300">$1</a>')
-    .replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention text-primary font-semibold">@$1</span>');
+    .replace(
+      /(https?:\/\/[^\s]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>'
+    )
+    .replace(/@([a-zA-Z0-9_]+)/g, '<span class="text-[#cc2a2a] font-semibold">@$1</span>');
 }
 
-// Link preview card component
+// ─── LINK PREVIEW ─────────────────────────────────────────────────────────────
+
 function LinkPreviewCard({ url }: { url: string }) {
   const { data, isLoading } = useQuery<LinkPreview>({
     queryKey: ["/api/link-preview", url],
@@ -84,79 +92,105 @@ function LinkPreviewCard({ url }: { url: string }) {
   });
 
   if (isLoading) return (
-    <div className="mt-2 border border-border rounded-sm p-2 flex items-center gap-2 text-xs text-muted-foreground w-fit max-w-xs">
-      <Loader2 size={12} className="animate-spin" /> Loading preview...
+    <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 bg-[#111] border border-[#1e1e1e] rounded-sm px-3 py-2 w-fit">
+      <Loader2 size={11} className="animate-spin" /> Fetching preview…
     </div>
   );
-  if (!data || !data.title) return null;
+  if (!data?.title) return null;
 
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer"
-      className="mt-2 flex gap-3 border border-border hover:border-primary/40 rounded-sm overflow-hidden bg-zinc-900/60 max-w-sm transition-colors group">
+    <a
+      href={url} target="_blank" rel="noopener noreferrer"
+      className="mt-2 flex gap-0 border border-[#1e1e1e] hover:border-[#cc2a2a]/40 rounded-sm overflow-hidden bg-[#111] max-w-sm transition-colors group"
+    >
       {data.image && (
-        <img src={data.image} alt="" className="w-20 h-20 object-cover flex-shrink-0" onError={e => (e.currentTarget.style.display = "none")} />
+        <img
+          src={data.image} alt=""
+          className="w-20 h-20 object-cover flex-shrink-0"
+          onError={e => (e.currentTarget.style.display = "none")}
+        />
       )}
-      <div className="p-2 min-w-0 flex-1">
-        <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">{data.title}</p>
-        {data.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">{data.description}</p>}
-        <p className="text-xs text-muted-foreground/60 mt-1">{data.siteName || data.domain}</p>
+      <div className="px-3 py-2 min-w-0 flex-1 border-l-2 border-[#cc2a2a]">
+        <p className="text-xs font-bold text-white group-hover:text-[#cc2a2a] transition-colors line-clamp-2 leading-snug">{data.title}</p>
+        {data.description && <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2 leading-snug">{data.description}</p>}
+        <p className="text-[10px] text-zinc-600 mt-1 uppercase tracking-wide">{data.siteName || data.domain}</p>
       </div>
     </a>
   );
 }
 
+// ─── LOGGED-OUT GATE ──────────────────────────────────────────────────────────
+
+function GatePage({ isMember }: { isMember?: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
+      <div className="w-16 h-16 rounded-full bg-[#cc2a2a]/10 border border-[#cc2a2a]/30 flex items-center justify-center mb-6">
+        <Crown size={28} className="text-yellow-400" />
+      </div>
+      {isMember === false ? (
+        <>
+          <h2 className="text-3xl font-black text-white mb-3" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            Members Community
+          </h2>
+          <p className="text-zinc-400 mb-2 max-w-xs leading-relaxed">
+            Private channels, @mentions, link sharing — no algorithms, no censorship.
+          </p>
+          <p className="text-4xl font-black text-white mb-8">
+            £5 <span className="text-zinc-500 text-lg font-normal">/ month</span>
+          </p>
+          <div className="flex flex-col items-center gap-3">
+            <Link href="/membership">
+              <Button size="lg" className="bg-[#cc2a2a] hover:bg-red-600 text-white font-black px-8 gap-2 h-12" data-testid="button-upgrade-community">
+                <Crown size={16} /> Join Now — £5/mo
+              </Button>
+            </Link>
+            <p className="text-xs text-zinc-600">Cancel anytime · No contracts</p>
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="text-3xl font-black text-white mb-3" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            Members Only
+          </h2>
+          <p className="text-zinc-400 mb-8 max-w-xs">Sign in or join to access the community.</p>
+          <div className="flex gap-3">
+            <Link href="/login"><Button variant="outline" className="border-[#333] hover:border-[#cc2a2a]">Sign in</Button></Link>
+            <Link href="/register"><Button className="bg-[#cc2a2a] hover:bg-red-600 text-white font-bold">Join</Button></Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
+
 export default function CommunityPage() {
   const { user } = useAuth();
   const [activeChannel, setActiveChannel] = useState("general");
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <Crown size={48} className="text-yellow-500 mb-4" />
-        <h2 className="text-2xl font-black text-white mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>Members Only</h2>
-        <p className="text-muted-foreground mb-6 max-w-sm">Sign in or create an account to access the community.</p>
-        <div className="flex gap-3">
-          <Link href="/login"><Button variant="outline">Sign in</Button></Link>
-          <Link href="/register"><Button className="bg-red-700 hover:bg-red-600 text-white">Join</Button></Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user.isMember) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <Crown size={48} className="text-yellow-500 mb-4" />
-        <h2 className="text-2xl font-black text-white mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-          Members Community
-        </h2>
-        <p className="text-muted-foreground mb-2 max-w-sm">
-          Private channels, @mentions, and link sharing — no algorithms, no censorship.
-        </p>
-        <p className="text-3xl font-black text-white mb-6">£5 <span className="text-zinc-400 text-base font-normal">/ month</span></p>
-        <Link href="/membership">
-          <Button size="lg" className="bg-red-700 hover:bg-red-600 text-white font-bold gap-2" data-testid="button-upgrade-community">
-            <Crown size={18} /> Join Now
-          </Button>
-        </Link>
-      </div>
-    );
-  }
+  if (!user) return <GatePage />;
+  if (!user.isMember) return <GatePage isMember={false} />;
 
   return <CommunityUI user={user} activeChannel={activeChannel} setActiveChannel={setActiveChannel} />;
 }
+
+// ─── COMMUNITY UI ─────────────────────────────────────────────────────────────
 
 function CommunityUI({ user, activeChannel, setActiveChannel }: {
   user: any; activeChannel: string; setActiveChannel: (c: string) => void;
 }) {
   const [draft, setDraft] = useState("");
-  const [pendingImage, setPendingImage] = useState<string | null>(null); // base64 data URL
-  const [membersOpen, setMembersOpen] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [membersOpen, setMembersOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  const activeCh = CHANNELS.find(c => c.id === activeChannel) || CHANNELS[0];
+
+  // Members list
   const { data: membersList = [] } = useQuery<MemberSummary[]>({
     queryKey: ["/api/community/members"],
     queryFn: async () => {
@@ -167,6 +201,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     staleTime: 60000,
   });
 
+  // Messages
   const { data: messages = [], isLoading } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/messages", activeChannel],
     queryFn: async () => {
@@ -177,10 +212,12 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     refetchInterval: 5000,
   });
 
+  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // WebSocket live updates
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -200,6 +237,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     return () => { try { ws?.close(); } catch {} };
   }, [activeChannel]);
 
+  // Send message
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
       const res = await apiRequest("POST", "/api/messages", { channel: activeChannel, content });
@@ -217,20 +255,14 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
 
   const handleSend = () => {
     if (sendMutation.isPending) return;
-    if (pendingImage) {
-      sendMutation.mutate(pendingImage);
-      return;
-    }
+    if (pendingImage) { sendMutation.mutate(pendingImage); return; }
     const text = draft.trim();
     if (!text) return;
     sendMutation.mutate(text);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const insertMention = (username: string) => {
@@ -241,278 +273,339 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_CHAT_IMAGE_BYTES) {
-      alert("Image too large. Max 2MB for chat images.");
-      return;
-    }
+    if (file.size > MAX_CHAT_IMAGE_BYTES) { alert("Image too large. Max 2MB."); return; }
     const reader = new FileReader();
     reader.onload = () => setPendingImage(reader.result as string);
     reader.readAsDataURL(file);
-    // reset input so same file can be selected again
     e.target.value = "";
   };
 
-  const channelUsers = Array.from(new Map(messages.map(m => [m.user.id, m.user])).values());
-
   return (
-    <div className="flex" style={{ height: "calc(100vh - 4rem)" }}>
-      {/* ─── CHANNEL SIDEBAR ────────────────────────────────────────────── */}
-      <aside className="hidden sm:flex w-52 flex-shrink-0 flex-col bg-zinc-950 border-r border-border">
-        <div className="px-3 py-4 border-b border-border">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">DinoBane</p>
-          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-            <Users size={10} className="text-green-400" />
-            <span className="text-green-400">{channelUsers.length}</span> online
-          </p>
-        </div>
+    <div className="flex bg-[#0a0a0a]" style={{ height: "calc(100vh - 4rem)" }}>
 
-        <div className="flex-1 overflow-y-auto py-2">
-          {/* Channels */}
-          <p className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">Channels</p>
-          {CHANNELS.map(ch => (
-            <button
-              key={ch.id}
-              onClick={() => setActiveChannel(ch.id)}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md mx-1 transition-colors",
-                activeChannel === ch.id
-                  ? "bg-red-900/30 text-red-400 font-semibold"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-              data-testid={`button-channel-${ch.id}`}
-            >
-              <ch.icon size={14} />
-              {ch.label}
-            </button>
-          ))}
+      {/* ── LEFT SIDEBAR ── */}
+      <aside className="hidden sm:flex w-60 flex-shrink-0 flex-col bg-[#0d0d0d] border-r border-[#1a1a1a]">
 
-          {/* ── Members collapsible ── */}
-          <div className="mt-4 px-1">
-            {/* Toggle header */}
-            <button
-              onClick={() => setMembersOpen(o => !o)}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-zinc-800/60 transition-colors group"
-              data-testid="button-toggle-members"
-            >
-              {/* Gold star */}
-              <Star size={12} className="text-yellow-400 fill-yellow-400 shrink-0" />
-              {/* Label */}
-              <span className="flex-1 text-xs font-bold uppercase tracking-widest text-yellow-400 text-left">
-                Members
-              </span>
-              {/* Count badge */}
-              <span className="text-xs text-yellow-500/70 font-mono mr-1">{membersList.length}</span>
-              {/* Chevron — rotates when open */}
-              <ChevronDown
-                size={13}
-                className={cn(
-                  "text-yellow-400/70 shrink-0 transition-transform duration-200",
-                  membersOpen ? "rotate-0" : "-rotate-90"
-                )}
-              />
-            </button>
-
-            {/* Expanded list */}
-            {membersOpen && (
-              <div className="mt-1 pl-2 space-y-0.5">
-                {membersList.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => insertMention(m.username)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-zinc-800/60 transition-colors group/member text-left"
-                    title={`Click to @mention ${m.username}`}
-                    data-testid={`button-member-${m.id}`}
-                  >
-                    {/* Mini avatar */}
-                    <div
-                      className="h-5 w-5 rounded-full flex items-center justify-center text-white shrink-0 overflow-hidden"
-                      style={{ background: m.avatarColor, fontSize: 8, fontWeight: 700 }}
-                    >
-                      {m.avatarUrl
-                        ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
-                        : m.avatarInitials
-                      }
-                    </div>
-                    <span className="text-xs text-zinc-400 group-hover/member:text-zinc-200 transition-colors truncate">
-                      @{m.username}
-                    </span>
-                  </button>
-                ))}
-                {membersList.length === 0 && (
-                  <p className="text-xs text-zinc-600 px-2 py-1">No members yet.</p>
-                )}
-              </div>
-            )}
+        {/* Server header */}
+        <div className="px-4 py-4 border-b border-[#1a1a1a] flex items-center gap-3">
+          <div className="w-9 h-9 rounded-sm bg-[#cc2a2a]/10 border border-[#cc2a2a]/30 flex items-center justify-center shrink-0">
+            <Shield size={16} className="text-[#cc2a2a]" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-white uppercase tracking-wider" style={{ fontFamily: "'Clash Display', sans-serif" }}>DinoBane</p>
+            <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Members Community</p>
           </div>
         </div>
 
-        {/* Current user */}
-        <div className="px-3 py-3 border-t border-border flex items-center gap-2">
-          <Avatar className="h-7 w-7">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} className="object-cover" />}
-            <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>
-              {user.avatarInitials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground truncate">{user.displayName}</p>
-            <p className="text-xs text-yellow-500 flex items-center gap-0.5"><Crown size={9} /> Member</p>
-          </div>
-        </div>
-      </aside>
-
-      {/* ─── MAIN CHAT ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0">
-        {/* Channel header */}
-        <div className="px-4 py-3 border-b border-border flex items-center gap-2 bg-background flex-shrink-0">
-          <Hash size={16} className="text-muted-foreground" />
-          <span className="font-semibold text-sm text-white">{activeChannel}</span>
-
-          <div className="ml-auto sm:hidden flex gap-1">
+        {/* Channels section */}
+        <div className="px-3 pt-4 pb-2">
+          <p className="text-[10px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Channels</p>
+          <div className="space-y-0.5">
             {CHANNELS.map(ch => (
               <button
                 key={ch.id}
                 onClick={() => setActiveChannel(ch.id)}
                 className={cn(
-                  "px-2 py-1 text-xs rounded transition-colors",
-                  activeChannel === ch.id ? "bg-red-900/30 text-red-400" : "text-muted-foreground hover:bg-secondary"
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-left transition-all",
+                  activeChannel === ch.id
+                    ? "bg-[#cc2a2a]/15 border border-[#cc2a2a]/30 text-white"
+                    : "text-zinc-500 hover:text-zinc-200 hover:bg-[#111] border border-transparent"
                 )}
+                data-testid={`button-channel-${ch.id}`}
               >
-                #{ch.label.split("-")[0]}
+                <Hash
+                  size={14}
+                  className={cn(
+                    "shrink-0 transition-colors",
+                    activeChannel === ch.id ? "text-[#cc2a2a]" : "text-zinc-600"
+                  )}
+                />
+                <div className="min-w-0">
+                  <p className={cn(
+                    "text-sm font-semibold leading-none truncate",
+                    activeChannel === ch.id ? "text-white" : ""
+                  )}>
+                    {ch.label}
+                  </p>
+                  <p className="text-[10px] text-zinc-600 mt-0.5 truncate">{ch.sub}</p>
+                </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-0.5">
+        <div className="border-t border-[#1a1a1a] mx-3 my-2" />
+
+        {/* Members collapsible */}
+        <div className="px-3 pb-2 flex-1 overflow-y-auto">
+          <button
+            onClick={() => setMembersOpen(o => !o)}
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-sm hover:bg-[#111] transition-colors group"
+            data-testid="button-toggle-members"
+          >
+            <Star size={12} className="text-yellow-400 fill-yellow-400 shrink-0" />
+            <span className="flex-1 text-[10px] font-black uppercase tracking-widest text-yellow-400 text-left">
+              Members
+            </span>
+            <span className="text-[10px] text-yellow-500/60 font-mono bg-yellow-500/10 px-1.5 py-0.5 rounded-sm">
+              {membersList.length}
+            </span>
+            <ChevronDown
+              size={12}
+              className={cn(
+                "text-yellow-400/50 shrink-0 transition-transform duration-200",
+                membersOpen ? "rotate-0" : "-rotate-90"
+              )}
+            />
+          </button>
+
+          {membersOpen && (
+            <div className="mt-1 space-y-0.5">
+              {membersList.length === 0 && (
+                <p className="text-[11px] text-zinc-700 px-3 py-2">No members yet.</p>
+              )}
+              {membersList.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => insertMention(m.username)}
+                  className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-sm hover:bg-[#111] transition-colors group/mem text-left"
+                  title={`@mention ${m.username}`}
+                  data-testid={`button-member-${m.id}`}
+                >
+                  <div
+                    className="h-6 w-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10"
+                    style={{ background: m.avatarColor, fontSize: 9, fontWeight: 700 }}
+                  >
+                    {m.avatarUrl
+                      ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
+                      : m.avatarInitials
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">
+                      @{m.username}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Current user footer */}
+        <div className="px-3 py-3 border-t border-[#1a1a1a] flex items-center gap-2.5 bg-[#0a0a0a]">
+          <Avatar className="h-8 w-8 ring-2 ring-[#cc2a2a]/30">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} className="object-cover" />}
+            <AvatarFallback className="text-xs font-bold text-white" style={{ background: user.avatarColor }}>
+              {user.avatarInitials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-white truncate">{user.displayName}</p>
+            <p className="text-[10px] text-yellow-500 flex items-center gap-1">
+              <Crown size={9} /> Member
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── MAIN CHAT AREA ── */}
+      <div className="flex flex-col flex-1 min-w-0">
+
+        {/* Channel header */}
+        <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Hash size={16} className="text-[#cc2a2a]" />
+            <span className="font-black text-white text-base" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              {activeCh.label}
+            </span>
+          </div>
+          <div className="w-px h-4 bg-[#333] mx-1" />
+          <p className="text-xs text-zinc-500 hidden sm:block">{activeCh.sub}</p>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-500 bg-[#111] border border-[#1e1e1e] rounded-sm px-2.5 py-1">
+              <Users size={11} className="text-green-400" />
+              <span className="text-green-400 font-semibold">{membersList.length}</span>
+              <span>members</span>
+            </div>
+          </div>
+
+          {/* Mobile channel switcher */}
+          <div className="sm:hidden flex gap-1 ml-2">
+            {CHANNELS.map(ch => (
+              <button
+                key={ch.id}
+                onClick={() => setActiveChannel(ch.id)}
+                className={cn(
+                  "px-2 py-1 text-[10px] rounded-sm font-bold uppercase tracking-wide transition-colors",
+                  activeChannel === ch.id
+                    ? "bg-[#cc2a2a]/20 text-[#cc2a2a] border border-[#cc2a2a]/30"
+                    : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                )}
+              >
+                #{ch.id.split("-")[0]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Messages feed */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 size={24} className="animate-spin text-muted-foreground" />
+              <Loader2 size={20} className="animate-spin text-zinc-600" />
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <Hash size={32} className="text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground font-semibold">#{activeChannel}</p>
-              <p className="text-xs text-muted-foreground mt-1">Be the first to post in this channel.</p>
+              <div className="w-14 h-14 rounded-full bg-[#111] border border-[#1e1e1e] flex items-center justify-center mb-4">
+                <activeCh.Icon size={24} className="text-zinc-700" />
+              </div>
+              <p className="font-black text-white text-lg" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                #{activeCh.label}
+              </p>
+              <p className="text-sm text-zinc-600 mt-1">Be the first to post here.</p>
             </div>
           ) : (
-            messages.map((msg, i) => {
-              const prevMsg = messages[i - 1];
-              const isGrouped = prevMsg && prevMsg.user.id === msg.user.id &&
-                (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 300000;
-              const isImage = msg.content.startsWith("data:image/");
-              const urls = !isImage ? extractUrls(msg.content) : [];
+            <div className="space-y-0">
+              {messages.map((msg, i) => {
+                const prevMsg = messages[i - 1];
+                const isGrouped = prevMsg
+                  && prevMsg.user.id === msg.user.id
+                  && (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 300000;
+                const isImage = msg.content.startsWith("data:image/");
+                const urls = !isImage ? extractUrls(msg.content) : [];
 
-              return (
-                <div key={msg.id} className={cn("flex gap-3 group px-2 py-1 rounded-md hover:bg-secondary/40 transition-colors", isGrouped ? "mt-0" : "mt-3")} data-testid={`message-${msg.id}`}>
-                  {!isGrouped ? (
-                    <button onClick={() => insertMention(msg.user.username)} className="flex-shrink-0 mt-0.5" title={`@${msg.user.username}`}>
-                      <Avatar className="h-8 w-8">
-                        {msg.user.avatarUrl && <AvatarImage src={msg.user.avatarUrl} alt={msg.user.displayName} className="object-cover" />}
-                        <AvatarFallback className="text-xs font-bold text-white" style={{ background: msg.user.avatarColor }}>
-                          {msg.user.avatarInitials}
-                        </AvatarFallback>
-                      </Avatar>
-                    </button>
-                  ) : (
-                    <div className="w-8 flex-shrink-0" />
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    {!isGrouped && (
-                      <div className="flex items-baseline gap-2 mb-0.5">
-                        <button onClick={() => insertMention(msg.user.username)} className="text-sm font-semibold text-foreground hover:text-red-400 transition-colors">
-                          {msg.user.displayName}
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex gap-3 group px-3 py-1.5 rounded-sm hover:bg-[#0f0f0f] transition-colors",
+                      isGrouped ? "mt-0" : "mt-4"
+                    )}
+                    data-testid={`message-${msg.id}`}
+                  >
+                    {/* Avatar / spacer */}
+                    <div className="w-9 flex-shrink-0 pt-0.5">
+                      {!isGrouped ? (
+                        <button onClick={() => insertMention(msg.user.username)} title={`@${msg.user.username}`}>
+                          <Avatar className="h-9 w-9 ring-1 ring-white/5 hover:ring-[#cc2a2a]/40 transition-all">
+                            {msg.user.avatarUrl && (
+                              <AvatarImage src={msg.user.avatarUrl} alt={msg.user.displayName} className="object-cover" />
+                            )}
+                            <AvatarFallback className="text-xs font-bold text-white" style={{ background: msg.user.avatarColor }}>
+                              {msg.user.avatarInitials}
+                            </AvatarFallback>
+                          </Avatar>
                         </button>
-                        <time className="text-xs text-muted-foreground/60">
-                          {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
-                        </time>
-                      </div>
-                    )}
-                    {!isImage && (
-                      <p
-                        className="text-sm text-zinc-300 leading-relaxed message-content break-words"
-                        dangerouslySetInnerHTML={{ __html: renderMessageContent(msg.content) }}
-                      />
-                    )}
-                    {isImage && (
-                      <img
-                        src={msg.content}
-                        alt="Shared image"
-                        className="max-w-xs max-h-60 rounded-sm border border-border mt-1 object-contain"
-                      />
-                    )}
-                    {/* Link preview — show for first URL in text messages */}
-                    {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
+                      ) : null}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {!isGrouped && (
+                        <div className="flex items-baseline gap-2.5 mb-1">
+                          <button
+                            onClick={() => insertMention(msg.user.username)}
+                            className="text-sm font-bold text-white hover:text-[#cc2a2a] transition-colors leading-none"
+                          >
+                            {msg.user.displayName}
+                          </button>
+                          <time className="text-[10px] text-zinc-600">
+                            {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+                          </time>
+                        </div>
+                      )}
+
+                      {!isImage && (
+                        <p
+                          className="text-[14px] text-zinc-300 leading-relaxed break-words"
+                          dangerouslySetInnerHTML={{ __html: renderMessageContent(msg.content) }}
+                        />
+                      )}
+                      {isImage && (
+                        <img
+                          src={msg.content}
+                          alt="Shared image"
+                          className="max-w-xs max-h-64 rounded-sm border border-[#1e1e1e] mt-1 object-contain"
+                        />
+                      )}
+                      {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* Message input */}
-        <div className="px-4 py-3 border-t border-border flex-shrink-0">
+        {/* ── MESSAGE INPUT ── */}
+        <div className="px-5 pb-4 pt-3 border-t border-[#1a1a1a] bg-[#0d0d0d] flex-shrink-0">
+
           {/* Pending image preview */}
           {pendingImage && (
-            <div className="mb-2 relative inline-block">
-              <img src={pendingImage} alt="Preview" className="max-h-24 max-w-xs rounded-sm border border-border object-contain" />
+            <div className="mb-3 relative inline-block">
+              <img
+                src={pendingImage} alt="Preview"
+                className="max-h-28 max-w-xs rounded-sm border border-[#1e1e1e] object-contain"
+              />
               <button
                 onClick={() => setPendingImage(null)}
-                className="absolute -top-1.5 -right-1.5 bg-red-700 text-white rounded-full p-0.5 hover:bg-red-600"
+                className="absolute -top-2 -right-2 bg-[#cc2a2a] text-white rounded-full p-0.5 hover:bg-red-500 transition-colors"
               >
                 <X size={12} />
               </button>
             </div>
           )}
 
-          <div className="flex gap-2 items-end">
-            {/* Image upload button */}
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageSelect}
-            />
+          <div className="flex items-end gap-2">
+            {/* Image upload */}
+            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
             <button
               onClick={() => imageInputRef.current?.click()}
-              className="flex-shrink-0 h-[42px] w-[42px] flex items-center justify-center border border-border rounded-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors bg-secondary"
-              title="Upload image (max 2MB)"
+              className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-sm bg-[#111] border border-[#1e1e1e] text-zinc-500 hover:text-white hover:border-[#cc2a2a]/50 transition-colors"
+              title="Attach image (max 2MB)"
               type="button"
             >
-              <Image size={16} />
+              <Image size={15} />
             </button>
 
+            {/* Text input */}
             <div className="flex-1 relative">
-              <Textarea
+              <textarea
                 ref={textareaRef}
                 value={draft}
                 onChange={e => setDraft(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={pendingImage ? "Add a caption (optional)..." : `Message #${activeChannel} — use @username to mention`}
-                className="resize-none bg-secondary border-border text-sm min-h-[42px] max-h-32"
+                placeholder={
+                  pendingImage
+                    ? "Add a caption (optional)…"
+                    : `Message #${activeCh.label.toLowerCase()} — use @username to mention`
+                }
+                className="w-full resize-none bg-[#111] border border-[#1e1e1e] focus:border-[#cc2a2a]/50 rounded-sm px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-colors min-h-[40px] max-h-32"
                 rows={1}
-                disabled={false}
+                style={{ lineHeight: "1.5" }}
                 data-testid="input-message"
               />
             </div>
-            <Button
+
+            {/* Send button */}
+            <button
               onClick={handleSend}
               disabled={(!draft.trim() && !pendingImage) || sendMutation.isPending}
-              size="icon"
-              className="bg-red-700 hover:bg-red-600 text-white h-[42px] w-[42px] flex-shrink-0"
+              className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-sm bg-[#cc2a2a] hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
               data-testid="button-send-message"
             >
               {sendMutation.isPending
-                ? <Loader2 size={16} className="animate-spin" />
-                : <Send size={16} />
+                ? <Loader2 size={15} className="animate-spin" />
+                : <Send size={15} />
               }
-            </Button>
+            </button>
           </div>
-          <p className="text-xs text-muted-foreground/40 mt-1.5">Enter to send · Shift+Enter for new line · 📎 to post an image (max 2MB)</p>
+
+          <p className="text-[10px] text-zinc-700 mt-1.5 px-0.5">
+            Enter to send · Shift+Enter for new line · 📎 to attach an image (max 2MB)
+          </p>
         </div>
       </div>
     </div>
