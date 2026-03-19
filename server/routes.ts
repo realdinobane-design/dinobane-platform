@@ -1500,10 +1500,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const allUsers = await storage.getAllUsers();
     const members = allUsers.filter((u: any) => u.isMember && u.email);
     if (members.length === 0) { console.log("[intel-briefing] no members to send to"); return 0; }
+    // Fetch the feed ONCE and reuse for all members — avoids re-fetching RSS for every recipient
+    const cachedStories = await refreshIntelCache();
     let sent = 0;
     for (const member of members) {
       try {
-        await sendIntelBriefing(member.email);
+        await sendIntelBriefing(member.email, cachedStories);
         sent++;
         // Small delay between sends to avoid Resend rate limits
         await new Promise(r => setTimeout(r, 200));
@@ -1563,16 +1565,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/intel/auto-broadcast — internal endpoint called by daily cron
+  // Responds immediately (202) and runs the broadcast in the background to avoid HTTP timeouts
   app.post("/api/intel/auto-broadcast", async (req, res) => {
     const secret = req.headers["x-cron-secret"];
     if (secret !== "DinoBane2026CronSecret") return res.status(403).json({ error: "Forbidden" });
     if (!resend) return res.status(503).json({ error: "Resend not configured" });
-    try {
-      const sent = await sendIntelBriefingToAllMembers();
-      return res.json({ ok: true, sent });
-    } catch (e: any) {
-      return res.status(500).json({ error: e.message });
-    }
+    // Acknowledge immediately so the cron doesn't time out
+    res.status(202).json({ ok: true, status: "broadcast_started" });
+    // Run broadcast in background
+    sendIntelBriefingToAllMembers()
+      .then(sent => console.log(`[auto-broadcast] complete — sent to ${sent} members`))
+      .catch(e => console.error(`[auto-broadcast] failed: ${e.message}`));
   });
 
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
@@ -1943,9 +1946,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── INTEL BRIEFING EMAIL ────────────────────────────────────────────────────
   // Sends a branded daily intel digest. Only fires when admin triggers manually.
-  async function sendIntelBriefing(to: string) {
+  async function sendIntelBriefing(to: string, preloadedStories?: any[]) {
     if (!resend) throw new Error("Resend not configured");
-    const allStories: any[] = await refreshIntelCache();
+    const allStories: any[] = preloadedStories ?? await refreshIntelCache();
     const top8 = allStories.slice(0, 8);
     if (top8.length === 0) throw new Error("No intel stories available — feed may be empty");
     const now = new Date();
