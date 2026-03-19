@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Youtube, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Article {
   id: number;
@@ -24,8 +25,7 @@ export default function ArticleDetailPage() {
   const { data: article, isLoading } = useQuery<Article>({
     queryKey: ["/api/articles", parseInt(id)],
     queryFn: async () => {
-      const res = await fetch(`/api/articles/${id}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Article not found");
+      const res = await apiRequest("GET", `/api/articles/${id}`);
       return res.json();
     },
   });

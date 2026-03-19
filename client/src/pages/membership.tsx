@@ -57,15 +57,13 @@ export default function MembershipPage() {
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/stripe/checkout", {});
-      const data = await res.json();
-      if (!res.ok) throw Object.assign(new Error(data.message || data.error || "Could not start checkout."), { code: data.error });
-      return data;
+      return res.json();
     },
     onSuccess: (data) => {
       if (data.url) window.location.href = data.url;
     },
     onError: (e: any) => {
-      if (e.code === "already_subscribed") {
+      if (e.message === "already_subscribed") {
         // Payment existed but membership wasn't activated — server just fixed it
         toast({ title: "Membership activated", description: "Your payment was found. Refreshing your account now…" });
         refetch();

@@ -137,8 +137,7 @@ function AvatarUploadSection({ user, onUpdate }: { user: any; onUpdate: (u: any)
 
   const removeMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/profile/avatar", { method: "DELETE", credentials: "include" });
-      if (!res.ok) throw new Error("Failed to remove avatar");
+      const res = await apiRequest("DELETE", "/api/profile/avatar", {});
       return res.json();
     },
     onSuccess: (u) => { queryClient.setQueryData(["/api/auth/me"], u); onUpdate(u); setPreview(null); toast({ title: "Avatar removed" }); },
@@ -306,8 +305,7 @@ export default function ProfilePage() {
   const { data: mentions = [], isLoading: loadingMentions } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/profile/mentions"],
     queryFn: async () => {
-      const res = await fetch("/api/profile/mentions", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
+      const res = await apiRequest("GET", "/api/profile/mentions");
       return res.json();
     },
     enabled: !!user,
@@ -317,8 +315,7 @@ export default function ProfilePage() {
   const { data: myMessages = [], isLoading: loadingMessages } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/profile/messages"],
     queryFn: async () => {
-      const res = await fetch("/api/profile/messages", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
+      const res = await apiRequest("GET", "/api/profile/messages");
       return res.json();
     },
     enabled: !!user,

@@ -73,7 +73,7 @@ function AppRoutes() {
       <Route path="/videos">{() => <MemberRoute component={VideosPage} />}</Route>
       <Route path="/articles">{() => <MemberRoute component={ArticlesPage} />}</Route>
       <Route path="/articles/:id">{() => <MemberRoute component={ArticleDetailPage} />}</Route>
-      <Route path="/members">{() => <MemberRoute component={MembersPage} />}</Route>
+      <Route path="/members">{() => <AuthRoute component={MembersPage} />}</Route>
 
       {/* Authenticated routes — logged in, membership not required */}
       <Route path="/profile">{() => <AuthRoute component={ProfilePage} />}</Route>

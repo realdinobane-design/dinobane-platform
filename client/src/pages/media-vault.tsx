@@ -199,8 +199,7 @@ function MediaLightbox({ item, items, onClose, onNavigate, currentUser, isAdmin,
   const { data: comments = [], isLoading: commentsLoading } = useQuery<MediaComment[]>({
     queryKey: ["/api/media", item.id, "comments"],
     queryFn: async () => {
-      const res = await fetch(`/api/media/${item.id}/comments`, { credentials: "include" });
-      if (!res.ok) return [];
+      const res = await apiRequest("GET", `/api/media/${item.id}/comments`);
       return res.json();
     },
     staleTime: 30000,
@@ -213,7 +212,6 @@ function MediaLightbox({ item, items, onClose, onNavigate, currentUser, isAdmin,
   const commentMutation = useMutation({
     mutationFn: async (content: string) => {
       const res = await apiRequest("POST", `/api/media/${item.id}/comments`, { content });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       return res.json();
     },
     onSuccess: () => {
@@ -226,8 +224,7 @@ function MediaLightbox({ item, items, onClose, onNavigate, currentUser, isAdmin,
 
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: number) => {
-      const res = await apiRequest("DELETE", `/api/media/comments/${commentId}`, {});
-      if (!res.ok) throw new Error("Delete failed");
+      await apiRequest("DELETE", `/api/media/comments/${commentId}`, {});
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/media", item.id, "comments"] });
@@ -237,8 +234,7 @@ function MediaLightbox({ item, items, onClose, onNavigate, currentUser, isAdmin,
 
   const deleteMediaMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("DELETE", `/api/media/${item.id}`, {});
-      if (!res.ok) throw new Error("Delete failed");
+      await apiRequest("DELETE", `/api/media/${item.id}`, {});
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/media"] });
@@ -384,8 +380,7 @@ export default function MediaVaultPage() {
   const { data: media = [], isLoading: mediaLoading } = useQuery<MediaItem[]>({
     queryKey: ["/api/media"],
     queryFn: async () => {
-      const res = await fetch("/api/media", { credentials: "include" });
-      if (!res.ok) return [];
+      const res = await apiRequest("GET", "/api/media");
       return res.json();
     },
     staleTime: 60000,
@@ -395,8 +390,7 @@ export default function MediaVaultPage() {
   const { data: bulkStats = {} } = useQuery<StatsMap>({
     queryKey: ["/api/media/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/media/stats", { credentials: "include" });
-      if (!res.ok) return {};
+      const res = await apiRequest("GET", "/api/media/stats");
       return res.json();
     },
     staleTime: 60000,
@@ -428,7 +422,8 @@ export default function MediaVaultPage() {
         reader.readAsDataURL(file);
       });
       const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, size: file.size });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Upload failed"); }
+      const uploaded = await res.json();
+      if (!uploaded) throw new Error("Upload failed");
       await qc.invalidateQueries({ queryKey: ["/api/media"] });
       toast({ title: "Uploaded", description: file.name });
       setActiveTab(type === "image" ? "images" : "videos");

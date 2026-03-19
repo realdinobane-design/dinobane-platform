@@ -98,9 +98,10 @@ function LinkPreviewCard({ url }: { url: string }) {
   const { data, isLoading } = useQuery<LinkPreview>({
     queryKey: ["/api/link-preview", url],
     queryFn: async () => {
-      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, { credentials: "include" });
-      if (!res.ok) return null;
-      return res.json();
+      try {
+        const res = await apiRequest("GET", `/api/link-preview?url=${encodeURIComponent(url)}`);
+        return res.json();
+      } catch { return null; }
     },
     staleTime: 10 * 60 * 1000,
     retry: false,
@@ -239,8 +240,7 @@ function ReplyThread({
   const { data: replies = [], isLoading } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/messages", parentId, "replies"],
     queryFn: async () => {
-      const res = await fetch(`/api/messages/${parentId}/replies`, { credentials: "include" });
-      if (!res.ok) return [];
+      const res = await apiRequest("GET", `/api/messages/${parentId}/replies`);
       return res.json();
     },
     enabled: expanded,
@@ -493,8 +493,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const { data: membersList = [] } = useQuery<MemberSummary[]>({
     queryKey: ["/api/community/members"],
     queryFn: async () => {
-      const res = await fetch("/api/community/members", { credentials: "include" });
-      if (!res.ok) return [];
+      const res = await apiRequest("GET", "/api/community/members");
       return res.json();
     },
     staleTime: 60000,
@@ -504,8 +503,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const { data: posts = [], isLoading } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/messages", activeChannel],
     queryFn: async () => {
-      const res = await fetch(`/api/messages/${activeChannel}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load");
+      const res = await apiRequest("GET", `/api/messages/${activeChannel}`);
       return res.json();
     },
     refetchInterval: 10000,
@@ -516,13 +514,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     queryKey: ["/api/messages/reply-counts", activeChannel, posts.map(p => p.id).join(",")],
     queryFn: async () => {
       if (posts.length === 0) return {};
-      const res = await fetch("/api/messages/reply-counts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ids: posts.map(p => p.id) }),
-      });
-      if (!res.ok) return {};
+      const res = await apiRequest("POST", "/api/messages/reply-counts", { ids: posts.map(p => p.id) });
       return res.json();
     },
     enabled: posts.length > 0,

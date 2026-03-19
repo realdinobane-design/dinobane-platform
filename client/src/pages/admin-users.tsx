@@ -67,7 +67,6 @@ function AdminUsersInner() {
     queryKey: ["/api/admin/users"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/users");
-      if (!res.ok) throw new Error("Failed to load users");
       return res.json();
     },
     staleTime: 0,
@@ -76,10 +75,6 @@ function AdminUsersInner() {
   const cleanupMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/cleanup", {});
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Cleanup failed");
-      }
       return res.json();
     },
     onSuccess: (data: { deleted: number; message: string }) => {
@@ -94,10 +89,6 @@ function AdminUsersInner() {
   const grantMutation = useMutation({
     mutationFn: async (userId: number) => {
       const res = await apiRequest("POST", `/api/admin/users/${userId}/membership`, {});
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to grant membership");
-      }
       return res.json();
     },
     onSuccess: (updated: AdminUser) => {
@@ -116,10 +107,6 @@ function AdminUsersInner() {
   const cancelMutation = useMutation({
     mutationFn: async (userId: number) => {
       const res = await apiRequest("DELETE", `/api/admin/users/${userId}/membership`, {});
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to cancel membership");
-      }
       return res.json();
     },
     onSuccess: (updated: AdminUser) => {
@@ -138,10 +125,6 @@ function AdminUsersInner() {
   const deleteMutation = useMutation({
     mutationFn: async (userId: number) => {
       const res = await apiRequest("DELETE", `/api/admin/users/${userId}`, {});
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to delete account");
-      }
       return res.json();
     },
     onSuccess: (_: any, userId: number) => {
