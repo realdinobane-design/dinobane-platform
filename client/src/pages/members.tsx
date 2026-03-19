@@ -72,7 +72,6 @@ function MembersInner() {
     queryKey: ["/api/admin/users"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/users");
-      if (!res.ok) throw new Error("Failed to load members");
       return res.json();
     },
     staleTime: 30_000,
@@ -237,7 +236,6 @@ function MemberProfilePanel({ userId, onClose }: { userId: number; onClose: () =
     queryKey: ["/api/admin/users", userId, "profile"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/admin/users/${userId}/profile`);
-      if (!res.ok) throw new Error("Failed to load profile");
       return res.json();
     },
     staleTime: 30_000,

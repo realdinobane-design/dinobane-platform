@@ -129,7 +129,6 @@ function AvatarUploadSection({ user, onUpdate }: { user: any; onUpdate: (u: any)
   const updateMutation = useMutation({
     mutationFn: async (data: { avatarInitials?: string; avatarColor?: string }) => {
       const res = await apiRequest("PATCH", "/api/profile", data);
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Update failed"); }
       return res.json();
     },
     onSuccess: (u) => { queryClient.setQueryData(["/api/auth/me"], u); onUpdate(u); setEditingInitials(false); },
@@ -158,7 +157,6 @@ function AvatarUploadSection({ user, onUpdate }: { user: any; onUpdate: (u: any)
       const dataUrl = await resizeImageToDataUrl(file, 256);
       setPreview(dataUrl);
       const res = await apiRequest("POST", "/api/profile/avatar", { avatarUrl: dataUrl });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Upload failed"); }
       const updated = await res.json();
       queryClient.setQueryData(["/api/auth/me"], updated);
       onUpdate(updated);
@@ -330,7 +328,6 @@ export default function ProfilePage() {
   const updateMutation = useMutation({
     mutationFn: async (data: { displayName?: string }) => {
       const res = await apiRequest("PATCH", "/api/profile", data);
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Update failed"); }
       return res.json();
     },
     onSuccess: (u) => {
@@ -345,7 +342,6 @@ export default function ProfilePage() {
   const portalMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/stripe/portal");
-      if (!res.ok) throw new Error("Could not open billing portal");
       return res.json();
     },
     onSuccess: ({ url }) => { window.location.href = url; },
@@ -355,7 +351,6 @@ export default function ProfilePage() {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("DELETE", "/api/account", {});
-      if (!res.ok) throw new Error("Delete failed");
       return res.json();
     },
     onSuccess: () => {
@@ -384,9 +379,7 @@ export default function ProfilePage() {
       if (newPassword.length < 6) throw new Error("New password must be at least 6 characters");
       if (newPassword !== confirmPassword) throw new Error("Passwords do not match");
       const res = await apiRequest("POST", "/api/auth/change-password", { currentPassword, newPassword });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Password change failed");
-      return json;
+      return res.json();
     },
     onSuccess: () => {
       toast({ title: "Password updated", description: "Your password has been changed successfully." });

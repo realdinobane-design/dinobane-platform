@@ -55,9 +55,7 @@ export default function RegisterPage() {
         email: data.email,
         password: data.password,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Registration failed");
-      return json;
+      return res.json();
     },
     onSuccess: (_data, variables) => {
       setRegisteredEmail(variables.email);

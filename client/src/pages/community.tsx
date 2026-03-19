@@ -12,6 +12,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,7 @@ function ReplyComposer({
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => { textareaRef.current?.focus(); }, []);
 
@@ -151,6 +153,7 @@ function ReplyComposer({
       return res.json();
     },
     onSuccess: (msg) => { onSuccess(msg); },
+    onError: (e: Error) => toast({ title: "Failed to send reply", description: e.message, variant: "destructive" }),
   });
 
   const handleSend = () => {
@@ -550,6 +553,8 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     return () => { try { ws?.close(); } catch {} };
   }, [activeChannel]);
 
+  const { toast } = useToast();
+
   // Post new top-level message
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -565,6 +570,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
       setPendingImage(null);
       setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     },
+    onError: (e: Error) => toast({ title: "Failed to post", description: e.message, variant: "destructive" }),
   });
 
   const handleSend = () => {
