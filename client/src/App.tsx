@@ -108,8 +108,17 @@ function InnerApp() {
             <main className="flex-1">
               <AppRoutes />
             </main>
-            <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
+            <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground space-y-2">
               <p>© 2026 DinoBane. All rights reserved.</p>
+              <p>
+                Contact:{" "}
+                <a
+                  href="mailto:contact@dinobane.com"
+                  className="text-yellow-400 hover:underline"
+                >
+                  contact@dinobane.com
+                </a>
+              </p>
             </footer>
           </div>
         </Router>
