@@ -675,7 +675,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    await storage.updateUserProfile(record.userId, { password: hash } as any);
+    await storage.updateUserProfile(record.userId, { password: hash });
     await deletePasswordResetToken(token);
 
     return res.json({ ok: true });

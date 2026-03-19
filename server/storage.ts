@@ -18,7 +18,7 @@ export interface IStorage {
   updateUserMembership(id: number, isMember: boolean): Promise<User>;
   deleteUser(id: number): Promise<void>;
   updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User>;
-  updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null }): Promise<User>;
+  updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null; password?: string }): Promise<User>;
   getAllUsers(): Promise<User[]>;
 
   getMessages(channel: string): Promise<(Message & { user: User })[]>;
@@ -99,12 +99,13 @@ class DrizzleStorage implements IStorage {
     return user;
   }
 
-  async updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null }): Promise<User> {
+  async updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null; password?: string }): Promise<User> {
     const updates: Partial<User> = {};
-    if (data.displayName  !== undefined) updates.displayName  = data.displayName;
+    if (data.displayName    !== undefined) updates.displayName    = data.displayName;
     if (data.avatarInitials !== undefined) updates.avatarInitials = data.avatarInitials;
-    if (data.avatarColor  !== undefined) updates.avatarColor  = data.avatarColor;
-    if (data.avatarUrl    !== undefined) updates.avatarUrl    = data.avatarUrl;
+    if (data.avatarColor    !== undefined) updates.avatarColor    = data.avatarColor;
+    if (data.avatarUrl      !== undefined) updates.avatarUrl      = data.avatarUrl;
+    if (data.password       !== undefined) updates.password       = data.password;
     const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
     if (!user) throw new Error("User not found");
     return user;
