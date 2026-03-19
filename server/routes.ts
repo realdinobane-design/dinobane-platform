@@ -1458,6 +1458,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // Broadcast intel briefing to all paying members
+  async function sendIntelBriefingToAllMembers() {
+    const allUsers = await storage.getAllUsers();
+    const members = allUsers.filter((u: any) => u.isMember && u.email);
+    if (members.length === 0) { console.log("[intel-briefing] no members to send to"); return 0; }
+    let sent = 0;
+    for (const member of members) {
+      try {
+        await sendIntelBriefing(member.email);
+        sent++;
+        // Small delay between sends to avoid Resend rate limits
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e: any) {
+        console.error(`[intel-briefing] failed to send to ${member.email}: ${e.message}`);
+      }
+    }
+    console.log(`[intel-briefing] broadcast complete — sent to ${sent}/${members.length} members`);
+    return sent;
+  }
+
   // POST /api/admin/emails/trigger-intel — manually fire the intel briefing (admin only)
   app.post("/api/admin/emails/trigger-intel", async (req, res) => {
     const check = await requireAdmin(req, res);
@@ -1465,9 +1485,28 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!resend) return res.status(503).json({ error: "Resend not configured" });
     const { testMode, testEmail } = req.body ?? {};
     try {
-      const recipient = testMode ? (testEmail || check.adminUser.email) : check.adminUser.email;
-      await sendIntelBriefing(recipient);
-      return res.json({ ok: true, sentTo: recipient });
+      if (testMode) {
+        const recipient = testEmail || check.adminUser.email;
+        await sendIntelBriefing(recipient);
+        return res.json({ ok: true, sentTo: recipient, mode: "test" });
+      } else {
+        // Full broadcast to all paying members
+        const sent = await sendIntelBriefingToAllMembers();
+        return res.json({ ok: true, sentTo: sent, mode: "broadcast" });
+      }
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  // POST /api/intel/auto-broadcast — internal endpoint called by daily cron
+  app.post("/api/intel/auto-broadcast", async (req, res) => {
+    const secret = req.headers["x-cron-secret"];
+    if (secret !== "DinoBane2026CronSecret") return res.status(403).json({ error: "Forbidden" });
+    if (!resend) return res.status(503).json({ error: "Resend not configured" });
+    try {
+      const sent = await sendIntelBriefingToAllMembers();
+      return res.json({ ok: true, sent });
     } catch (e: any) {
       return res.status(500).json({ error: e.message });
     }
