@@ -22,6 +22,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
 
   getMessages(channel: string): Promise<(Message & { user: User })[]>;
+  getMessagesByUser(userId: number): Promise<(Message & { user: User })[]>;
   getReplies(parentId: number): Promise<(Message & { user: User })[]>;
   getReplyCount(parentId: number): Promise<number>;
   createMessage(data: InsertMessage): Promise<Message & { user: User }>;
@@ -131,6 +132,22 @@ class DrizzleStorage implements IStorage {
     return rows
       .map(m => ({ ...m, user: userMap.get(m.userId)! }))
       .filter(m => m.user);
+  }
+
+  async getMessagesByUser(userId: number): Promise<(Message & { user: User })[]> {
+    // Returns ALL messages (top-level + replies) by a specific user, across all channels
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.userId, userId))
+      .orderBy(desc(messages.createdAt));
+
+    if (rows.length === 0) return [];
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return [];
+
+    return rows.map(m => ({ ...m, user }));
   }
 
   async getReplies(parentId: number): Promise<(Message & { user: User })[]> {

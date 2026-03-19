@@ -774,15 +774,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Get the current user's own messages (activity history)
   app.get("/api/profile/messages", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-    const channels = ["general", "news-links", "video-discussion", "off-topic"];
-    const results: any[] = [];
-    for (const channel of channels) {
-      const msgs = await storage.getMessages(channel);
-      for (const msg of msgs) {
-        if (msg.userId === req.session.userId) results.push(msg);
-      }
-    }
-    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const results = await storage.getMessagesByUser(req.session.userId);
     return res.json(results);
   });
 
