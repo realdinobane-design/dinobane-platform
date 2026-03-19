@@ -260,7 +260,7 @@ function ReplyThread({
       <div className="mt-2">
         <button
           onClick={() => setReplying(true)}
-          className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-300 transition-colors py-0.5"
+          className="flex items-center gap-1.5 text-xs text-[#f0c800] hover:text-yellow-300 transition-colors py-0.5"
         >
           <CornerDownRight size={12} />
           Reply
@@ -292,7 +292,7 @@ function ReplyThread({
         </button>
         <button
           onClick={() => { setExpanded(true); setReplying(true); }}
-          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors py-0.5"
+          className="flex items-center gap-1 text-xs text-[#f0c800] hover:text-yellow-300 transition-colors py-0.5"
         >
           <CornerDownRight size={12} />
           Reply
@@ -345,7 +345,7 @@ function ReplyThread({
           ) : (
             <button
               onClick={() => setReplying(true)}
-              className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-300 transition-colors py-0.5"
+              className="flex items-center gap-1.5 text-xs text-[#f0c800] hover:text-yellow-300 transition-colors py-0.5"
             >
               <CornerDownRight size={12} />
               Add a reply…
