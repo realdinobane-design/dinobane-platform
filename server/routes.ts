@@ -210,7 +210,7 @@ async function sendWelcomeEmail(email: string, displayName: string) {
           <tr>
             <td style="padding:16px 18px;">
               <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">Billing &amp; Account Issues?</p>
-              <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">Email us at <a href="mailto:realdinobane@gmail.com" style="color:#cc2a2a;text-decoration:none;font-weight:600;">realdinobane@gmail.com</a> and we'll sort it out for you.</p>
+              <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">Email us at <a href="mailto:contact@dinobane.com" style="color:#cc2a2a;text-decoration:none;font-weight:600;">contact@dinobane.com</a> and we'll sort it out for you.</p>
             </td>
           </tr>
         </table>
@@ -787,7 +787,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!user) return res.status(401).json({ error: "User not found" });
     if (user.isMember) return res.status(400).json({ error: "Already a member" });
 
-    const appUrl = process.env.VITE_APP_URL || "http://localhost:5000";
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
 
     try {
       // Get or create Stripe customer
@@ -855,7 +855,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const user = await storage.getUserById(req.session.userId);
     if (!user?.stripeCustomerId) return res.status(400).json({ error: "No billing account found" });
 
-    const appUrl = process.env.VITE_APP_URL || "http://localhost:5000";
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
 
     try {
       const portalSession = await stripe.billingPortal.sessions.create({
