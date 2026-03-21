@@ -1174,6 +1174,41 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(updated);
   });
 
+  // DELETE /api/admin/articles/:id — admin hard-delete any article
+  app.delete("/api/admin/articles/:id", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    await storage.deleteArticle(id);
+    invalidateArticlesCache();
+    return res.json({ ok: true });
+  });
+
+  // GET /api/admin/messages — list all community messages across all channels (admin)
+  app.get("/api/admin/messages", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const channels = ["general", "politics", "media", "immigration", "corruption", "free-speech"];
+    const all: any[] = [];
+    for (const ch of channels) {
+      const msgs = await storage.getMessages(ch);
+      msgs.forEach(m => all.push({ ...m, channel: ch }));
+    }
+    all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return res.json(all);
+  });
+
+  // DELETE /api/admin/messages/:id — admin hard-delete any community message + its replies
+  app.delete("/api/admin/messages/:id", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    await storage.deleteMessage(id);
+    return res.json({ ok: true });
+  });
+
   // ─── ADMIN USER MANAGEMENT ────────────────────────────────────────────────────
   // All routes require admin email. Cancel membership first, then delete account.
   const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);

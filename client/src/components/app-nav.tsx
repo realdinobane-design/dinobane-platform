@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail } from "lucide-react";
+import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -148,6 +148,11 @@ export function AppNav() {
                       <DropdownMenuItem asChild>
                         <Link href="/admin/emails" data-testid="link-admin-emails">
                           <Mail size={14} className="mr-2 text-blue-400" /> Email Control Centre
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/content" data-testid="link-admin-content">
+                          <Trash2 size={14} className="mr-2 text-orange-400" /> Content Moderation
                         </Link>
                       </DropdownMenuItem>
                     </>

@@ -26,8 +26,10 @@ export interface IStorage {
   getReplies(parentId: number): Promise<(Message & { user: User })[]>;
   getReplyCount(parentId: number): Promise<number>;
   createMessage(data: InsertMessage): Promise<Message & { user: User }>;
+  deleteMessage(id: number): Promise<void>;
 
   getArticles(): Promise<Article[]>;
+  deleteArticle(id: number): Promise<void>;
   // Media vault
   getMediaByUser(userId: number): Promise<Media[]>;
   getAllMedia(): Promise<Media[]>;
@@ -46,6 +48,7 @@ export interface IStorage {
   getArticleById(id: number): Promise<Article | undefined>;
   createArticle(data: InsertArticle): Promise<Article>;
   updateArticle(id: number, data: Partial<InsertArticle>): Promise<Article>;
+  getAllArticles(): Promise<Article[]>;
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
 }
@@ -182,8 +185,22 @@ class DrizzleStorage implements IStorage {
     return { ...msg, user };
   }
 
+  async deleteMessage(id: number): Promise<void> {
+    // Delete replies first, then the message itself
+    await db.delete(messages).where(eq(messages.parentId, id));
+    await db.delete(messages).where(eq(messages.id, id));
+  }
+
   async getArticles(): Promise<Article[]> {
     return db.select().from(articles).orderBy(desc(articles.publishedAt));
+  }
+
+  async getAllArticles(): Promise<Article[]> {
+    return db.select().from(articles).orderBy(desc(articles.publishedAt));
+  }
+
+  async deleteArticle(id: number): Promise<void> {
+    await db.delete(articles).where(eq(articles.id, id));
   }
 
   async getArticleById(id: number): Promise<Article | undefined> {
