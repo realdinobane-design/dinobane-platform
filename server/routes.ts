@@ -1127,6 +1127,39 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(article);
   });
 
+  // POST /api/admin/articles/regenerate-all — wipe all articles and regenerate from transcripts
+  // Secured with cron secret so it can be called without a session cookie
+  app.post("/api/admin/articles/regenerate-all", async (req, res) => {
+    const secret = req.headers["x-cron-secret"] || req.body?.secret;
+    if (secret !== "DinoBane2026CronSecret") return res.status(403).json({ error: "Forbidden" });
+    // Respond immediately — this is a slow operation
+    res.json({ ok: true, status: "regeneration_started" });
+    // Run in background
+    (async () => {
+      try {
+        const allArticles = await storage.getAllArticles();
+        console.log(`[regen] Starting regeneration of ${allArticles.length} articles`);
+        let regenerated = 0;
+        for (const article of allArticles) {
+          if (!article.youtubeUrl) continue;
+          try {
+            const newContent = await generateArticleAI(article.title, article.youtubeUrl);
+            await storage.updateArticle(article.id, { content: newContent });
+            regenerated++;
+            console.log(`[regen] ✓ ${article.title.slice(0, 50)}`);
+            await new Promise(r => setTimeout(r, 1500)); // pace requests
+          } catch (e: any) {
+            console.error(`[regen] ✗ ${article.title.slice(0, 50)}: ${e.message}`);
+          }
+        }
+        invalidateArticlesCache();
+        console.log(`[regen] Complete — regenerated ${regenerated}/${allArticles.length} articles`);
+      } catch (e: any) {
+        console.error(`[regen] Fatal error: ${e.message}`);
+      }
+    })();
+  });
+
   // ─── ADMIN: UPDATE ARTICLE CONTENT ──────────────────────────────────────────
   app.patch("/api/admin/articles/:id", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
