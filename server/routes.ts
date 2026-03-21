@@ -2474,19 +2474,70 @@ function getFallbackVideos() {
 }
 
 // ─── AI ARTICLE GENERATION (OpenRouter) ───────────────────────────────────────
+async function fetchVideoTranscript(videoUrl: string): Promise<string | null> {
+  const tmpBase = `/tmp/transcript_${Date.now()}`;
+  try {
+    // Try auto-generated English captions first, then manual captions
+    await execAsync(
+      `yt-dlp --write-auto-sub --write-sub --sub-lang en --sub-format vtt --skip-download --no-playlist -o "${tmpBase}" "${videoUrl}"`,
+      { timeout: 40_000 }
+    );
+    // Find the downloaded vtt file
+    const { stdout: found } = await execAsync(`ls "${tmpBase}"*.vtt 2>/dev/null || echo ''`);
+    const vttFile = found.trim().split('\n')[0];
+    if (!vttFile) return null;
+
+    const { readFileSync, unlinkSync } = await import('fs');
+    const raw = readFileSync(vttFile, 'utf8');
+    // Clean up temp file
+    try { unlinkSync(vttFile); } catch {}
+
+    // Parse VTT: strip headers, timestamps, tags, deduplicate lines
+    const lines = raw.split('\n');
+    const textLines: string[] = [];
+    for (const line of lines) {
+      const l = line.trim();
+      if (!l) continue;
+      if (l.startsWith('WEBVTT') || l.startsWith('Kind:') || l.startsWith('Language:')) continue;
+      if (/^\d{2}:\d{2}/.test(l)) continue; // timestamp
+      const clean = l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+      if (clean) textLines.push(clean);
+    }
+    // Deduplicate consecutive identical lines (VTT repeats lines as they scroll)
+    const deduped: string[] = [];
+    let prev = '';
+    for (const l of textLines) {
+      if (l !== prev) { deduped.push(l); prev = l; }
+    }
+    const transcript = deduped.join(' ').replace(/\s+/g, ' ').trim();
+    return transcript.length > 100 ? transcript : null;
+  } catch (e: any) {
+    console.warn(`[articles] transcript fetch failed for ${videoUrl}: ${e.message?.slice(0, 100)}`);
+    return null;
+  }
+}
+
 async function generateArticleAI(title: string, url: string): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     console.warn("[articles] OPENROUTER_API_KEY not set — skipping AI generation");
   } else {
+    // Fetch the real transcript so the AI writes about the actual video content
+    console.log(`[articles] Fetching transcript for: ${title}`);
+    const transcript = await fetchVideoTranscript(url);
+    const transcriptSection = transcript
+      ? `\n\nHere is the full transcript of the video (use this as the basis for your article — write about what is actually said):\n\n"""\n${transcript.slice(0, 6000)}\n"""`
+      : `\n\n(No transcript available — write based on the video title and your knowledge of UK political issues.)`;
+
     const prompt = `You are writing a political commentary article for DinoBane, a UK YouTube channel covering corruption, immigration, media censorship, and stories the mainstream media buries. The tone is direct, no-nonsense, pro-English, and right-leaning — like a sharp op-ed from the Spectator or Telegraph.
 
-Write a 450-500 word newspaper-style article based on this YouTube video: "${title}"
-Video URL: ${url}
+Video title: "${title}"
+Video URL: ${url}${transcriptSection}
 
 Requirements:
+- Write a 450-500 word newspaper-style article based SPECIFICALLY on what the video covers
 - Strong opinionated opening paragraph that states the argument clearly
-- 3-4 substantive body paragraphs on relevant British political issues: immigration, media bias, establishment corruption, free speech, national identity
+- 3-4 substantive body paragraphs that directly reference what was said or shown in the video
 - Punchy closing paragraph calling the reader to action
 - Pro-English, right-leaning, specific and pointed arguments throughout
 
