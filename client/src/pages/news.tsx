@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, RefreshCw, AlertCircle, Flame, EyeOff, Clock, Search, Youtube } from "lucide-react";
-import { queryClient } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { ExternalLink, RefreshCw, AlertCircle, Flame, EyeOff, Clock, Search, Youtube, X } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/App";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 // ─── SOURCE METADATA ──────────────────────────────────────────────────────────
 
@@ -204,7 +206,12 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
 }
 
 // ─── STORY CARD ───────────────────────────────────────────────────────────────
-function StoryCard({ item, index }: { item: NewsItem; index: number }) {
+function StoryCard({ item, index, isAdmin, onBlock }: {
+  item: NewsItem;
+  index: number;
+  isAdmin?: boolean;
+  onBlock?: (link: string) => void;
+}) {
   const meta = SOURCE_META[item.source];
   const accentColor = meta?.color || "#cc2a2a";
   const viral = isViral(item);
@@ -213,12 +220,25 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
   const category = storyCategory(item);
 
   return (
+    <div
+      className="relative group"
+      data-testid={`story-card-${index}`}
+    >
+      {/* Admin delete button — only visible to admins */}
+      {isAdmin && onBlock && (
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBlock(item.link); }}
+          title="Remove story from feed"
+          className="absolute top-2 right-2 z-20 bg-black/80 hover:bg-red-600 text-[#444] hover:text-white border border-[#333] hover:border-red-600 rounded p-1.5 transition-all duration-150 opacity-0 group-hover:opacity-100"
+        >
+          <X size={14} />
+        </button>
+      )}
     <a
       href={item.link}
       target="_blank"
       rel="noopener noreferrer"
       className="group block bg-[#111] border border-[#1e1e1e] hover:border-[#cc2a2a]/50 rounded-sm transition-all duration-200 overflow-hidden"
-      data-testid={`story-card-${index}`}
       style={{ borderLeft: `4px solid ${accentColor}` }}
     >
       {/* Source image — top of card, cropped banner */}
@@ -296,6 +316,7 @@ function StoryCard({ item, index }: { item: NewsItem; index: number }) {
         )}
       </div>
     </a>
+    </div>
   );
 }
 
@@ -369,10 +390,21 @@ function HeroBanner({ items }: { items: NewsItem[] }) {
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function NewsPage() {
+  const { user } = useAuth();
+  const isAdmin = !!(user?.email && ADMIN_EMAILS.has(user.email));
+
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all-sources");
   const [viewFilter, setViewFilter] = useState<"all" | "viral" | "suppressed" | "latest">("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const blockMutation = useMutation({
+    mutationFn: (link: string) =>
+      apiRequest("/api/admin/intel/block", { method: "POST", body: JSON.stringify({ url: link }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] });
+    },
+  });
 
   const { data: items, isLoading, isError, dataUpdatedAt } = useQuery<NewsItem[]>({
     queryKey: ["/api/intel/feed"],
@@ -656,7 +688,7 @@ export default function NewsPage() {
               {!isLoading && sorted.length > 0 && (
                 <div className="space-y-4">
                   {sorted.map((item, i) => (
-                    <StoryCard key={`${item.link}-${i}`} item={item} index={i} />
+                    <StoryCard key={`${item.link}-${i}`} item={item} index={i} isAdmin={isAdmin} onBlock={(link) => blockMutation.mutate(link)} />
                   ))}
                 </div>
               )}

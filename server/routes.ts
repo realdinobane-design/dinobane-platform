@@ -1626,6 +1626,53 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true, timeBkk, timeUtc: utcStr });
   });
 
+  // ─── INTEL STORY BLOCK LIST ─────────────────────────────────────────────────
+  // Admin can block individual stories by URL — persisted in app_settings as JSON array.
+  async function getBlockedLinks(): Promise<string[]> {
+    try {
+      const raw = await storage.getSetting("intel_blocked_links");
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  // POST /api/admin/intel/block — admin blocks a story by URL
+  app.post("/api/admin/intel/block", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { url } = req.body;
+    if (!url || typeof url !== "string") return res.status(400).json({ error: "url required" });
+    const blocked = await getBlockedLinks();
+    if (!blocked.includes(url)) {
+      blocked.push(url);
+      await storage.setSetting("intel_blocked_links", JSON.stringify(blocked));
+    }
+    // Remove from live cache immediately so it vanishes without waiting for next refresh
+    if (intelCache) {
+      intelCache.data = intelCache.data.filter((item: any) => item.link !== url);
+    }
+    console.log(`[intel] admin blocked story: ${url}`);
+    return res.json({ ok: true, blockedCount: blocked.length });
+  });
+
+  // DELETE /api/admin/intel/block — admin unblocks a story URL
+  app.delete("/api/admin/intel/block", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "url required" });
+    const blocked = await getBlockedLinks();
+    const updated = blocked.filter((u: string) => u !== url);
+    await storage.setSetting("intel_blocked_links", JSON.stringify(updated));
+    return res.json({ ok: true, blockedCount: updated.length });
+  });
+
+  // GET /api/admin/intel/blocked — list all blocked story URLs
+  app.get("/api/admin/intel/blocked", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    return res.json(await getBlockedLinks());
+  });
+
   // GET /api/intel/schedule-info — returns current intel briefing send time (used by cron)
   app.get("/api/intel/schedule-info", async (_req, res) => {
     const sendTimeUtc = await storage.getSetting("intel_briefing_time_utc") || "07:00";
@@ -2152,21 +2199,27 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   app.get("/api/intel/feed", async (req, res) => {
     try {
+      let data: any[];
       // Serve from cache if still fresh
       if (intelCache && (Date.now() - intelCache.fetchedAt) < INTEL_CACHE_TTL) {
         res.setHeader("X-Cache", "HIT");
-        return res.json(intelCache.data);
-      }
-      // Cache stale or empty — if we have stale data, return it immediately
-      // and kick off a background refresh so the NEXT request is fast
-      if (intelCache) {
+        data = intelCache.data;
+      } else if (intelCache) {
+        // Cache stale — return stale immediately and refresh in background
         res.setHeader("X-Cache", "STALE");
-        refreshIntelCache().catch(() => {}); // background refresh
-        return res.json(intelCache.data);
+        refreshIntelCache().catch(() => {});
+        data = intelCache.data;
+      } else {
+        // No cache — must wait
+        res.setHeader("X-Cache", "MISS");
+        data = await refreshIntelCache();
       }
-      // No cache at all (first request after boot) — must wait
-      res.setHeader("X-Cache", "MISS");
-      const data = await refreshIntelCache();
+      // Strip admin-blocked stories before serving
+      const blocked = await getBlockedLinks();
+      if (blocked.length > 0) {
+        const blockedSet = new Set(blocked);
+        data = data.filter((item: any) => !blockedSet.has(item.link));
+      }
       return res.json(data);
     } catch (e: any) {
       return res.status(500).json({ error: e.message });
