@@ -1877,37 +1877,67 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
     intelFetchInProgress = true;
     try {
+      // ─── FEED SOURCES ─────────────────────────────────────────────────────────────────
+      // RULE: only use politics/news-specific feeds — never root-level feeds for
+      // tabloids (Daily Mail, The Sun) which mix in sport, celeb and betting content.
       const FEEDS = [
-      // Original alt / right-leaning
-      { name: "Guido Fawkes",          url: "https://order-order.com/feed/" },
-      { name: "Spiked Online",         url: "https://www.spiked-online.com/feed/" },
-      { name: "GB News",               url: "https://www.gbnews.com/feed" },
-      { name: "The Spectator",         url: "https://www.spectator.co.uk/feed/" },
-      { name: "ZeroHedge",             url: "https://feeds.feedburner.com/zerohedge/feed" },
-      { name: "Breitbart London",      url: "https://www.breitbart.com/london/feed/" },
-      { name: "Daily Mail",            url: "https://www.dailymail.co.uk/articles.rss" },
-      { name: "The Telegraph",         url: "https://www.telegraph.co.uk/rss.xml" },
-      { name: "The Daily Sceptic",     url: "https://dailysceptic.org/feed/" },
-      { name: "The Conservative Woman",url: "https://www.conservativewoman.co.uk/feed/" },
-      // Mainstream UK outlets
-      { name: "The Sun",               url: "https://www.thesun.co.uk/feed/" },
-      { name: "The Times",             url: "https://www.thetimes.co.uk/rss/news" },
-      { name: "The Guardian",          url: "https://www.theguardian.com/uk/rss" },
-      { name: "BBC News",              url: "https://feeds.bbci.co.uk/news/rss.xml" },
-      { name: "Sky News",              url: "https://feeds.skynews.com/feeds/rss/uk.xml" },
-      { name: "The Independent",       url: "https://www.independent.co.uk/news/uk/rss" },
-      { name: "The Mirror",            url: "https://www.mirror.co.uk/news/politics/?service=rss" },
-      { name: "Express",               url: "https://www.express.co.uk/news/politics/rss" },
-      // Alternative / independent
-      { name: "Reclaim The Net",       url: "https://reclaimthenet.org/feed/" },
-      { name: "The Gateway Pundit",    url: "https://www.thegatewaypundit.com/feed/" },
-      { name: "Westmonster",           url: "https://westmonster.com/feed/" },
-      { name: "UnHerd",                url: "https://unherd.com/feed/" },
-      { name: "The Critic",            url: "https://thecritic.co.uk/feed/" },
-      { name: "ConservativeHome",      url: "https://www.conservativehome.com/feed/" },
-      { name: "Iain Dale",             url: "https://iaindale.com/feed/" },
-      { name: "The Sun Politics",      url: "https://www.thesun.co.uk/news/politics/feed/" },
+      // ─ Alt / right-leaning (these are politics-only by nature)
+      { name: "Guido Fawkes",           url: "https://order-order.com/feed/" },
+      { name: "Spiked Online",          url: "https://www.spiked-online.com/feed/" },
+      { name: "GB News",                url: "https://www.gbnews.com/feed" },
+      { name: "The Spectator",          url: "https://www.spectator.co.uk/feed/" },
+      { name: "Breitbart London",       url: "https://www.breitbart.com/london/feed/" },
+      { name: "The Daily Sceptic",      url: "https://dailysceptic.org/feed/" },
+      { name: "The Conservative Woman", url: "https://www.conservativewoman.co.uk/feed/" },
+      { name: "Reclaim The Net",        url: "https://reclaimthenet.org/feed/" },
+      { name: "The Gateway Pundit",     url: "https://www.thegatewaypundit.com/feed/" },
+      { name: "Westmonster",            url: "https://westmonster.com/feed/" },
+      { name: "UnHerd",                 url: "https://unherd.com/feed/" },
+      { name: "The Critic",             url: "https://thecritic.co.uk/feed/" },
+      { name: "ConservativeHome",       url: "https://www.conservativehome.com/feed/" },
+      { name: "Iain Dale",              url: "https://iaindale.com/feed/" },
+      { name: "ZeroHedge",              url: "https://feeds.feedburner.com/zerohedge/feed" },
+      // ─ Mainstream UK — POLITICS-ONLY feeds (avoids sport/celeb/betting sections)
+      { name: "Daily Mail",             url: "https://www.dailymail.co.uk/news/politics/index.rss" },
+      { name: "The Telegraph",          url: "https://www.telegraph.co.uk/politics/rss.xml" },
+      { name: "The Times",              url: "https://www.thetimes.co.uk/rss/news/politics" },
+      { name: "The Guardian",           url: "https://www.theguardian.com/politics/rss" },
+      { name: "BBC News",               url: "https://feeds.bbci.co.uk/news/politics/rss.xml" },
+      { name: "Sky News",               url: "https://feeds.skynews.com/feeds/rss/politics.xml" },
+      { name: "The Independent",        url: "https://www.independent.co.uk/news/uk/politics/rss" },
+      { name: "The Mirror",             url: "https://www.mirror.co.uk/news/politics/?service=rss" },
+      { name: "Express",                url: "https://www.express.co.uk/news/politics/rss" },
+      { name: "The Sun Politics",       url: "https://www.thesun.co.uk/news/politics/feed/" },
     ];
+
+      // ─── CONTENT FILTER ─────────────────────────────────────────────────────────────────
+      // Hard blocklist — any story whose title/description matches ANY of these
+      // terms is silently dropped. Covers sport, betting, celeb gossip, trivial content.
+      const BLOCKED_TERMS = [
+        // Sport
+        "premier league", "champions league", "fa cup", "world cup", "euro 2024", "euro 2025",
+        "football", "soccer", "rugby", "cricket", "tennis", "golf", "boxing", "ufc", "mma",
+        "formula 1", "formula one", "grand prix", "nfl", "nba", "transfer deadline",
+        "match report", "half-time", "full-time", "goal", "scorer", "fixture",
+        // Betting / gambling
+        "betting", "odds", "bookmaker", "accumulator", "each-way", "ante-post",
+        "free bet", "sign-up offer", "best odds", "gamble", "casino", "slots",
+        // Celebrity / gossip / entertainment
+        "celebrity", "celeb", "showbiz", "kardashian", "reality tv", "love island",
+        "strictly", "x factor", "the voice", "big brother",
+        "bafta", "oscars", "grammys", "brit awards",
+        "married", "divorce", "baby bump", "pregnant", "affair",
+        "bikini", "swimsuit", "lingerie",
+        // Lifestyle / trivial
+        "recipe", "horoscope", "astrology", "lottery", "euromillions",
+        "property prices", "house prices",
+        "tv review", "film review", "music review",
+      ];
+
+      function isBlockedStory(title: string, desc: string): boolean {
+        const haystack = (title + " " + desc).toLowerCase();
+        return BLOCKED_TERMS.some(term => haystack.includes(term));
+      }
 
     async function fetchFeed(name: string, url: string): Promise<any[]> {
       try {
@@ -1968,12 +1998,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const results = await Promise.allSettled(FEEDS.map(f => fetchFeed(f.name, f.url)));
       const allItems: any[] = [];
       results.forEach(r => { if (r.status === "fulfilled") allItems.push(...r.value); });
-      allItems.sort((a, b) => {
+
+      // Apply content filter — drop sport, betting, celeb, gossip
+      const filtered = allItems.filter(item => !isBlockedStory(item.title || "", item.description || ""));
+      const blocked = allItems.length - filtered.length;
+      if (blocked > 0) console.log(`[intel] filtered out ${blocked} blocked stories (sport/betting/celeb)`);
+
+      filtered.sort((a, b) => {
         const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
         const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
         return db - da;
       });
-      const top100 = allItems.slice(0, 100);
+      const top100 = filtered.slice(0, 100);
 
       // Cache immediately with RSS-only images — users get fast response
       intelCache = { data: top100, fetchedAt: Date.now() };
