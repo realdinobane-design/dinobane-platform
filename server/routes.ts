@@ -2004,7 +2004,45 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const blocked = allItems.length - filtered.length;
       if (blocked > 0) console.log(`[intel] filtered out ${blocked} blocked stories (sport/betting/celeb)`);
 
+      // ─── TOPIC BOOST ─────────────────────────────────────────────────────────────────
+      // Stories matching these topics are promoted to the top of the feed.
+      // Sorted by recency within each priority tier.
+      const PRIORITY_TOPICS = [
+        // UK corruption & establishment
+        "grooming", "grooming gang", "rape gang", "child abuse", "paedophile",
+        "corruption", "cover-up", "cover up", "scandal", "exposed", "leaked",
+        "two-tier", "two tier", "police fail",
+        // Islam / Islamism in political context
+        "islam", "islamist", "sharia", "mosque", "jihad", "muslim",
+        "grooming gang", "rotherham", "telford", "rochdale",
+        // Zionism / Israeli political influence
+        "zionist", "zionism", "israel", "aipac", "gaza", "netanyahu",
+        "palestine", "lobby", "israeli",
+        // Immigration & borders
+        "immigration", "migrant", "illegal", "small boats", "channel crossing",
+        "asylum", "deportation", "rwanda",
+        // Free speech & censorship
+        "censorship", "free speech", "deplatform", "banned", "silenced",
+        "hate speech", "thought crime",
+        // Geopolitics
+        "nato", "ukraine", "russia", "china", "wef", "globalist",
+      ];
+
+      function getStoryScore(title: string, desc: string): number {
+        const haystack = (title + " " + desc).toLowerCase();
+        let score = 0;
+        for (const term of PRIORITY_TOPICS) {
+          if (haystack.includes(term)) score += 10;
+        }
+        return score;
+      }
+
       filtered.sort((a, b) => {
+        const scoreA = getStoryScore(a.title || "", a.description || "");
+        const scoreB = getStoryScore(b.title || "", b.description || "");
+        // Primary: topic relevance score (higher = better)
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        // Secondary: recency
         const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
         const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
         return db - da;
