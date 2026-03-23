@@ -959,9 +959,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── DEMO ACTIVATE (fallback when Stripe not configured) ───────────────────────
+  // POST /api/membership/activate — dev/fallback only, admin-only when Stripe is live
+  // When Stripe IS configured (production), this endpoint is blocked entirely.
+  // When Stripe is NOT configured, only admins can activate membership (prevents free bypass).
   app.post("/api/membership/activate", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-    if (stripe) return res.status(400).json({ error: "Use Stripe checkout" });
+    // In production (Stripe configured), this endpoint is disabled entirely
+    if (stripe) return res.status(403).json({ error: "Membership must be purchased via checkout" });
+    // Without Stripe (dev only), restrict to admin accounts only
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !ADMIN_EMAILS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
     const user = await storage.updateUserMembership(req.session.userId, true);
     sendWelcomeEmail(user.email, user.displayName).catch(() => {});
     notifyAdminNewMember(user.email, user.displayName).catch(() => {});
@@ -1089,11 +1098,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   app.post("/api/articles/generate", async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-    const caller = await storage.getUserById(req.session.userId);
-    if (!caller || !new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]).has(caller.email)) {
-      return res.status(403).json({ error: "Admin only" });
-    }
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
 
     const { youtubeUrl } = req.body;
     if (!youtubeUrl) return res.status(400).json({ error: "YouTube URL required" });
@@ -1162,11 +1168,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── ADMIN: UPDATE ARTICLE CONTENT ──────────────────────────────────────────
   app.patch("/api/admin/articles/:id", async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-    const caller = await storage.getUserById(req.session.userId);
-    if (!caller || !new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]).has(caller.email)) {
-      return res.status(403).json({ error: "Admin only" });
-    }
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
     const { content, summary } = req.body;
