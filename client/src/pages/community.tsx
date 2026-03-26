@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Crown, Hash, Send, Users, Loader2, Image as ImageIcon, X,
   ChevronDown, Star, MessageSquare, Newspaper,
-  Video, Coffee, Shield, CornerDownRight, ChevronRight,
+  Video, Coffee, Shield, CornerDownRight, ChevronRight, Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useEffect, useRef } from "react";
@@ -313,6 +313,7 @@ function ReplyThread({
             replies.map(reply => {
               const isImage = reply.content.startsWith("data:image/");
               const urls = !isImage ? extractUrls(reply.content) : [];
+              const canDeleteReply = user && (user.id === reply.userId || user.email === "realdinobane@gmail.com" || user.email === "yingchanzeng@gmail.com");
               return (
                 <div key={reply.id} className="flex gap-2.5">
                   <UserAvatar user={reply.user} size="sm" />
@@ -322,6 +323,23 @@ function ReplyThread({
                       <time className="text-[10px] text-zinc-600">
                         {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                       </time>
+                      {canDeleteReply && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Delete this reply?")) return;
+                            try {
+                              await apiRequest(`/api/messages/${reply.id}`, { method: "DELETE" });
+                              qc.setQueryData(["/api/messages", parentId, "replies"], (old: MessageWithUser[] = []) =>
+                                old.filter(r => r.id !== reply.id)
+                              );
+                            } catch (e: any) { alert(e.message); }
+                          }}
+                          className="text-zinc-700 hover:text-red-500 transition-colors p-0.5 rounded"
+                          title="Delete reply"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
                     </div>
                     {!isImage && (
                       <p
@@ -367,6 +385,20 @@ function PostCard({ msg, channel, user, replyCount }: {
 }) {
   const isImage = msg.content.startsWith("data:image/");
   const urls = !isImage ? extractUrls(msg.content) : [];
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const canDelete = user && (user.id === msg.userId || user.email === "realdinobane@gmail.com" || user.email === "yingchanzeng@gmail.com");
+
+  const deleteMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/messages/${msg.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.setQueryData(["/api/messages", channel], (old: MessageWithUser[] = []) =>
+        old.filter(m => m.id !== msg.id)
+      );
+      toast({ title: "Message deleted" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
 
   return (
     <div className="bg-[#111] border border-[#1e1e1e] hover:border-[#2a2a2a] rounded-sm transition-colors overflow-hidden">
@@ -382,6 +414,15 @@ function PostCard({ msg, channel, user, replyCount }: {
               <time className="text-[10px] text-zinc-600 ml-auto">
                 {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
               </time>
+              {canDelete && (
+                <button
+                  onClick={() => { if (confirm("Delete this message?")) deleteMutation.mutate(); }}
+                  className="text-zinc-700 hover:text-red-500 transition-colors p-0.5 rounded"
+                  title="Delete message"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
 
             {/* Message body */}

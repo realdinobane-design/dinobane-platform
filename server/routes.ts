@@ -1202,6 +1202,24 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(all);
   });
 
+  // DELETE /api/messages/:id — user deletes their own message (or admin deletes any)
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller) return res.status(401).json({ error: "User not found" });
+    // Find the message to verify ownership
+    const { pool } = await import("./db");
+    const r = await pool.query(`SELECT user_id FROM messages WHERE id = $1`, [id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: "Message not found" });
+    const isOwner = r.rows[0].user_id === req.session.userId;
+    const isAdmin = ADMIN_EMAILS.has(caller.email);
+    if (!isOwner && !isAdmin) return res.status(403).json({ error: "You can only delete your own messages" });
+    await storage.deleteMessage(id);
+    return res.json({ ok: true });
+  });
+
   // DELETE /api/admin/messages/:id — admin hard-delete any community message + its replies
   app.delete("/api/admin/messages/:id", async (req, res) => {
     const check = await requireAdmin(req, res);
