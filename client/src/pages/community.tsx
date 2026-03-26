@@ -328,7 +328,7 @@ function ReplyThread({
                           onClick={async () => {
                             if (!confirm("Delete this reply?")) return;
                             try {
-                              await apiRequest(`/api/messages/${reply.id}`, { method: "DELETE" });
+                              await apiRequest("DELETE", `/api/messages/${reply.id}`);
                               qc.setQueryData(["/api/messages", parentId, "replies"], (old: MessageWithUser[] = []) =>
                                 old.filter(r => r.id !== reply.id)
                               );
@@ -390,7 +390,7 @@ function PostCard({ msg, channel, user, replyCount }: {
   const canDelete = user && (user.id === msg.userId || user.email === "realdinobane@gmail.com" || user.email === "yingchanzeng@gmail.com");
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiRequest(`/api/messages/${msg.id}`, { method: "DELETE" }),
+    mutationFn: () => apiRequest("DELETE", `/api/messages/${msg.id}`),
     onSuccess: () => {
       qc.setQueryData(["/api/messages", channel], (old: MessageWithUser[] = []) =>
         old.filter(m => m.id !== msg.id)
