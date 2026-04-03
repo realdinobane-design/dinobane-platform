@@ -659,7 +659,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     <div className="flex bg-[#0a0a0a]" style={{ height: "calc(100vh - 4rem)" }}>
 
       {/* ── LEFT SIDEBAR ── */}
-      <aside className="hidden sm:flex w-60 flex-shrink-0 flex-col bg-[#0d0d0d] border-r border-[#1a1a1a]">
+      <aside className="hidden md:flex w-60 flex-shrink-0 flex-col bg-[#0d0d0d] border-r border-[#1a1a1a]">
 
         {/* Server header */}
         <div className="px-4 py-4 border-b border-[#1a1a1a] flex items-center gap-3">
@@ -766,7 +766,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
       <div className="flex flex-col flex-1 min-w-0">
 
         {/* Channel header — desktop */}
-        <div className="hidden sm:flex px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] items-center gap-3 flex-shrink-0">
+        <div className="hidden md:flex px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] items-center gap-3 flex-shrink-0">
           <Hash size={15} className="text-[#cc2a2a]" />
           <span className="font-black text-white text-base" style={{ fontFamily: "'Clash Display', sans-serif" }}>{activeCh.label}</span>
           <div className="w-px h-4 bg-[#333] mx-1" />
@@ -779,7 +779,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         </div>
 
         {/* Mobile top bar: horizontally scrollable channel tabs + Members button */}
-        <div className="sm:hidden flex-shrink-0 border-b border-[#1a1a1a] bg-[#0d0d0d]">
+        <div className="md:hidden flex-shrink-0 border-b border-[#1a1a1a] bg-[#0d0d0d]">
           {/* Current channel name */}
           <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
             <Hash size={13} className="text-[#cc2a2a] shrink-0" />
@@ -917,7 +917,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     {/* Mobile members modal */}
     {mobileMembersOpen && (
       <div
-        className="fixed inset-0 z-50 sm:hidden"
+        className="fixed inset-0 z-50 md:hidden"
         onClick={() => setMobileMembersOpen(false)}
       >
         {/* Backdrop */}

@@ -2,15 +2,16 @@ import { Link, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useAuth } from "@/App";
 import { logout } from "@/lib/auth";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail, Trash2 } from "lucide-react";
+import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,14 @@ const NAV_LINKS = [
 
 export function AppNav() {
   const { user, refetch } = useAuth();
+
+  // DM unread count badge
+  const { data: dmUnread } = useQuery<{ count: number }>({
+    queryKey: ["/api/dm/unread/count"],
+    queryFn: () => apiRequest("GET", "/api/dm/unread/count").then(r => r.json()),
+    refetchInterval: 15000,
+    enabled: !!user?.isMember,
+  });
   const [location] = useHashLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -99,6 +108,22 @@ export function AppNav() {
                 <span className="hidden sm:flex items-center gap-1.5 text-xs text-yellow-500 font-semibold">
                   <Crown size={12} /> Member
                 </span>
+              )}
+              {/* DM inbox button with unread badge */}
+              {user.isMember && (
+                <Link href="/community">
+                  <button
+                    className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors"
+                    title="Private messages"
+                  >
+                    <MessageSquare size={16} className="text-muted-foreground" />
+                    {(dmUnread?.count ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 leading-none">
+                        {dmUnread!.count > 9 ? "9+" : dmUnread!.count}
+                      </span>
+                    )}
+                  </button>
+                </Link>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

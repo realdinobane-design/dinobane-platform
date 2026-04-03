@@ -80,7 +80,7 @@ export function DmChat({ currentUser, partner, onClose }: DmChatProps) {
 
   return (
     <div
-      className="fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 flex flex-col w-full sm:w-[340px] max-h-[70vh] sm:max-h-[520px] bg-[#0f0f0f] border-t sm:border border-[#2a2a2a] sm:rounded-sm shadow-2xl shadow-black/60"
+      className="fixed bottom-0 right-0 md:bottom-4 md:right-4 z-50 flex flex-col w-full md:w-[340px] max-h-[70vh] md:max-h-[520px] bg-[#0f0f0f] border-t md:border border-[#2a2a2a] md:rounded-sm shadow-2xl shadow-black/60"
       style={{ fontFamily: "Satoshi, sans-serif" }}
     >
       {/* Header */}
