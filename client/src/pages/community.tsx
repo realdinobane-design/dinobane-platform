@@ -560,12 +560,6 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     enabled: !!user,
   });
 
-  // Auto-open DM inbox on page load if there are unread messages
-  useEffect(() => {
-    if ((dmUnread?.count ?? 0) > 0 && !dmInboxOpen && !dmPartner) {
-      setDmInboxOpen(true);
-    }
-  }, [dmUnread?.count]);
 
   // DM conversations list
   const { data: dmConversations = [] } = useQuery<any[]>({
