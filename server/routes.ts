@@ -1352,8 +1352,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const msg = await storage.sendDm(req.session.userId, toId, content.trim());
     const sender = await storage.getUserById(req.session.userId);
     const recipient = await storage.getUserById(toId);
-    if (sender && recipient) sendDmNotificationEmail(sender, recipient).catch(() => {});
+    if (sender && recipient) sendDmNotificationEmail(sender, recipient).catch((e: any) => console.error('[dm] notification failed:', e.message));
     return res.json(msg);
+  });
+
+  // POST /api/admin/dm/clear-throttle — admin clears DM email throttle records
+  app.post("/api/admin/dm/clear-throttle", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { pool } = await import("./db");
+    await pool.query(`DELETE FROM dm_notifications`);
+    return res.json({ ok: true, message: "DM email throttle cleared" });
   });
 
   // ─── REACTIONS ─────────────────────────────────────────────────────────────
