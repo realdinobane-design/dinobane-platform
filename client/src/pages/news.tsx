@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ExternalLink, RefreshCw, AlertCircle, Flame, EyeOff, Clock, Search, Youtube, X } from "lucide-react";
+import { ExternalLink, RefreshCw, AlertCircle, Flame, EyeOff, Clock, Search, Youtube, X, Bookmark, BookmarkCheck } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/App";
@@ -206,11 +206,13 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
 }
 
 // ─── STORY CARD ───────────────────────────────────────────────────────────────
-function StoryCard({ item, index, isAdmin, onBlock }: {
+function StoryCard({ item, index, isAdmin, onBlock, isBookmarked, onBookmark }: {
   item: NewsItem;
   index: number;
   isAdmin?: boolean;
   onBlock?: (link: string) => void;
+  isBookmarked?: boolean;
+  onBookmark?: (item: NewsItem) => void;
 }) {
   const meta = SOURCE_META[item.source];
   const accentColor = meta?.color || "#cc2a2a";
@@ -314,6 +316,23 @@ function StoryCard({ item, index, isAdmin, onBlock }: {
             {stripHtml(item.description)}
           </p>
         )}
+        {/* Bookmark button */}
+        {onBookmark && (
+          <div className="mt-3 flex justify-end">
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBookmark(item); }}
+              className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded transition-colors ${
+                isBookmarked
+                  ? "text-[#f0c800] bg-yellow-500/10 border border-yellow-500/20"
+                  : "text-[#444] hover:text-[#f0c800] border border-transparent hover:border-yellow-500/20"
+              }`}
+              title={isBookmarked ? "Remove bookmark" : "Save for later"}
+            >
+              {isBookmarked ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+              {isBookmarked ? "Saved" : "Save"}
+            </button>
+          </div>
+        )}
       </div>
     </a>
     </div>
@@ -400,10 +419,25 @@ export default function NewsPage() {
 
   const blockMutation = useMutation({
     mutationFn: (link: string) =>
-      apiRequest("/api/admin/intel/block", { method: "POST", body: JSON.stringify({ url: link }) }),
+      apiRequest("POST", "/api/admin/intel/block", { url: link }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] });
     },
+  });
+
+  // Bookmarks
+  const { data: bookmarks = [] } = useQuery<{ storyLink: string }[]>({
+    queryKey: ["/api/bookmarks"],
+    queryFn: () => apiRequest("GET", "/api/bookmarks").then(r => r.json()),
+    enabled: !!user,
+    staleTime: 30000,
+  });
+  const bookmarkedLinks = new Set(bookmarks.map((b: any) => b.storyLink));
+
+  const bookmarkMutation = useMutation({
+    mutationFn: (item: NewsItem) =>
+      apiRequest("POST", "/api/bookmarks", { storyLink: item.link, storyTitle: item.title, storySource: item.source }).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/bookmarks"] }),
   });
 
   const { data: items, isLoading, isError, dataUpdatedAt } = useQuery<NewsItem[]>({
@@ -685,7 +719,7 @@ export default function NewsPage() {
               {!isLoading && sorted.length > 0 && (
                 <div className="space-y-4">
                   {sorted.map((item, i) => (
-                    <StoryCard key={`${item.link}-${i}`} item={item} index={i} isAdmin={isAdmin} onBlock={(link) => blockMutation.mutate(link)} />
+                    <StoryCard key={`${item.link}-${i}`} item={item} index={i} isAdmin={isAdmin} onBlock={(link) => blockMutation.mutate(link)} isBookmarked={bookmarkedLinks.has(item.link)} onBookmark={user ? (item) => bookmarkMutation.mutate(item) : undefined} />
                   ))}
                 </div>
               )}

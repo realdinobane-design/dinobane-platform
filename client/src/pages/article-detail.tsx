@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Youtube, Copy, Check } from "lucide-react";
+import { ArrowLeft, Youtube, Copy, Check, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
@@ -91,6 +91,21 @@ export default function ArticleDetailPage() {
           {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
           {copied ? "Copied!" : "Copy Link"}
         </Button>
+        {/* Native share (Web Share API — works on mobile, falls back gracefully on desktop) */}
+        {typeof navigator !== "undefined" && navigator.share && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2 border-border"
+            onClick={() => navigator.share({
+              title: article.title,
+              text: article.summary,
+              url: window.location.href,
+            }).catch(() => {})}
+          >
+            <Share2 size={14} /> Share
+          </Button>
+        )}
       </div>
 
       {/* Thumbnail */}

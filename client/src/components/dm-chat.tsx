@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, Loader2, MessageSquare } from "lucide-react";
+import { X, Send, Loader2, MessageSquare, Check, CheckCheck } from "lucide-react";
 import { ReactionBar } from "./reaction-bar";
 import { formatDistanceToNow } from "date-fns";
 
@@ -137,9 +137,17 @@ export function DmChat({ currentUser, partner, onClose }: DmChatProps) {
                 {msg.content}
               </div>
               <ReactionBar dmId={msg.id} currentUserId={currentUser.id} />
-              <time className="text-[10px] text-[#444] mt-0.5 px-1">
-                {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
-              </time>
+              <div className="flex items-center gap-1 mt-0.5 px-1">
+                <time className="text-[10px] text-[#444]">
+                  {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+                </time>
+                {/* Read receipt — only show on sender's messages */}
+                {isMe && (
+                  msg.readAt
+                    ? <CheckCheck size={11} className="text-[#4ade80]" title={`Read ${formatDistanceToNow(new Date(msg.readAt), { addSuffix: true })}`} />
+                    : <Check size={11} className="text-[#444]" title="Delivered" />
+                )}
+              </div>
             </div>
           );
         })}

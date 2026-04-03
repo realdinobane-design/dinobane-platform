@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Crown, Hash, Send, Users, Loader2, Image as ImageIcon, X,
   ChevronDown, Star, MessageSquare, Newspaper,
-  Video, Coffee, Shield, CornerDownRight, ChevronRight, Trash2,
+  Video, Coffee, Shield, CornerDownRight, ChevronRight, Trash2, Search,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useEffect, useRef } from "react";
@@ -322,7 +322,10 @@ function ReplyThread({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-0.5">
                       <span className="text-xs font-bold text-white">{reply.user.displayName}</span>
-                      <time className="text-[10px] text-zinc-600">
+                      <time
+                        className="text-[10px] text-zinc-600 cursor-help"
+                        title={new Date(reply.createdAt).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }) + " GMT"}
+                      >
                         {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                       </time>
                       {canDeleteReply && (
@@ -421,7 +424,10 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-bold text-white leading-none">{msg.user.displayName}</span>
               <span className="text-[10px] text-zinc-600">@{msg.user.username}</span>
-              <time className="text-[10px] text-zinc-600 ml-auto">
+              <time
+                className="text-[10px] text-zinc-600 ml-auto cursor-help"
+                title={new Date(msg.createdAt).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }) + " GMT"}
+              >
                 {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
               </time>
               {canDelete && (
@@ -599,13 +605,20 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     staleTime: 15000,
   });
 
-  // WebSocket live updates for new top-level posts
+  // Online presence state (userId set)
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<number>>(new Set());
+
+  // WebSocket live updates for new top-level posts + presence
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     let ws: WebSocket;
     try {
       ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        // Register presence
+        if (user?.id) ws.send(JSON.stringify({ type: "auth", userId: user.id }));
+      };
       ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
         if (data.type === "new_message" && data.message.channel === activeChannel && !data.message.parentId) {
@@ -614,16 +627,19 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
             return [...old, data.message];
           });
         }
-        // If it's a reply, invalidate the reply cache for that parent
         if (data.type === "new_message" && data.message.parentId) {
           qc.invalidateQueries({ queryKey: ["/api/messages", data.message.parentId, "replies"] });
+        }
+        if (data.type === "presence" && Array.isArray(data.onlineUserIds)) {
+          setOnlineUserIds(new Set(data.onlineUserIds));
         }
       };
     } catch {}
     return () => { try { ws?.close(); } catch {} };
-  }, [activeChannel]);
+  }, [activeChannel, user?.id]);
 
   const { toast } = useToast();
+  const [postSearch, setPostSearch] = useState("");
 
   // Post new top-level message
   const sendMutation = useMutation({
@@ -754,13 +770,18 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                     title={`@mention ${m.username}`}
                     data-testid={`button-member-${m.id}`}
                   >
-                    <div
-                      className="h-6 w-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10"
-                      style={{ background: m.avatarColor, fontSize: 9, fontWeight: 700 }}
-                    >
-                      {m.avatarUrl
-                        ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
-                        : m.avatarInitials}
+                    <div className="relative shrink-0">
+                      <div
+                        className="h-6 w-6 rounded-full overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10"
+                        style={{ background: m.avatarColor, fontSize: 9, fontWeight: 700 }}
+                      >
+                        {m.avatarUrl
+                          ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
+                          : m.avatarInitials}
+                      </div>
+                      {onlineUserIds.has(m.id) && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full ring-1 ring-[#0d0d0d]" />
+                      )}
                     </div>
                     <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">@{m.username}</p>
                   </button>
@@ -917,6 +938,24 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
 
         {/* ── POSTS FEED ── */}
         <div className="flex-1 overflow-y-auto">
+          {/* Search bar */}
+          <div className="sticky top-0 z-10 bg-[#0a0a0a] border-b border-[#1a1a1a] px-4 py-2">
+            <div className="max-w-2xl mx-auto relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+              <input
+                type="text"
+                value={postSearch}
+                onChange={e => setPostSearch(e.target.value)}
+                placeholder="Search messages..."
+                className="w-full bg-[#111] border border-[#222] rounded-sm pl-8 pr-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#cc2a2a]/50 transition-colors"
+              />
+              {postSearch && (
+                <button onClick={() => setPostSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#555] hover:text-white">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
           <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
@@ -931,16 +970,18 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 <p className="text-sm text-zinc-600 mt-1">Be the first to post here.</p>
               </div>
             ) : (
-              posts.map(post => (
-                <PostCard
-                  key={post.id}
-                  msg={post}
-                  channel={activeChannel}
-                  user={user}
-                  replyCount={replyCounts[post.id] ?? 0}
-                  onDm={(partner) => user && partner.id !== user.id && setDmPartner(partner)}
-                />
-              ))
+              posts
+                .filter(p => !postSearch || p.content.toLowerCase().includes(postSearch.toLowerCase()) || p.user.displayName.toLowerCase().includes(postSearch.toLowerCase()))
+                .map(post => (
+                  <PostCard
+                    key={post.id}
+                    msg={post}
+                    channel={activeChannel}
+                    user={user}
+                    replyCount={replyCounts[post.id] ?? 0}
+                    onDm={(partner) => user && partner.id !== user.id && setDmPartner(partner)}
+                  />
+                ))
             )}
             <div ref={feedEndRef} />
           </div>
@@ -1057,16 +1098,24 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
             )}
             {membersList.map(m => (
               <div key={m.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#1a1a1a] last:border-0">
-                <div
-                  className="h-10 w-10 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10 font-bold text-xs"
-                  style={{ background: m.avatarColor }}
-                >
-                  {m.avatarUrl
-                    ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
-                    : m.avatarInitials}
+                <div className="relative shrink-0">
+                  <div
+                    className="h-10 w-10 rounded-full overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10 font-bold text-xs"
+                    style={{ background: m.avatarColor }}
+                  >
+                    {m.avatarUrl
+                      ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
+                      : m.avatarInitials}
+                  </div>
+                  {onlineUserIds.has(m.id) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full ring-2 ring-[#0f0f0f]" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold truncate">{m.displayName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white text-sm font-semibold truncate">{m.displayName}</p>
+                    {onlineUserIds.has(m.id) && <span className="text-green-400 text-[9px] font-bold">Online</span>}
+                  </div>
                   <p className="text-[#555] text-xs">@{m.username}</p>
                 </div>
                 {user && m.id !== user.id && (

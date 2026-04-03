@@ -126,6 +126,17 @@ export const dmNotifications = pgTable("dm_notifications", {
 
 export type DmNotification = typeof dmNotifications.$inferSelect;
 
+// ─── INTEL BOOKMARKS ──────────────────────────────────────────────────
+export const intelBookmarks = pgTable("intel_bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  storyLink: text("story_link").notNull(),
+  storyTitle: text("story_title").notNull(),
+  storySource: text("story_source").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type IntelBookmark = typeof intelBookmarks.$inferSelect;
+
 // ─── APP SETTINGS ─────────────────────────────────────────────────────────────
 // Generic key-value store for admin-configurable settings
 export const appSettings = pgTable("app_settings", {

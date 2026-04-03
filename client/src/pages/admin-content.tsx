@@ -63,6 +63,7 @@ function ArticlesTab() {
   const qc = useQueryClient();
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [confirmLabel, setConfirmLabel] = useState("");
+  const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
 
   const { data: articles = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/articles"],
@@ -76,6 +77,24 @@ function ArticlesTab() {
       toast({ title: "Article deleted" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const regenMutation = useMutation({
+    mutationFn: async (a: any) => {
+      if (!a.youtubeUrl) throw new Error("No YouTube URL for this article");
+      setRegeneratingId(a.id);
+      const res = await apiRequest("POST", "/api/articles/generate", { youtubeUrl: a.youtubeUrl });
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/articles"] });
+      toast({ title: "Article regenerated" });
+      setRegeneratingId(null);
+    },
+    onError: (e: any) => {
+      toast({ title: "Regeneration failed", description: e.message, variant: "destructive" });
+      setRegeneratingId(null);
+    },
   });
 
   if (isLoading) return <p className="text-[#555] text-sm py-8 text-center">Loading articles...</p>;
@@ -96,13 +115,25 @@ function ArticlesTab() {
                 {a.publishedAt ? new Date(a.publishedAt).toLocaleDateString("en-GB") : ""}
               </p>
             </div>
-            <button
-              onClick={() => { setConfirmId(a.id); setConfirmLabel(a.title); }}
-              className="shrink-0 text-[#444] hover:text-red-500 transition-colors p-1.5 rounded hover:bg-red-500/10"
-              title="Delete article"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {a.youtubeUrl && (
+                <button
+                  onClick={() => regenMutation.mutate(a)}
+                  disabled={regeneratingId === a.id}
+                  className="text-[#444] hover:text-[#f0c800] transition-colors p-1.5 rounded hover:bg-yellow-500/10 disabled:opacity-50"
+                  title="Regenerate article from transcript"
+                >
+                  <RefreshCw className={`w-4 h-4 ${regeneratingId === a.id ? "animate-spin text-[#f0c800]" : ""}`} />
+                </button>
+              )}
+              <button
+                onClick={() => { setConfirmId(a.id); setConfirmLabel(a.title); }}
+                className="text-[#444] hover:text-red-500 transition-colors p-1.5 rounded hover:bg-red-500/10"
+                title="Delete article"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </div>

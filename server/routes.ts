@@ -210,6 +210,25 @@ async function ensureReactionsTable() {
 }
 ensureReactionsTable();
 
+async function ensureBookmarksTable() {
+  const { pool } = await import("./db");
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS intel_bookmarks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        story_link TEXT NOT NULL,
+        story_title TEXT NOT NULL,
+        story_source TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE(user_id, story_link)
+      )
+    `);
+    console.log("[bookmarks] table ready");
+  } catch (e: any) { console.warn("[bookmarks] table setup failed:", e.message); }
+}
+ensureBookmarksTable();
+
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
@@ -1411,6 +1430,42 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!ALLOWED_EMOJIS.includes(emoji)) return res.status(400).json({ error: "Invalid emoji" });
     const result = await storage.toggleReaction(req.session.userId, emoji, messageId, dmId);
     return res.json(result);
+  });
+
+  // ─── INTEL BOOKMARKS ─────────────────────────────────────────────────────────
+
+  // GET /api/bookmarks — get current user's bookmarks
+  app.get("/api/bookmarks", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const { pool } = await import("./db");
+    const r = await pool.query(
+      `SELECT * FROM intel_bookmarks WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.session.userId]
+    );
+    return res.json(r.rows.map(row => ({ id: row.id, storyLink: row.story_link, storyTitle: row.story_title, storySource: row.story_source, createdAt: row.created_at })));
+  });
+
+  // POST /api/bookmarks — toggle bookmark (add or remove)
+  app.post("/api/bookmarks", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const { storyLink, storyTitle, storySource } = req.body;
+    if (!storyLink || !storyTitle) return res.status(400).json({ error: "storyLink and storyTitle required" });
+    const { pool } = await import("./db");
+    // Check if exists
+    const existing = await pool.query(
+      `SELECT id FROM intel_bookmarks WHERE user_id = $1 AND story_link = $2`,
+      [req.session.userId, storyLink]
+    );
+    if (existing.rows.length > 0) {
+      await pool.query(`DELETE FROM intel_bookmarks WHERE id = $1`, [existing.rows[0].id]);
+      return res.json({ bookmarked: false });
+    } else {
+      await pool.query(
+        `INSERT INTO intel_bookmarks (user_id, story_link, story_title, story_source) VALUES ($1, $2, $3, $4)`,
+        [req.session.userId, storyLink, storyTitle, storySource || "Unknown"]
+      );
+      return res.json({ bookmarked: true });
+    }
   });
 
   // All routes require admin email. Cancel membership first, then delete account.
@@ -2706,8 +2761,44 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── WEBSOCKET SERVER ─────────────────────────────────────────────────────────
   wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-  wss.on("connection", (ws) => {
+  // Track online users: userId → Set of WebSocket connections
+  const onlineUsers = new Map<number, Set<WebSocket>>();
+
+  function broadcastPresence() {
+    const ids = [...onlineUsers.keys()];
+    broadcast({ type: "presence", onlineUserIds: ids });
+  }
+
+  wss.on("connection", (ws, req) => {
     ws.on("error", () => {});
+    let userId: number | null = null;
+
+    ws.on("message", async (raw) => {
+      try {
+        const msg = JSON.parse(raw.toString());
+        // Client sends { type: "auth", userId } on connect to register presence
+        if (msg.type === "auth" && typeof msg.userId === "number") {
+          userId = msg.userId;
+          if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
+          onlineUsers.get(userId)!.add(ws);
+          broadcastPresence();
+        }
+      } catch {}
+    });
+
+    ws.on("close", () => {
+      if (userId !== null) {
+        const conns = onlineUsers.get(userId);
+        if (conns) {
+          conns.delete(ws);
+          if (conns.size === 0) onlineUsers.delete(userId);
+        }
+        broadcastPresence();
+      }
+    });
+
+    // Send current online list to new connection
+    ws.send(JSON.stringify({ type: "presence", onlineUserIds: [...onlineUsers.keys()] }));
   });
 }
 
