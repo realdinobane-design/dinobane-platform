@@ -531,6 +531,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [draft, setDraft] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(true);
+  const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const [dmPartner, setDmPartner] = useState<any>(null); // active DM chat partner
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
@@ -757,26 +758,53 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
       {/* ── MAIN AREA ── */}
       <div className="flex flex-col flex-1 min-w-0">
 
-        {/* Channel header */}
-        <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] flex items-center gap-3 flex-shrink-0">
+        {/* Channel header — desktop */}
+        <div className="hidden sm:flex px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] items-center gap-3 flex-shrink-0">
           <Hash size={15} className="text-[#cc2a2a]" />
           <span className="font-black text-white text-base" style={{ fontFamily: "'Clash Display', sans-serif" }}>{activeCh.label}</span>
           <div className="w-px h-4 bg-[#333] mx-1" />
-          <p className="text-xs text-zinc-500 hidden sm:block">{activeCh.sub}</p>
+          <p className="text-xs text-zinc-500">{activeCh.sub}</p>
           <div className="ml-auto flex items-center gap-1.5 text-xs text-zinc-500 bg-[#111] border border-[#1e1e1e] rounded-sm px-2.5 py-1">
             <Users size={11} className="text-green-400" />
             <span className="text-green-400 font-semibold">{membersList.length}</span>
             <span>members</span>
           </div>
-          {/* Mobile channel switcher */}
-          <div className="sm:hidden flex gap-1">
+        </div>
+
+        {/* Mobile top bar: horizontally scrollable channel tabs + Members button */}
+        <div className="sm:hidden flex-shrink-0 border-b border-[#1a1a1a] bg-[#0d0d0d]">
+          {/* Current channel name */}
+          <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+            <Hash size={13} className="text-[#cc2a2a] shrink-0" />
+            <span className="font-black text-white text-sm" style={{ fontFamily: "'Clash Display', sans-serif" }}>{activeCh.label}</span>
+          </div>
+          {/* Scrollable tabs row */}
+          <div className="flex items-center overflow-x-auto scrollbar-none pb-2 px-2 gap-1">
             {CHANNELS.map(ch => (
-              <button key={ch.id} onClick={() => setActiveChannel(ch.id)}
-                className={cn("px-2 py-1 text-[10px] rounded-sm font-bold uppercase tracking-wide transition-colors",
-                  activeChannel === ch.id ? "bg-[#cc2a2a]/20 text-[#cc2a2a] border border-[#cc2a2a]/30" : "text-zinc-500 hover:text-zinc-300 border border-transparent")}>
-                #{ch.id.split("-")[0]}
+              <button
+                key={ch.id}
+                onClick={() => setActiveChannel(ch.id)}
+                className={cn(
+                  "shrink-0 px-3 py-1.5 text-[11px] rounded-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap",
+                  activeChannel === ch.id
+                    ? "bg-[#cc2a2a]/20 text-[#cc2a2a] border border-[#cc2a2a]/30"
+                    : "text-zinc-500 hover:text-zinc-300 border border-[#222]"
+                )}
+              >
+                #{ch.label}
               </button>
             ))}
+            {/* Members button — opens member list modal */}
+            <button
+              onClick={() => setMobileMembersOpen(true)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-sm font-bold uppercase tracking-wide border border-[#222] text-zinc-500 hover:text-[#f0c800] hover:border-[#f0c800]/30 transition-colors whitespace-nowrap ml-1"
+            >
+              <Users size={12} />
+              Members
+              {(membersList.length > 0) && (
+                <span className="bg-green-500/20 text-green-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{membersList.length}</span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -877,6 +905,72 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         partner={dmPartner}
         onClose={() => setDmPartner(null)}
       />
+    )}
+
+    {/* Mobile members modal */}
+    {mobileMembersOpen && (
+      <div
+        className="fixed inset-0 z-50 sm:hidden"
+        onClick={() => setMobileMembersOpen(false)}
+      >
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/70" />
+        {/* Sheet slides up from bottom */}
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-[#2a2a2a] rounded-t-xl max-h-[70vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Handle */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 bg-[#333] rounded-full" />
+          </div>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f1f1f]">
+            <div className="flex items-center gap-2">
+              <Users size={15} className="text-green-400" />
+              <span className="text-white font-bold text-sm">Members</span>
+              <span className="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full font-bold">{membersList.length}</span>
+            </div>
+            <button onClick={() => setMobileMembersOpen(false)} className="text-[#555] hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+          {/* Member list */}
+          <div className="overflow-y-auto flex-1 py-2">
+            {membersList.length === 0 && (
+              <p className="text-[#555] text-sm text-center py-8">No members yet.</p>
+            )}
+            {membersList.map(m => (
+              <div key={m.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#1a1a1a] last:border-0">
+                <div
+                  className="h-10 w-10 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10 font-bold text-xs"
+                  style={{ background: m.avatarColor }}
+                >
+                  {m.avatarUrl
+                    ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
+                    : m.avatarInitials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-semibold truncate">{m.displayName}</p>
+                  <p className="text-[#555] text-xs">@{m.username}</p>
+                </div>
+                {user && m.id !== user.id && (
+                  <button
+                    onClick={() => {
+                      setDmPartner(m);
+                      setMobileMembersOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#cc2a2a]/10 hover:bg-[#cc2a2a]/20 border border-[#cc2a2a]/30 text-[#cc2a2a] text-xs font-bold rounded transition-colors shrink-0"
+                  >
+                    <MessageSquare size={12} />
+                    Message
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     )}
     </>
   );

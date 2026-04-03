@@ -120,6 +120,10 @@
 }
 
 /* Scrollbar */
+/* Hide scrollbar utility for mobile horizontal scroll */
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(0 0% 20%); border-radius: 9999px; }
