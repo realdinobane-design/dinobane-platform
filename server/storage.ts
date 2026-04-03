@@ -3,10 +3,12 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import {
   users, messages, articles, media, mediaLikes, mediaComments, appSettings,
+  privateMessages, dmNotifications,
   type User, type InsertUser,
   type Message, type InsertMessage,
   type Article, type InsertArticle,
   type Media, type MediaLike, type MediaComment,
+  type PrivateMessage,
 } from "@shared/schema";
 
 // ─── INTERFACE ────────────────────────────────────────────────────────────────
@@ -51,6 +53,15 @@ export interface IStorage {
   getAllArticles(): Promise<Article[]>;
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
+
+  // Private DMs
+  getDmHistory(userA: number, userB: number): Promise<(PrivateMessage & { from: User; to: User })[]>;
+  sendDm(fromId: number, toId: number, content: string): Promise<PrivateMessage & { from: User; to: User }>;
+  markDmsRead(fromId: number, toId: number): Promise<void>;
+  getUnreadDmCount(userId: number): Promise<number>;
+  getDmEmailSentToday(fromId: number, toId: number): Promise<boolean>;
+  recordDmEmailSent(fromId: number, toId: number): Promise<void>;
+  getDmConversations(userId: number): Promise<{ partnerId: number; partner: User; lastMessage: PrivateMessage; unread: number }[]>;
 }
 
 // ─── DRIZZLE STORAGE ──────────────────────────────────────────────────────────
@@ -338,6 +349,80 @@ class DrizzleStorage implements IStorage {
     await db.insert(appSettings)
       .values({ key, value, updatedAt: new Date() })
       .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  }
+
+  // ─── PRIVATE DMs ─────────────────────────────────────────────────────────────────
+  async getDmHistory(userA: number, userB: number) {
+    const rows = await db.select().from(privateMessages)
+      .where(
+        sql`(${privateMessages.fromId} = ${userA} AND ${privateMessages.toId} = ${userB})
+            OR (${privateMessages.fromId} = ${userB} AND ${privateMessages.toId} = ${userA})`
+      )
+      .orderBy(privateMessages.createdAt);
+    const userIds = [...new Set(rows.flatMap(r => [r.fromId, r.toId]))];
+    const allUsers = userIds.length
+      ? await db.select().from(users).where(sql`${users.id} = ANY(${userIds})`)
+      : [];
+    const userMap = Object.fromEntries(allUsers.map(u => [u.id, u]));
+    return rows.map(r => ({ ...r, from: userMap[r.fromId], to: userMap[r.toId] }));
+  }
+
+  async sendDm(fromId: number, toId: number, content: string) {
+    const [msg] = await db.insert(privateMessages).values({ fromId, toId, content }).returning();
+    const [from] = await db.select().from(users).where(eq(users.id, fromId));
+    const [to] = await db.select().from(users).where(eq(users.id, toId));
+    return { ...msg, from, to };
+  }
+
+  async markDmsRead(fromId: number, toId: number): Promise<void> {
+    await db.update(privateMessages)
+      .set({ readAt: new Date() })
+      .where(and(
+        eq(privateMessages.fromId, fromId),
+        eq(privateMessages.toId, toId),
+        sql`${privateMessages.readAt} IS NULL`
+      ));
+  }
+
+  async getUnreadDmCount(userId: number): Promise<number> {
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(privateMessages)
+      .where(and(
+        eq(privateMessages.toId, userId),
+        sql`${privateMessages.readAt} IS NULL`
+      ));
+    return Number(count);
+  }
+
+  async getDmEmailSentToday(fromId: number, toId: number): Promise<boolean> {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await db.select().from(dmNotifications)
+      .where(and(
+        eq(dmNotifications.fromId, fromId),
+        eq(dmNotifications.toId, toId),
+        sql`${dmNotifications.sentAt} > ${oneDayAgo}`
+      ));
+    return rows.length > 0;
+  }
+
+  async recordDmEmailSent(fromId: number, toId: number): Promise<void> {
+    await db.insert(dmNotifications).values({ fromId, toId });
+  }
+
+  async getDmConversations(userId: number) {
+    // Get all unique conversation partners
+    const rows = await db.select().from(privateMessages)
+      .where(sql`${privateMessages.fromId} = ${userId} OR ${privateMessages.toId} = ${userId}`)
+      .orderBy(desc(privateMessages.createdAt));
+    const partnerIds = [...new Set(rows.map(r => r.fromId === userId ? r.toId : r.fromId))];
+    if (!partnerIds.length) return [];
+    const partners = await db.select().from(users).where(sql`${users.id} = ANY(${partnerIds})`);
+    const partnerMap = Object.fromEntries(partners.map(u => [u.id, u]));
+    return partnerIds.map(pid => {
+      const convoMessages = rows.filter(r => r.fromId === pid || r.toId === pid);
+      const unread = convoMessages.filter(r => r.toId === userId && !r.readAt).length;
+      return { partnerId: pid, partner: partnerMap[pid], lastMessage: convoMessages[0], unread };
+    });
   }
 }
 

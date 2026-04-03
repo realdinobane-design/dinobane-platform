@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/App";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { DmChat } from "@/components/dm-chat";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -380,8 +381,9 @@ function ReplyThread({
 
 // ─── POST CARD ────────────────────────────────────────────────────────────────
 
-function PostCard({ msg, channel, user, replyCount }: {
+function PostCard({ msg, channel, user, replyCount, onDm }: {
   msg: MessageWithUser; channel: string; user: any; replyCount: number;
+  onDm?: (partner: MessageWithUser["user"]) => void;
 }) {
   const isImage = msg.content.startsWith("data:image/");
   const urls = !isImage ? extractUrls(msg.content) : [];
@@ -406,7 +408,13 @@ function PostCard({ msg, channel, user, replyCount }: {
       <div className="px-4 pt-4 pb-3">
         {/* Author row */}
         <div className="flex items-start gap-3">
-          <UserAvatar user={msg.user} size="md" />
+          <button
+            onClick={() => onDm && user && msg.user.id !== user.id && onDm(msg.user)}
+            className={onDm && user && msg.user.id !== user.id ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"}
+            title={onDm && user && msg.user.id !== user.id ? `Message ${msg.user.displayName}` : undefined}
+          >
+            <UserAvatar user={msg.user} size="md" />
+          </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-bold text-white leading-none">{msg.user.displayName}</span>
@@ -523,10 +531,19 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [draft, setDraft] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(true);
+  const [dmPartner, setDmPartner] = useState<any>(null); // active DM chat partner
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Unread DM count badge
+  const { data: dmUnread } = useQuery<{ count: number }>({
+    queryKey: ["/api/dm/unread/count"],
+    queryFn: () => apiRequest("GET", "/api/dm/unread/count").then(r => r.json()),
+    refetchInterval: 15000,
+    enabled: !!user,
+  });
 
   const activeCh = CHANNELS.find(c => c.id === activeChannel) || CHANNELS[0];
 
@@ -630,6 +647,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   };
 
   return (
+    <>
     <div className="flex bg-[#0a0a0a]" style={{ height: "calc(100vh - 4rem)" }}>
 
       {/* ── LEFT SIDEBAR ── */}
@@ -691,23 +709,33 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
             <div className="mt-1 space-y-0.5">
               {membersList.length === 0 && <p className="text-[11px] text-zinc-700 px-3 py-2">No members yet.</p>}
               {membersList.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => insertMention(m.username)}
-                  className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-sm hover:bg-[#111] transition-colors group/mem text-left"
-                  title={`@mention ${m.username}`}
-                  data-testid={`button-member-${m.id}`}
-                >
-                  <div
-                    className="h-6 w-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10"
-                    style={{ background: m.avatarColor, fontSize: 9, fontWeight: 700 }}
+                <div key={m.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => insertMention(m.username)}
+                    className="flex-1 flex items-center gap-2.5 px-2 py-1.5 rounded-sm hover:bg-[#111] transition-colors group/mem text-left"
+                    title={`@mention ${m.username}`}
+                    data-testid={`button-member-${m.id}`}
                   >
-                    {m.avatarUrl
-                      ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
-                      : m.avatarInitials}
-                  </div>
-                  <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">@{m.username}</p>
-                </button>
+                    <div
+                      className="h-6 w-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white ring-1 ring-white/10"
+                      style={{ background: m.avatarColor, fontSize: 9, fontWeight: 700 }}
+                    >
+                      {m.avatarUrl
+                        ? <img src={m.avatarUrl} alt={m.displayName} className="w-full h-full object-cover" />
+                        : m.avatarInitials}
+                    </div>
+                    <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">@{m.username}</p>
+                  </button>
+                  {user && m.id !== user.id && (
+                    <button
+                      onClick={() => setDmPartner(m)}
+                      title={`Message ${m.displayName}`}
+                      className="p-1 text-[#333] hover:text-[#f0c800] transition-colors rounded shrink-0"
+                    >
+                      <MessageSquare size={12} />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -832,6 +860,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                   channel={activeChannel}
                   user={user}
                   replyCount={replyCounts[post.id] ?? 0}
+                  onDm={(partner) => user && partner.id !== user.id && setDmPartner(partner)}
                 />
               ))
             )}
@@ -840,5 +869,15 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         </div>
       </div>
     </div>
+
+    {/* Floating DM chat window — floats above page, can be closed without affecting content */}
+    {dmPartner && user && (
+      <DmChat
+        currentUser={user}
+        partner={dmPartner}
+        onClose={() => setDmPartner(null)}
+      />
+    )}
+    </>
   );
 }

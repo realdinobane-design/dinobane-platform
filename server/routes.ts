@@ -161,6 +161,34 @@ async function ensureAppSettingsTable() {
 }
 ensureAppSettingsTable();
 
+async function ensureDmTables() {
+  const { pool } = await import("./db");
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS private_messages (
+        id SERIAL PRIMARY KEY,
+        from_id INTEGER NOT NULL,
+        to_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        read_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS dm_notifications (
+        id SERIAL PRIMARY KEY,
+        from_id INTEGER NOT NULL,
+        to_id INTEGER NOT NULL,
+        sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS dm_from_to ON private_messages(from_id, to_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS dm_to_unread ON private_messages(to_id) WHERE read_at IS NULL`);
+    console.log("[dm] tables ready");
+  } catch (e: any) { console.warn("[dm] table setup failed:", e.message); }
+}
+ensureDmTables();
+
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
@@ -1231,6 +1259,82 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── ADMIN USER MANAGEMENT ────────────────────────────────────────────────────
+
+  // ─── PRIVATE DIRECT MESSAGES ─────────────────────────────────────────────────
+
+  // Send DM notification email (max 1 per day per sender→recipient pair)
+  async function sendDmNotificationEmail(fromUser: any, toUser: any) {
+    if (!resend || !toUser?.email) return;
+    const alreadySent = await storage.getDmEmailSentToday(fromUser.id, toUser.id);
+    if (alreadySent) return;
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+    try {
+      await resend.emails.send({
+        from: "DinoBane <noreply@dinobane.com>",
+        to: toUser.email,
+        subject: `💬 New private message from ${fromUser.displayName}`,
+        attachments: [logoAttachment()],
+        html: emailWrapper(`
+          ${emailHeader("You have a private message")}
+          <tr><td style="padding:32px 40px 24px;">
+            <p style="margin:0 0 16px;font-size:16px;color:#e0e0e0;line-height:1.6;">
+              <strong style="color:#fff;">${fromUser.displayName}</strong> sent you a private message on DinoBane.
+            </p>
+            <p style="margin:0 0 24px;font-size:14px;color:#888;">Log in to read it and reply.</p>
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr><td style="background:#cc2a2a;border-radius:3px;">
+                <a href="${appUrl}/#/community" style="display:inline-block;padding:14px 28px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.05em;text-transform:uppercase;">Read Message</a>
+              </td></tr>
+            </table>
+          </td></tr>
+          ${emailFooter()}
+        `),
+      });
+      await storage.recordDmEmailSent(fromUser.id, toUser.id);
+      console.log(`[dm] notification email sent: ${fromUser.email} → ${toUser.email}`);
+    } catch (e: any) {
+      console.error(`[dm] email failed: ${e.message}`);
+    }
+  }
+
+  // GET /api/dm/unread/count — total unread DM count for current user
+  app.get("/api/dm/unread/count", async (req, res) => {
+    if (!req.session.userId) return res.json({ count: 0 });
+    const count = await storage.getUnreadDmCount(req.session.userId);
+    return res.json({ count });
+  });
+
+  // GET /api/dm/conversations — list all DM conversations
+  app.get("/api/dm/conversations", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const convos = await storage.getDmConversations(req.session.userId);
+    return res.json(convos);
+  });
+
+  // GET /api/dm/:userId — fetch DM history with a specific user
+  app.get("/api/dm/:userId", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const otherId = parseInt(req.params.userId);
+    if (isNaN(otherId)) return res.status(400).json({ error: "Invalid user ID" });
+    const msgs = await storage.getDmHistory(req.session.userId, otherId);
+    await storage.markDmsRead(otherId, req.session.userId);
+    return res.json(msgs);
+  });
+
+  // POST /api/dm/:userId — send a DM to a user
+  app.post("/api/dm/:userId", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const toId = parseInt(req.params.userId);
+    if (isNaN(toId) || toId === req.session.userId) return res.status(400).json({ error: "Invalid recipient" });
+    const { content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: "Message cannot be empty" });
+    const msg = await storage.sendDm(req.session.userId, toId, content.trim());
+    const sender = await storage.getUserById(req.session.userId);
+    const recipient = await storage.getUserById(toId);
+    if (sender && recipient) sendDmNotificationEmail(sender, recipient).catch(() => {});
+    return res.json(msg);
+  });
+
   // All routes require admin email. Cancel membership first, then delete account.
   const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 

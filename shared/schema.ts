@@ -91,6 +91,28 @@ export const insertMediaCommentSchema = createInsertSchema(mediaComments).omit({
 export type InsertMediaComment = z.infer<typeof insertMediaCommentSchema>;
 export type MediaComment = typeof mediaComments.$inferSelect;
 
+// ─── PRIVATE MESSAGES (DMs) ────────────────────────────────────────────────
+export const privateMessages = pgTable("private_messages", {
+  id: serial("id").primaryKey(),
+  fromId: integer("from_id").notNull(),
+  toId: integer("to_id").notNull(),
+  content: text("content").notNull(),
+  readAt: timestamp("read_at"),          // null = unread
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type PrivateMessage = typeof privateMessages.$inferSelect;
+
+// ─── DM EMAIL NOTIFICATION THROTTLE ─────────────────────────────────────
+export const dmNotifications = pgTable("dm_notifications", {
+  id: serial("id").primaryKey(),
+  fromId: integer("from_id").notNull(),   // sender
+  toId: integer("to_id").notNull(),       // recipient
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+});
+
+export type DmNotification = typeof dmNotifications.$inferSelect;
+
 // ─── APP SETTINGS ─────────────────────────────────────────────────────────────
 // Generic key-value store for admin-configurable settings
 export const appSettings = pgTable("app_settings", {
