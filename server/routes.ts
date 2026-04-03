@@ -1290,31 +1290,54 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (alreadySent) return;
     const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
     try {
+      const html = emailWrapper(`
+        ${emailHeader("Private Message")}
+        <tr>
+          <td style="padding:32px 28px 24px;">
+            <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#cc2a2a;text-transform:uppercase;letter-spacing:0.08em;">New Message</p>
+            <p style="margin:0 0 20px;font-size:22px;font-weight:900;color:#fff;line-height:1.2;">
+              ${fromUser.displayName} sent you a message
+            </p>
+            <p style="margin:0 0 28px;font-size:15px;color:#aaa;line-height:1.6;">
+              You have a new private message waiting on DinoBane. Log in to read it and reply.
+            </p>
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background:#cc2a2a;border-radius:3px;">
+                  <a href="${appUrl}/#/community"
+                     style="display:inline-block;padding:14px 32px;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;">
+                    Read &amp; Reply
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 28px 28px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #2a2a2a;border-radius:3px;background:#141414;">
+              <tr>
+                <td style="padding:14px 18px;">
+                  <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">Sent by</p>
+                  <p style="margin:0;font-size:13px;color:#888;">${fromUser.displayName} &middot; @${fromUser.username}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        ${emailFooter("&copy; 2026 DinoBane. You received this because a member sent you a private message. <a href=\"${appUrl}/#/community\" style=\"color:#555;text-decoration:underline;\">Log in to manage your messages</a>.")}
+      `);
       await resend.emails.send({
         from: "DinoBane <noreply@dinobane.com>",
         to: toUser.email,
-        subject: `💬 New private message from ${fromUser.displayName}`,
-        attachments: [logoAttachment()],
-        html: emailWrapper(`
-          ${emailHeader("You have a private message")}
-          <tr><td style="padding:32px 40px 24px;">
-            <p style="margin:0 0 16px;font-size:16px;color:#e0e0e0;line-height:1.6;">
-              <strong style="color:#fff;">${fromUser.displayName}</strong> sent you a private message on DinoBane.
-            </p>
-            <p style="margin:0 0 24px;font-size:14px;color:#888;">Log in to read it and reply.</p>
-            <table cellpadding="0" cellspacing="0" border="0">
-              <tr><td style="background:#cc2a2a;border-radius:3px;">
-                <a href="${appUrl}/#/community" style="display:inline-block;padding:14px 28px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.05em;text-transform:uppercase;">Read Message</a>
-              </td></tr>
-            </table>
-          </td></tr>
-          ${emailFooter()}
-        `),
+        subject: `New message from ${fromUser.displayName} on DinoBane`,
+        attachments: logoAttachment(),
+        html,
       });
       await storage.recordDmEmailSent(fromUser.id, toUser.id);
       console.log(`[dm] notification email sent: ${fromUser.email} → ${toUser.email}`);
     } catch (e: any) {
-      console.error(`[dm] email failed: ${e.message}`);
+      console.error(`[dm] email failed:`, e.message, e);
     }
   }
 
