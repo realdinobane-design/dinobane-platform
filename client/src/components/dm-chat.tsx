@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { X, Send, Loader2, MessageSquare } from "lucide-react";
+import { ReactionBar } from "./reaction-bar";
 import { formatDistanceToNow } from "date-fns";
 
 interface DmUser {
@@ -135,6 +136,7 @@ export function DmChat({ currentUser, partner, onClose }: DmChatProps) {
               >
                 {msg.content}
               </div>
+              <ReactionBar dmId={msg.id} currentUserId={currentUser.id} />
               <time className="text-[10px] text-[#444] mt-0.5 px-1">
                 {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
               </time>

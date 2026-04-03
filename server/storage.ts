@@ -3,12 +3,12 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import {
   users, messages, articles, media, mediaLikes, mediaComments, appSettings,
-  privateMessages, dmNotifications,
+  privateMessages, dmNotifications, messageReactions,
   type User, type InsertUser,
   type Message, type InsertMessage,
   type Article, type InsertArticle,
   type Media, type MediaLike, type MediaComment,
-  type PrivateMessage,
+  type PrivateMessage, type MessageReaction,
 } from "@shared/schema";
 
 // ─── INTERFACE ────────────────────────────────────────────────────────────────
@@ -62,6 +62,10 @@ export interface IStorage {
   getDmEmailSentToday(fromId: number, toId: number): Promise<boolean>;
   recordDmEmailSent(fromId: number, toId: number): Promise<void>;
   getDmConversations(userId: number): Promise<{ partnerId: number; partner: User; lastMessage: PrivateMessage; unread: number }[]>;
+
+  // Reactions
+  getReactions(messageId?: number, dmId?: number): Promise<MessageReaction[]>;
+  toggleReaction(userId: number, emoji: string, messageId?: number, dmId?: number): Promise<{ added: boolean }>;
 }
 
 // ─── DRIZZLE STORAGE ──────────────────────────────────────────────────────────
@@ -423,6 +427,37 @@ class DrizzleStorage implements IStorage {
       const unread = convoMessages.filter(r => r.toId === userId && !r.readAt).length;
       return { partnerId: pid, partner: partnerMap[pid], lastMessage: convoMessages[0], unread };
     });
+  }
+
+  // ─── REACTIONS ─────────────────────────────────────────────────────────────────
+  async getReactions(messageId?: number, dmId?: number): Promise<MessageReaction[]> {
+    if (messageId !== undefined) {
+      return db.select().from(messageReactions).where(eq(messageReactions.messageId, messageId));
+    } else if (dmId !== undefined) {
+      return db.select().from(messageReactions).where(eq(messageReactions.dmId, dmId));
+    }
+    return [];
+  }
+
+  async toggleReaction(userId: number, emoji: string, messageId?: number, dmId?: number): Promise<{ added: boolean }> {
+    // Check if reaction already exists
+    const conditions = [eq(messageReactions.userId, userId), eq(messageReactions.emoji, emoji)];
+    if (messageId !== undefined) conditions.push(eq(messageReactions.messageId, messageId) as any);
+    if (dmId !== undefined) conditions.push(eq(messageReactions.dmId, dmId) as any);
+
+    const existing = await db.select().from(messageReactions).where(and(...conditions as any));
+    if (existing.length > 0) {
+      await db.delete(messageReactions).where(eq(messageReactions.id, existing[0].id));
+      return { added: false };
+    } else {
+      await db.insert(messageReactions).values({
+        userId,
+        emoji,
+        messageId: messageId ?? null,
+        dmId: dmId ?? null,
+      });
+      return { added: true };
+    }
   }
 }
 

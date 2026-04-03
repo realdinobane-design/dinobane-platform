@@ -3,6 +3,7 @@ import { useAuth } from "@/App";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { DmChat } from "@/components/dm-chat";
+import { ReactionBar } from "@/components/reaction-bar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -352,6 +353,7 @@ function ReplyThread({
                       <img src={reply.content} alt="Image" className="max-w-[240px] max-h-48 rounded-sm border border-[#222] mt-1 object-contain" />
                     )}
                     {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
+                    <ReactionBar messageId={reply.id} currentUserId={user?.id} />
                   </div>
                 </div>
               );
@@ -452,6 +454,11 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Reactions */}
+      <div className="px-4 pb-1">
+        <ReactionBar messageId={msg.id} currentUserId={user?.id} />
       </div>
 
       {/* Reply thread */}

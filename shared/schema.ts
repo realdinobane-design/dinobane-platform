@@ -103,6 +103,19 @@ export const privateMessages = pgTable("private_messages", {
 
 export type PrivateMessage = typeof privateMessages.$inferSelect;
 
+// ─── MESSAGE REACTIONS ─────────────────────────────────────────────────────
+export const messageReactions = pgTable("message_reactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  // One of: messageId (community) or dmId (private)
+  messageId: integer("message_id"),   // community message
+  dmId: integer("dm_id"),             // private DM message
+  emoji: text("emoji").notNull(),     // e.g. "👍", "🔥", "😂"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type MessageReaction = typeof messageReactions.$inferSelect;
+
 // ─── DM EMAIL NOTIFICATION THROTTLE ─────────────────────────────────────
 export const dmNotifications = pgTable("dm_notifications", {
   id: serial("id").primaryKey(),

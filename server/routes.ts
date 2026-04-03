@@ -189,6 +189,27 @@ async function ensureDmTables() {
 }
 ensureDmTables();
 
+async function ensureReactionsTable() {
+  const { pool } = await import("./db");
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS message_reactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        message_id INTEGER,
+        dm_id INTEGER,
+        emoji TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS reactions_unique ON message_reactions(user_id, emoji, message_id, dm_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS reactions_message ON message_reactions(message_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS reactions_dm ON message_reactions(dm_id)`);
+    console.log("[reactions] table ready");
+  } catch (e: any) { console.warn("[reactions] table setup failed:", e.message); }
+}
+ensureReactionsTable();
+
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
@@ -1333,6 +1354,31 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const recipient = await storage.getUserById(toId);
     if (sender && recipient) sendDmNotificationEmail(sender, recipient).catch(() => {});
     return res.json(msg);
+  });
+
+  // ─── REACTIONS ─────────────────────────────────────────────────────────────
+
+  // GET /api/reactions?messageId=X  or  ?dmId=X
+  app.get("/api/reactions", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const messageId = req.query.messageId ? parseInt(req.query.messageId as string) : undefined;
+    const dmId = req.query.dmId ? parseInt(req.query.dmId as string) : undefined;
+    if (messageId === undefined && dmId === undefined) return res.status(400).json({ error: "messageId or dmId required" });
+    const reactions = await storage.getReactions(messageId, dmId);
+    return res.json(reactions);
+  });
+
+  // POST /api/reactions — toggle a reaction (add if not present, remove if present)
+  app.post("/api/reactions", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const { emoji, messageId, dmId } = req.body;
+    if (!emoji) return res.status(400).json({ error: "emoji required" });
+    if (messageId === undefined && dmId === undefined) return res.status(400).json({ error: "messageId or dmId required" });
+    // Validate emoji is from the allowed set
+    const ALLOWED_EMOJIS = ["👍","🔥","😂","😡","😮","❤️","👏","🏴‍☠️"];
+    if (!ALLOWED_EMOJIS.includes(emoji)) return res.status(400).json({ error: "Invalid emoji" });
+    const result = await storage.toggleReaction(req.session.userId, emoji, messageId, dmId);
+    return res.json(result);
   });
 
   // All routes require admin email. Cancel membership first, then delete account.
