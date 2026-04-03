@@ -363,11 +363,11 @@ class DrizzleStorage implements IStorage {
             OR (${privateMessages.fromId} = ${userB} AND ${privateMessages.toId} = ${userA})`
       )
       .orderBy(privateMessages.createdAt);
-    const userIds = [...new Set(rows.flatMap(r => [r.fromId, r.toId]))];
-    const allUsers = userIds.length
-      ? await db.select().from(users).where(sql`${users.id} = ANY(${userIds})`)
-      : [];
-    const userMap = Object.fromEntries(allUsers.map(u => [u.id, u]));
+    if (!rows.length) return [];
+    // Fetch both users individually to avoid array type issues
+    const [fromUser] = await db.select().from(users).where(eq(users.id, userA));
+    const [toUser] = await db.select().from(users).where(eq(users.id, userB));
+    const userMap: Record<number, any> = { [userA]: fromUser, [userB]: toUser };
     return rows.map(r => ({ ...r, from: userMap[r.fromId], to: userMap[r.toId] }));
   }
 
@@ -420,7 +420,7 @@ class DrizzleStorage implements IStorage {
       .orderBy(desc(privateMessages.createdAt));
     const partnerIds = [...new Set(rows.map(r => r.fromId === userId ? r.toId : r.fromId))];
     if (!partnerIds.length) return [];
-    const partners = await db.select().from(users).where(sql`${users.id} = ANY(${partnerIds})`);
+    const partners = await db.select().from(users).where(sql`${users.id} = ANY(ARRAY[${sql.join(partnerIds.map(id => sql`${id}`), sql`, `)}]::int[])`);
     const partnerMap = Object.fromEntries(partners.map(u => [u.id, u]));
     return partnerIds.map(pid => {
       const convoMessages = rows.filter(r => r.fromId === pid || r.toId === pid);
