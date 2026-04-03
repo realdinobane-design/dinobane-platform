@@ -540,6 +540,10 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [membersOpen, setMembersOpen] = useState(true);
   const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const [dmPartner, setDmPartner] = useState<any>(null); // active DM chat partner
+  // Auto-open DM inbox if navigated here with ?dm=inbox (from nav badge)
+  const hashParams = typeof window !== "undefined" ? window.location.hash.split("?")[1] : "";
+  const openInbox = new URLSearchParams(hashParams).get("dm") === "inbox";
+  const [dmInboxOpen, setDmInboxOpen] = useState(openInbox);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -549,6 +553,14 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const { data: dmUnread } = useQuery<{ count: number }>({
     queryKey: ["/api/dm/unread/count"],
     queryFn: () => apiRequest("GET", "/api/dm/unread/count").then(r => r.json()),
+    refetchInterval: 15000,
+    enabled: !!user,
+  });
+
+  // DM conversations list
+  const { data: dmConversations = [] } = useQuery<any[]>({
+    queryKey: ["/api/dm/conversations"],
+    queryFn: () => apiRequest("GET", "/api/dm/conversations").then(r => r.json()),
     refetchInterval: 15000,
     enabled: !!user,
   });
@@ -700,6 +712,24 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
 
         <div className="border-t border-[#1a1a1a] mx-3 my-2" />
 
+        {/* DM Inbox button (desktop sidebar) */}
+        {user && (
+          <div className="px-3 pb-2">
+            <button
+              onClick={() => setDmInboxOpen(true)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-sm bg-[#0d0d0d] hover:bg-[#111] border border-[#1f1f1f] transition-colors group"
+            >
+              <MessageSquare size={13} className="text-[#555] group-hover:text-[#f0c800] transition-colors shrink-0" />
+              <span className="flex-1 text-[10px] font-black uppercase tracking-widest text-[#555] group-hover:text-[#f0c800] text-left transition-colors">Messages</span>
+              {(dmUnread?.count ?? 0) > 0 && (
+                <span className="bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                  {dmUnread!.count > 9 ? "9+" : dmUnread!.count}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
         {/* Members collapsible */}
         <div className="px-3 pb-2 flex-1 overflow-y-auto">
           <button
@@ -812,6 +842,19 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 <span className="bg-green-500/20 text-green-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{membersList.length}</span>
               )}
             </button>
+            {/* Messages button — opens DM inbox */}
+            {user && (
+              <button
+                onClick={() => setDmInboxOpen(true)}
+                className="shrink-0 relative flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-sm font-bold uppercase tracking-wide border border-[#222] text-zinc-500 hover:text-[#f0c800] hover:border-[#f0c800]/30 transition-colors whitespace-nowrap"
+              >
+                <MessageSquare size={12} />
+                Messages
+                {(dmUnread?.count ?? 0) > 0 && (
+                  <span className="bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-1">{dmUnread!.count > 9 ? "9+" : dmUnread!.count}</span>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -912,6 +955,71 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         partner={dmPartner}
         onClose={() => setDmPartner(null)}
       />
+    )}
+
+    {/* DM Inbox sheet — shows all conversations, available on all screen sizes */}
+    {dmInboxOpen && (
+      <div className="fixed inset-0 z-50" onClick={() => setDmInboxOpen(false)}>
+        <div className="absolute inset-0 bg-black/70" />
+        <div
+          className="absolute bottom-0 left-0 right-0 md:left-auto md:right-4 md:bottom-4 md:top-auto md:w-[360px] bg-[#0f0f0f] border-t md:border border-[#2a2a2a] rounded-t-xl md:rounded-sm max-h-[70vh] flex flex-col shadow-2xl"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Handle (mobile) */}
+          <div className="flex md:hidden justify-center pt-3 pb-1">
+            <div className="w-10 h-1 bg-[#333] rounded-full" />
+          </div>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f1f1f]">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={15} className="text-[#f0c800]" />
+              <span className="text-white font-bold text-sm">Messages</span>
+              {(dmUnread?.count ?? 0) > 0 && (
+                <span className="bg-[#cc2a2a] text-white text-xs px-2 py-0.5 rounded-full font-bold">{dmUnread!.count} unread</span>
+              )}
+            </div>
+            <button onClick={() => setDmInboxOpen(false)} className="text-[#555] hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+          {/* Conversation list */}
+          <div className="overflow-y-auto flex-1">
+            {dmConversations.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare size={28} className="text-[#333] mb-3" />
+                <p className="text-[#444] text-sm">No messages yet.</p>
+                <p className="text-[#333] text-xs mt-1">Click a member's avatar to start a chat.</p>
+              </div>
+            )}
+            {dmConversations.map((c: any) => (
+              <button
+                key={c.partnerId}
+                onClick={() => { setDmPartner(c.partner); setDmInboxOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 border-b border-[#1a1a1a] last:border-0 hover:bg-[#111] transition-colors text-left"
+              >
+                <div
+                  className="h-10 w-10 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white font-bold text-xs ring-1 ring-white/10"
+                  style={{ background: c.partner?.avatarColor || "#cc2a2a" }}
+                >
+                  {c.partner?.avatarUrl
+                    ? <img src={c.partner.avatarUrl} alt={c.partner.displayName} className="w-full h-full object-cover" />
+                    : c.partner?.avatarInitials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm font-semibold truncate ${c.unread > 0 ? "text-white" : "text-[#aaa]"}`}>{c.partner?.displayName}</p>
+                    {c.unread > 0 && (
+                      <span className="bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 shrink-0">{c.unread}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#555] truncate mt-0.5">{c.lastMessage?.content?.slice(0, 50)}</p>
+                </div>
+                <ChevronRight size={14} className="text-[#333] shrink-0" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     )}
 
     {/* Mobile members modal */}

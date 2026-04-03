@@ -568,14 +568,15 @@ export default function NewsPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* Top bar */}
-          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
-            {/* View filter pills */}
-            <div className="flex items-center gap-1">
+          <div className="flex flex-col border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
+            {/* Scrollable filter row */}
+            <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto scrollbar-none">
+              {/* View filter pills */}
               {(["all", "viral", "suppressed", "latest"] as const).map(v => (
                 <button
                   key={v}
                   onClick={() => setViewFilter(v)}
-                  className={`flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors capitalize ${
+                  className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors capitalize ${
                     viewFilter === v
                       ? "bg-[#cc2a2a] text-white"
                       : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#cc2a2a]/40 hover:text-white"
@@ -588,15 +589,13 @@ export default function NewsPage() {
                   {v === "all" ? "All Stories" : v.charAt(0).toUpperCase() + v.slice(1)}
                 </button>
               ))}
-            </div>
-
-            {/* Source type pills */}
-            <div className="flex items-center gap-1 ml-auto">
+              <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />
+              {/* Source type pills */}
               {SOURCE_FILTERS.map(f => (
                 <button
                   key={f.id}
                   onClick={() => setSourceFilter(f.id)}
-                  className={`text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${
+                  className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${
                     sourceFilter === f.id
                       ? "bg-[#1a1a1a] text-white border border-[#cc2a2a]/50"
                       : "text-zinc-500 border border-transparent hover:text-zinc-300"
@@ -605,31 +604,29 @@ export default function NewsPage() {
                   {f.label}
                 </button>
               ))}
+              {/* Search */}
+              <div className="relative shrink-0 ml-auto">
+                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="bg-[#111] border border-[#222] rounded-sm pl-7 pr-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#cc2a2a]/50 w-28 sm:w-44"
+                  data-testid="news-search"
+                />
+              </div>
+              {/* Refresh */}
+              <button
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] })}
+                disabled={isLoading}
+                className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-zinc-500 hover:text-white border border-[#222] hover:border-[#cc2a2a]/40 px-3 py-1.5 rounded-sm transition-colors"
+                data-testid="news-refresh"
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin text-[#cc2a2a]" : ""}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
             </div>
-
-            {/* Search */}
-            <div className="relative shrink-0 hidden sm:block">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search stories..."
-                className="bg-[#111] border border-[#222] rounded-sm pl-7 pr-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#cc2a2a]/50 w-44"
-                data-testid="news-search"
-              />
-            </div>
-
-            {/* Refresh */}
-            <button
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] })}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 text-[11px] font-bold text-zinc-500 hover:text-white border border-[#222] hover:border-[#cc2a2a]/40 px-3 py-1.5 rounded-sm transition-colors shrink-0"
-              data-testid="news-refresh"
-            >
-              <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin text-[#cc2a2a]" : ""}`} />
-              Refresh
-            </button>
           </div>
 
           {/* Story count bar */}
@@ -762,7 +759,7 @@ export default function NewsPage() {
             <div className="border-t border-[#1a1a1a] my-3" />
 
             {/* Suppressed stories list */}
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">🕵️ Suppressed</div>
+            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Suppressed</div>
             <div className="space-y-1">
               {(items ?? []).filter(isSuppressed).slice(0, 4).map((item, i) => (
                 <a
