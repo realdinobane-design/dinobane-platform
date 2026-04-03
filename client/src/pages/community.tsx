@@ -546,10 +546,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [membersOpen, setMembersOpen] = useState(true);
   const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const [dmPartner, setDmPartner] = useState<any>(null); // active DM chat partner
-  // Auto-open DM inbox if navigated here with ?dm=inbox (from nav badge)
-  const hashParams = typeof window !== "undefined" ? window.location.hash.split("?")[1] : "";
-  const openInbox = new URLSearchParams(hashParams).get("dm") === "inbox";
-  const [dmInboxOpen, setDmInboxOpen] = useState(openInbox);
+  const [dmInboxOpen, setDmInboxOpen] = useState(false);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -562,6 +559,13 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     refetchInterval: 15000,
     enabled: !!user,
   });
+
+  // Auto-open DM inbox on page load if there are unread messages
+  useEffect(() => {
+    if ((dmUnread?.count ?? 0) > 0 && !dmInboxOpen && !dmPartner) {
+      setDmInboxOpen(true);
+    }
+  }, [dmUnread?.count]);
 
   // DM conversations list
   const { data: dmConversations = [] } = useQuery<any[]>({
@@ -1063,10 +1067,10 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
       </div>
     )}
 
-    {/* Mobile members modal */}
+    {/* Members modal — visible on all screen sizes when triggered from mobile bar */}
     {mobileMembersOpen && (
       <div
-        className="fixed inset-0 z-50 md:hidden"
+        className="fixed inset-0 z-50"
         onClick={() => setMobileMembersOpen(false)}
       >
         {/* Backdrop */}

@@ -109,9 +109,9 @@ export function AppNav() {
                   <Crown size={12} /> Member
                 </span>
               )}
-              {/* DM inbox button with unread badge — links to community#messages */}
+              {/* DM inbox button with unread badge — links to community page */}
               {user.isMember && (
-                <Link href="/community?dm=inbox">
+                <Link href="/community">
                   <button
                     className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors"
                     title="Private messages"
