@@ -1931,6 +1931,30 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(await getBlockedLinks());
   });
 
+  // POST /api/admin/setup-test-account — one-time: creates test@dinobane.com as a verified paid member
+  app.post("/api/admin/setup-test-account", async (req, res) => {
+    const secret = req.headers["x-cron-secret"];
+    if (secret !== "DinoBane2026CronSecret") return res.status(403).json({ error: "Forbidden" });
+    const bcrypt = await import("bcryptjs");
+    const hash = await bcrypt.hash("TestMember2026!", 10);
+    const existing = await storage.getUserByEmail("test@dinobane.com");
+    if (existing) {
+      await storage.updateUserMembership(existing.id, true);
+      return res.json({ ok: true, action: "updated", id: existing.id });
+    }
+    const user = await storage.createUser({
+      email: "test@dinobane.com",
+      password: hash,
+      username: "test_member",
+      displayName: "TEST",
+      isMember: true,
+      isVerified: true,
+      avatarColor: "#cc2a2a",
+      avatarInitials: "T",
+    });
+    return res.json({ ok: true, action: "created", id: user.id });
+  });
+
   // GET /api/intel/schedule-info — returns current intel briefing send time (used by cron)
   app.get("/api/intel/schedule-info", async (_req, res) => {
     const sendTimeUtc = await storage.getSetting("intel_briefing_time_utc") || "07:00";

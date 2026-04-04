@@ -15,7 +15,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-white mb-3">1. Who We Are</h2>
-            <p>DinoBane is an independent UK political commentary and news platform available at <strong className="text-white">dinobane.com</strong> and via the DinoBane Android app. We are operated by the DinoBane team. For any privacy-related enquiries, contact us at <a href="mailto:contact@dinobane.com" className="text-[#f0c800] hover:underline">contact@dinobane.com</a>.</p>
+            <p>DinoBane is an independent UK political commentary and news platform available at <strong className="text-white">dinobane.com</strong> and via the DinoBane Android app. We are operated by the DinoBane team. For any privacy-related enquiries, contact us at <a href="mailto:contact@realdinobane.com" className="text-[#f0c800] hover:underline">contact@realdinobane.com</a>.</p>
           </section>
 
           <section>
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
               <li>Request deletion of your account and associated data.</li>
               <li>Cancel your membership subscription at any time from your profile page.</li>
             </ul>
-            <p className="mt-3">To exercise any of these rights, email <a href="mailto:contact@dinobane.com" className="text-[#f0c800] hover:underline">contact@dinobane.com</a>.</p>
+            <p className="mt-3">To exercise any of these rights, email <a href="mailto:contact@realdinobane.com" className="text-[#f0c800] hover:underline">contact@realdinobane.com</a>.</p>
           </section>
 
           <section>
@@ -77,7 +77,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-white mb-3">8. Children</h2>
-            <p>DinoBane is intended for users aged 18 and over. We do not knowingly collect data from children under 13. If you believe a child has provided us with personal data, contact us at <a href="mailto:contact@dinobane.com" className="text-[#f0c800] hover:underline">contact@dinobane.com</a> and we will delete it promptly.</p>
+            <p>DinoBane is intended for users aged 18 and over. We do not knowingly collect data from children under 13. If you believe a child has provided us with personal data, contact us at <a href="mailto:contact@realdinobane.com" className="text-[#f0c800] hover:underline">contact@realdinobane.com</a> and we will delete it promptly.</p>
           </section>
 
           <section>
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-white mb-3">10. Contact</h2>
-            <p>For any privacy questions or requests: <a href="mailto:contact@dinobane.com" className="text-[#f0c800] hover:underline">contact@dinobane.com</a></p>
+            <p>For any privacy questions or requests: <a href="mailto:contact@realdinobane.com" className="text-[#f0c800] hover:underline">contact@realdinobane.com</a></p>
           </section>
 
         </div>
