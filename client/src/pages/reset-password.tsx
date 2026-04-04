@@ -89,9 +89,11 @@ export default function ResetPasswordPage() {
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-6">
-            <svg viewBox="0 0 200 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-10 w-auto" aria-label="DINOBANE">
-              <polygon points="8,4 16,4 24,20 32,4 40,4 28,20 40,36 32,36 24,20 16,36 8,36 20,20" fill="hsl(0 76% 47%)" />
-              <text x="50" y="27" fontFamily="'Clash Display', sans-serif" fontWeight="700" fontSize="17" fill="white" letterSpacing="2">DINOBANE</text>
+            <svg width="56" height="56" viewBox="0 0 100 100" fill="none" aria-label="DinoBane logo">
+              <rect width="100" height="100" rx="8" fill="#0a0a0a"/>
+              <polygon points="15,10 50,45 85,10 95,20 60,55 95,90 85,100 50,65 15,100 5,90 40,55 5,20" fill="#cc2a2a"/>
+              <rect x="18" y="42" width="64" height="16" fill="#0a0a0a"/>
+              <text x="50" y="57" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontSize="15" fontWeight="900" fill="white" letterSpacing="1">DINOBANE</text>
             </svg>
           </Link>
           <h1 className="text-xl font-bold text-foreground tracking-wider uppercase font-display">Set New Password</h1>
