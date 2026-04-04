@@ -229,6 +229,35 @@ async function ensureBookmarksTable() {
 }
 ensureBookmarksTable();
 
+async function ensureBlockReportTables() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS blocked_users (
+        id SERIAL PRIMARY KEY,
+        blocker_id INTEGER NOT NULL,
+        blocked_id INTEGER NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE(blocker_id, blocked_id)
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id SERIAL PRIMARY KEY,
+        reporter_id INTEGER NOT NULL,
+        reported_user_id INTEGER NOT NULL,
+        content_type TEXT NOT NULL,
+        content_id INTEGER,
+        reason TEXT NOT NULL,
+        details TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("[block-report] tables ready");
+  } catch (e: any) { console.warn("[block-report] table setup failed:", e.message); }
+}
+ensureBlockReportTables();
+
 // ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
@@ -1065,6 +1094,61 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }))
       .sort((a, b) => a.username.localeCompare(b.username));
     return res.json(members);
+  });
+
+  // ─── BLOCK / UNBLOCK ──────────────────────────────────────────────────────
+  app.post("/api/users/:id/block", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const blockerId = req.session.userId;
+    const blockedId = parseInt(req.params.id);
+    if (blockerId === blockedId) return res.status(400).json({ error: "Cannot block yourself" });
+    await storage.blockUser(blockerId, blockedId);
+    return res.json({ ok: true });
+  });
+
+  app.delete("/api/users/:id/block", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    await storage.unblockUser(req.session.userId, parseInt(req.params.id));
+    return res.json({ ok: true });
+  });
+
+  app.get("/api/users/blocked", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const blocked = await storage.getBlockedUsers(req.session.userId);
+    return res.json(blocked);
+  });
+
+  // ─── REPORT ───────────────────────────────────────────────────────────────
+  app.post("/api/report", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const { reportedUserId, contentType, contentId, reason, details } = req.body;
+    if (!reportedUserId || !contentType || !reason) return res.status(400).json({ error: "Missing fields" });
+    if (req.session.userId === reportedUserId) return res.status(400).json({ error: "Cannot report yourself" });
+    await storage.createReport({
+      reporterId: req.session.userId,
+      reportedUserId,
+      contentType,
+      contentId: contentId || null,
+      reason,
+      details: details || null,
+    });
+    return res.json({ ok: true });
+  });
+
+  // ─── ADMIN: view reports ───────────────────────────────────────────────────
+  app.get("/api/admin/reports", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const allReports = await storage.getAllReports();
+    return res.json(allReports);
+  });
+
+  app.patch("/api/admin/reports/:id", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { status } = req.body;
+    await storage.updateReportStatus(parseInt(req.params.id), status);
+    return res.json({ ok: true });
   });
 
   app.get("/api/messages/:channel", async (req, res) => {

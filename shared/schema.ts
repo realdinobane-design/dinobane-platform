@@ -137,6 +137,29 @@ export const intelBookmarks = pgTable("intel_bookmarks", {
 });
 export type IntelBookmark = typeof intelBookmarks.$inferSelect;
 
+// ─── BLOCKED USERS ────────────────────────────────────────────────────────────
+export const blockedUsers = pgTable("blocked_users", {
+  id: serial("id").primaryKey(),
+  blockerId: integer("blocker_id").notNull(),   // user who blocked
+  blockedId: integer("blocked_id").notNull(),   // user who was blocked
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type BlockedUser = typeof blockedUsers.$inferSelect;
+
+// ─── REPORTS ──────────────────────────────────────────────────────────────────
+export const reports = pgTable("reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id").notNull(),
+  reportedUserId: integer("reported_user_id").notNull(),
+  contentType: text("content_type").notNull(), // "message" | "dm" | "user"
+  contentId: integer("content_id"),            // id of the message/dm if applicable
+  reason: text("reason").notNull(),            // "spam" | "harassment" | "hate" | "other"
+  details: text("details"),                    // optional extra context
+  status: text("status").notNull().default("pending"), // "pending" | "reviewed" | "actioned"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type Report = typeof reports.$inferSelect;
+
 // ─── APP SETTINGS ─────────────────────────────────────────────────────────────
 // Generic key-value store for admin-configurable settings
 export const appSettings = pgTable("app_settings", {

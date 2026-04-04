@@ -4,12 +4,13 @@ import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { DmChat } from "@/components/dm-chat";
 import { ReactionBar } from "@/components/reaction-bar";
+import { ReportModal } from "@/components/report-modal";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Crown, Hash, Send, Users, Loader2, Image as ImageIcon, X,
   ChevronDown, Star, MessageSquare, Newspaper,
-  Video, Coffee, Shield, CornerDownRight, ChevronRight, Trash2, Search,
+  Video, Coffee, Shield, CornerDownRight, ChevronRight, Trash2, Search, Flag, Ban,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useEffect, useRef } from "react";
@@ -439,6 +440,15 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
                   <Trash2 size={12} />
                 </button>
               )}
+              {user && msg.user.id !== user.id && (
+                <button
+                  onClick={() => setReportTarget({ userId: msg.user.id, username: msg.user.username, contentType: "message", contentId: msg.id })}
+                  className="text-zinc-700 hover:text-[#cc2a2a] transition-colors p-0.5 rounded"
+                  title="Report message"
+                >
+                  <Flag size={11} />
+                </button>
+              )}
             </div>
 
             {/* Message body */}
@@ -547,6 +557,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const [dmPartner, setDmPartner] = useState<any>(null); // active DM chat partner
   const [dmInboxOpen, setDmInboxOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ userId: number; username: string; contentType: "message" | "dm" | "user"; contentId?: number } | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -784,14 +795,23 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                     <p className="text-xs text-zinc-400 group-hover/mem:text-white transition-colors truncate font-medium">@{m.username}</p>
                   </button>
                   {user && m.id !== user.id && (
-                    <button
-                      onClick={() => setDmPartner(m)}
-                      title={`Message ${m.displayName}`}
-                      className="flex items-center gap-1 px-2 py-1 bg-[#f0c800]/10 hover:bg-[#f0c800]/20 border border-[#f0c800]/40 text-[#f0c800] text-[10px] font-bold rounded transition-colors shrink-0"
-                    >
-                      <MessageSquare size={10} />
-                      DM
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => setDmPartner(m)}
+                        title={`Message ${m.displayName}`}
+                        className="flex items-center gap-1 px-2 py-1 bg-[#f0c800]/10 hover:bg-[#f0c800]/20 border border-[#f0c800]/40 text-[#f0c800] text-[10px] font-bold rounded transition-colors"
+                      >
+                        <MessageSquare size={10} />
+                        DM
+                      </button>
+                      <button
+                        onClick={() => setReportTarget({ userId: m.id, username: m.username, contentType: "user" })}
+                        title={`Report ${m.displayName}`}
+                        className="p-1 text-zinc-700 hover:text-[#cc2a2a] transition-colors rounded"
+                      >
+                        <Flag size={10} />
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -1118,22 +1138,40 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                   <p className="text-[#555] text-xs">@{m.username}</p>
                 </div>
                 {user && m.id !== user.id && (
-                  <button
-                    onClick={() => {
-                      setDmPartner(m);
-                      setMobileMembersOpen(false);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#cc2a2a]/10 hover:bg-[#cc2a2a]/20 border border-[#cc2a2a]/30 text-[#cc2a2a] text-xs font-bold rounded transition-colors shrink-0"
-                  >
-                    <MessageSquare size={12} />
-                    Message
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setDmPartner(m);
+                        setMobileMembersOpen(false);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#cc2a2a]/10 hover:bg-[#cc2a2a]/20 border border-[#cc2a2a]/30 text-[#cc2a2a] text-xs font-bold rounded transition-colors"
+                    >
+                      <MessageSquare size={12} />
+                      Message
+                    </button>
+                    <button
+                      onClick={() => { setMobileMembersOpen(false); setReportTarget({ userId: m.id, username: m.username, contentType: "user" }); }}
+                      className="p-1.5 text-zinc-600 hover:text-[#cc2a2a] transition-colors rounded border border-[#222]"
+                      title="Report"
+                    >
+                      <Flag size={12} />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
           </div>
         </div>
       </div>
+    )}
+    {reportTarget && (
+      <ReportModal
+        reportedUserId={reportTarget.userId}
+        reportedUsername={reportTarget.username}
+        contentType={reportTarget.contentType}
+        contentId={reportTarget.contentId}
+        onClose={() => setReportTarget(null)}
+      />
     )}
     </>
   );

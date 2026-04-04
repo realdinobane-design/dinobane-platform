@@ -3,12 +3,13 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import {
   users, messages, articles, media, mediaLikes, mediaComments, appSettings,
-  privateMessages, dmNotifications, messageReactions,
+  privateMessages, dmNotifications, messageReactions, blockedUsers, reports,
   type User, type InsertUser,
   type Message, type InsertMessage,
   type Article, type InsertArticle,
   type Media, type MediaLike, type MediaComment,
   type PrivateMessage, type MessageReaction,
+  type BlockedUser, type Report,
 } from "@shared/schema";
 
 // ─── INTERFACE ────────────────────────────────────────────────────────────────
@@ -458,6 +459,58 @@ class DrizzleStorage implements IStorage {
       });
       return { added: true };
     }
+  }
+
+  // ─── BLOCK / UNBLOCK ──────────────────────────────────────────────────────
+  async blockUser(blockerId: number, blockedId: number): Promise<void> {
+    const existing = await db.select().from(blockedUsers)
+      .where(and(eq(blockedUsers.blockerId, blockerId), eq(blockedUsers.blockedId, blockedId)));
+    if (existing.length === 0) {
+      await db.insert(blockedUsers).values({ blockerId, blockedId });
+    }
+  }
+
+  async unblockUser(blockerId: number, blockedId: number): Promise<void> {
+    await db.delete(blockedUsers)
+      .where(and(eq(blockedUsers.blockerId, blockerId), eq(blockedUsers.blockedId, blockedId)));
+  }
+
+  async getBlockedUsers(blockerId: number): Promise<number[]> {
+    const rows = await db.select().from(blockedUsers).where(eq(blockedUsers.blockerId, blockerId));
+    return rows.map(r => r.blockedId);
+  }
+
+  async isBlocked(blockerId: number, blockedId: number): Promise<boolean> {
+    const rows = await db.select().from(blockedUsers)
+      .where(and(eq(blockedUsers.blockerId, blockerId), eq(blockedUsers.blockedId, blockedId)));
+    return rows.length > 0;
+  }
+
+  // ─── REPORTS ────────────────────────────────────────────────────────────────
+  async createReport(data: {
+    reporterId: number; reportedUserId: number; contentType: string;
+    contentId: number | null; reason: string; details: string | null;
+  }): Promise<void> {
+    await db.insert(reports).values(data);
+  }
+
+  async getAllReports(): Promise<any[]> {
+    const rows = await db.select().from(reports).orderBy(desc(reports.createdAt));
+    // Enrich with reporter and reported usernames
+    const enriched = await Promise.all(rows.map(async (r) => {
+      const reporter = await this.getUserById(r.reporterId);
+      const reported = await this.getUserById(r.reportedUserId);
+      return {
+        ...r,
+        reporterUsername: reporter?.username ?? "unknown",
+        reportedUsername: reported?.username ?? "unknown",
+      };
+    }));
+    return enriched;
+  }
+
+  async updateReportStatus(id: number, status: string): Promise<void> {
+    await db.update(reports).set({ status }).where(eq(reports.id, id));
   }
 }
 

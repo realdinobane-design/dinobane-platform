@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, Loader2, MessageSquare, Check, CheckCheck } from "lucide-react";
+import { X, Send, Loader2, MessageSquare, Check, CheckCheck, Flag } from "lucide-react";
 import { ReactionBar } from "./reaction-bar";
+import { ReportModal } from "./report-modal";
 import { formatDistanceToNow } from "date-fns";
 
 interface DmUser {
@@ -34,6 +35,7 @@ interface DmChatProps {
 export function DmChat({ currentUser, partner, onClose }: DmChatProps) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
+  const [reportTarget, setReportTarget] = useState<{ msgId: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -147,10 +149,28 @@ export function DmChat({ currentUser, partner, onClose }: DmChatProps) {
                     ? <CheckCheck size={11} className="text-[#4ade80]" title={`Read ${formatDistanceToNow(new Date(msg.readAt), { addSuffix: true })}`} />
                     : <Check size={11} className="text-[#444]" title="Delivered" />
                 )}
+                {!isMe && (
+                  <button
+                    onClick={() => setReportTarget({ msgId: msg.id })}
+                    className="text-[#333] hover:text-[#cc2a2a] transition-colors p-0.5 rounded"
+                    title="Report message"
+                  >
+                    <Flag size={10} />
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
+        {reportTarget && (
+          <ReportModal
+            reportedUserId={partner.id}
+            reportedUsername={partner.username}
+            contentType="dm"
+            contentId={reportTarget.msgId}
+            onClose={() => setReportTarget(null)}
+          />
+        )}
         <div ref={bottomRef} />
       </div>
 

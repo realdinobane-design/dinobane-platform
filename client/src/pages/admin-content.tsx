@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, FileText, MessageSquare, Image, AlertTriangle } from "lucide-react";
+import { Trash2, RefreshCw, FileText, MessageSquare, Image, AlertTriangle, Flag, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type Tab = "articles" | "messages" | "media";
+type Tab = "articles" | "messages" | "media" | "reports";
 
 function ConfirmDeleteDialog({
   open,
@@ -297,6 +297,73 @@ function MediaTab() {
   );
 }
 
+// ─── REPORTS TAB ────────────────────────────────────────────────────────────
+function ReportsTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: reports = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/reports"],
+    queryFn: () => apiRequest("GET", "/api/admin/reports").then(r => r.json()),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiRequest("PATCH", `/api/admin/reports/${id}`, { status }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/admin/reports"] }); toast({ title: "Report updated" }); },
+  });
+
+  if (isLoading) return <div className="text-[#555] text-sm py-8 text-center">Loading reports...</div>;
+  if (reports.length === 0) return <div className="text-[#555] text-sm py-8 text-center">No reports submitted yet.</div>;
+
+  const pending = reports.filter(r => r.status === "pending");
+  const reviewed = reports.filter(r => r.status !== "pending");
+
+  return (
+    <div className="space-y-3">
+      {pending.length > 0 && (
+        <div className="text-xs font-bold text-[#cc2a2a] uppercase tracking-widest mb-3">{pending.length} Pending</div>
+      )}
+      {reports.map((r: any) => (
+        <div key={r.id} className={`border rounded p-4 space-y-2 ${
+          r.status === "pending" ? "border-[#cc2a2a]/30 bg-[#cc2a2a]/5" : "border-[#1f1f1f] bg-[#111]"
+        }`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  r.status === "pending" ? "bg-[#cc2a2a]/20 text-[#cc2a2a]" :
+                  r.status === "actioned" ? "bg-green-900/30 text-green-400" : "bg-[#222] text-[#888]"
+                }`}>{r.status}</span>
+                <span className="text-xs text-[#555]">{r.contentType}</span>
+                <span className="text-xs text-[#555]">{new Date(r.createdAt).toLocaleDateString("en-GB")}</span>
+              </div>
+              <p className="text-sm text-white">
+                <span className="text-[#888]">@{r.reporterUsername}</span>
+                <span className="text-[#555] mx-2">reported</span>
+                <span className="text-[#cc2a2a] font-bold">@{r.reportedUsername}</span>
+              </p>
+              <p className="text-xs text-[#888] mt-1">Reason: <span className="text-white">{r.reason}</span></p>
+              {r.details && <p className="text-xs text-[#666] mt-1">"{r.details}"</p>}
+            </div>
+            {r.status === "pending" && (
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => updateStatus.mutate({ id: r.id, status: "reviewed" })}
+                  className="text-xs px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#222] text-[#888] rounded transition-colors"
+                >Reviewed</button>
+                <button
+                  onClick={() => updateStatus.mutate({ id: r.id, status: "actioned" })}
+                  className="text-xs px-3 py-1.5 bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded transition-colors"
+                >Actioned</button>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function AdminContent() {
   const [tab, setTab] = useState<Tab>("articles");
@@ -305,6 +372,7 @@ export default function AdminContent() {
     { id: "articles", label: "Articles", icon: <FileText className="w-4 h-4" /> },
     { id: "messages", label: "Messages", icon: <MessageSquare className="w-4 h-4" /> },
     { id: "media", label: "Media Vault", icon: <Image className="w-4 h-4" /> },
+    { id: "reports", label: "Reports", icon: <Flag className="w-4 h-4" /> },
   ];
 
   return (
@@ -342,6 +410,7 @@ export default function AdminContent() {
         {tab === "articles" && <ArticlesTab />}
         {tab === "messages" && <MessagesTab />}
         {tab === "media" && <MediaTab />}
+        {tab === "reports" && <ReportsTab />}
       </div>
     </div>
   );
