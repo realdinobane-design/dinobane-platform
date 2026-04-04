@@ -787,9 +787,10 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                     <button
                       onClick={() => setDmPartner(m)}
                       title={`Message ${m.displayName}`}
-                      className="p-1 text-[#333] hover:text-[#f0c800] transition-colors rounded shrink-0"
+                      className="flex items-center gap-1 px-2 py-1 bg-[#f0c800]/10 hover:bg-[#f0c800]/20 border border-[#f0c800]/40 text-[#f0c800] text-[10px] font-bold rounded transition-colors shrink-0"
                     >
-                      <MessageSquare size={12} />
+                      <MessageSquare size={10} />
+                      DM
                     </button>
                   )}
                 </div>
