@@ -805,6 +805,56 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(safeUser);
   });
 
+  // ─── CONTACT FORM ───────────────────────────────────────────────────────────
+  app.post("/api/contact", async (req, res) => {
+    const { name, email, subject, message, captchaToken } = req.body;
+    if (!name || !email || !subject || !message || !captchaToken) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+    // Verify hCaptcha token
+    const hcaptchaSecret = process.env.HCAPTCHA_SECRET || "0x0000000000000000000000000000000000000000";
+    const verifyRes = await fetch("https://api.hcaptcha.com/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret: hcaptchaSecret, response: captchaToken }),
+    });
+    const verifyData = await verifyRes.json() as { success: boolean };
+    if (!verifyData.success) {
+      return res.status(400).json({ error: "Captcha verification failed. Please try again." });
+    }
+    // Send email via Resend
+    if (!resend) return res.status(500).json({ error: "Email service not configured" });
+    try {
+      await resend.emails.send({
+        from: "DinoBane Contact <noreply@dinobane.com>",
+        to: ["contact@realdinobane.com"],
+        replyTo: email,
+        subject: `[Contact] ${subject}`,
+        html: `
+          <div style="background:#0a0a0a;color:#fff;font-family:Arial,sans-serif;padding:32px;max-width:600px;">
+            <div style="border-left:3px solid #cc2a2a;padding-left:16px;margin-bottom:24px;">
+              <h2 style="margin:0;color:#fff;font-size:20px;font-weight:900;letter-spacing:2px;">NEW CONTACT MESSAGE</h2>
+            </div>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+              <tr><td style="color:#888;font-size:12px;padding:6px 0;width:80px;">FROM</td><td style="color:#fff;font-size:14px;">${name}</td></tr>
+              <tr><td style="color:#888;font-size:12px;padding:6px 0;">EMAIL</td><td style="color:#cc2a2a;font-size:14px;">${email}</td></tr>
+              <tr><td style="color:#888;font-size:12px;padding:6px 0;">SUBJECT</td><td style="color:#fff;font-size:14px;">${subject}</td></tr>
+            </table>
+            <div style="background:#111;border:1px solid #222;padding:20px;border-radius:4px;">
+              <p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;">Message</p>
+              <p style="color:#ddd;font-size:14px;line-height:1.7;margin:0;white-space:pre-wrap;">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+            </div>
+            <p style="color:#444;font-size:11px;margin-top:24px;">Sent via dinobane.com contact form</p>
+          </div>
+        `,
+      });
+      return res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[contact] email send failed:", e.message);
+      return res.status(500).json({ error: "Failed to send message. Please email directly." });
+    }
+  });
+
   // ─── PROFILE ─────────────────────────────────────────────────────────────────
   // Update display name, avatar initials, avatar colour
   app.patch("/api/profile", async (req, res) => {

@@ -23,6 +23,7 @@ import MembersPage from "@/pages/members";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import PrivacyPage from "@/pages/privacy";
+import ContactPage from "@/pages/contact";
 import { AppNav } from "@/components/app-nav";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
@@ -68,6 +69,7 @@ function AppRoutes() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/contact" component={ContactPage} />
       <Route path="/news" component={NewsPage} />
       <Route path="/videos" component={VideosPage} />
       <Route path="/articles" component={ArticlesPage} />
@@ -117,11 +119,15 @@ function InnerApp() {
               <p>
                 Contact:{" "}
                 <a
-                  href="mailto:contact@dinobane.com"
+                  href="mailto:contact@realdinobane.com"
                   className="text-yellow-400 hover:underline"
                 >
-                  contact@dinobane.com
+                  contact@realdinobane.com
                 </a>
+              {" · "}
+              <a href="/#/contact" className="text-yellow-400 hover:underline">Contact form</a>
+              {" · "}
+              <a href="/#/privacy" className="text-zinc-500 hover:underline">Privacy Policy</a>
               </p>
             </footer>
           </div>

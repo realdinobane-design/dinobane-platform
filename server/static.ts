@@ -15,6 +15,7 @@ export function serveStatic(app: Express) {
   // Redirect bare paths to hash-router equivalents
   app.get("/privacy", (_req, res) => res.redirect(301, "/#/privacy"));
   app.get("/terms", (_req, res) => res.redirect(301, "/#/privacy"));
+  app.get("/contact", (_req, res) => res.redirect(301, "/#/contact"));
 
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", (_req, res) => {
