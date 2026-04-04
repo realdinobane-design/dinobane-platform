@@ -66,14 +66,14 @@ function AppRoutes() {
       <Route path="/membership" component={MembershipPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/news" component={NewsPage} />
+      <Route path="/videos" component={VideosPage} />
+      <Route path="/articles" component={ArticlesPage} />
+      <Route path="/articles/:id" component={ArticleDetailPage} />
 
       {/* Member-only routes — must have isMember=true */}
       <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
       <Route path="/media-vault">{() => <MemberRoute component={MediaVaultPage} />}</Route>
-      <Route path="/news">{() => <MemberRoute component={NewsPage} />}</Route>
-      <Route path="/videos">{() => <MemberRoute component={VideosPage} />}</Route>
-      <Route path="/articles">{() => <MemberRoute component={ArticlesPage} />}</Route>
-      <Route path="/articles/:id">{() => <MemberRoute component={ArticleDetailPage} />}</Route>
       <Route path="/members">{() => <AuthRoute component={MembersPage} />}</Route>
 
       {/* Authenticated routes — logged in, membership not required */}
