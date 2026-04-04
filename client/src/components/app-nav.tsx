@@ -25,6 +25,7 @@ const NAV_LINKS = [
   { href: "/news", label: "Intel", icon: Rss },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
+  { href: "/contact", label: "Contact", icon: Mail },
 ];
 
 export function AppNav() {
