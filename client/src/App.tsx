@@ -22,6 +22,7 @@ import AdminContentPage from "@/pages/admin-content";
 import MembersPage from "@/pages/members";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
+import PrivacyPage from "@/pages/privacy";
 import { AppNav } from "@/components/app-nav";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
@@ -66,6 +67,7 @@ function AppRoutes() {
       <Route path="/membership" component={MembershipPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/privacy" component={PrivacyPage} />
       <Route path="/news" component={NewsPage} />
       <Route path="/videos" component={VideosPage} />
       <Route path="/articles" component={ArticlesPage} />
