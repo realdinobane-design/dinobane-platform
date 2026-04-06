@@ -49,9 +49,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-6">
             {/* Fixed SVG — wider viewBox so DINOBANE isn't clipped */}
-            <svg width="56" height="56" viewBox="0 0 100 100" fill="none" aria-label="DinoBane logo">
-              <polygon points="15,10 50,45 85,10 95,20 60,55 95,90 85,100 50,65 15,100 5,90 40,55 5,20" fill="#cc2a2a"/>
-            </svg>
+            <img src="/brand/logo-x.jpg" alt="DinoBane" width="56" height="56" className="rounded" />
           </Link>
           <h1 className="text-xl font-bold text-foreground tracking-wider uppercase font-display">Sign In</h1>
           <p className="text-sm text-muted-foreground mt-1">Access your DinoBane account</p>
