@@ -668,10 +668,28 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     onError: (e: Error) => toast({ title: "Failed to post", description: e.message, variant: "destructive" }),
   });
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (sendMutation.isPending) return;
-    if (pendingImage) { sendMutation.mutate(pendingImage); return; }
     const text = draft.trim();
+    // If both image and text — send image first, then text
+    if (pendingImage && text) {
+      sendMutation.mutate(pendingImage);
+      // Wait briefly then send text as a second message
+      await new Promise(r => setTimeout(r, 300));
+      await apiRequest("POST", "/api/messages", { channel: activeChannel, content: text })
+        .then(async (res) => {
+          const msg = await res.json();
+          qc.setQueryData(["/api/messages", activeChannel], (old: any[] = []) => {
+            if (old.some((m: any) => m.id === msg.id)) return old;
+            return [...old, msg];
+          });
+          setDraft("");
+          setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+        })
+        .catch(() => {});
+      return;
+    }
+    if (pendingImage) { sendMutation.mutate(pendingImage); return; }
     if (!text) return;
     sendMutation.mutate(text);
   };
