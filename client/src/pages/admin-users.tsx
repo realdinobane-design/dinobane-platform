@@ -398,8 +398,12 @@ function UserRow({
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{user.email}</p>
         <p className="text-xs text-muted-foreground/50 mt-0.5">
           Joined {format(new Date(user.createdAt), "d MMM yyyy")}
-          {user.isMember && user.memberSince && (
-            <> · Member since {format(new Date(user.memberSince), "d MMM yyyy")}</>
+          {user.isMember && (
+            <span className="text-yellow-600/80">
+              {user.memberSince
+                ? <> · Member since {format(new Date(user.memberSince), "d MMM yyyy")}</>
+                : <> · Member since {format(new Date(user.createdAt), "d MMM yyyy")}</>}
+            </span>
           )}
         </p>
       </div>

@@ -3100,8 +3100,11 @@ function parseYouTubeFeed(xml: string): any[] {
 }
 
 function getFallbackVideos() {
-  // Static fallback — updated 2026-03-18 from yt-dlp. Used only if all live fetch methods fail.
+  // Static fallback — updated 2026-04-06. Used only if all live fetch methods fail.
   return [
+    { id: "83V3UNDnmm0", title: "Live now on Mercian", thumbnail: "https://img.youtube.com/vi/83V3UNDnmm0/mqdefault.jpg", url: "https://www.youtube.com/watch?v=83V3UNDnmm0", publishedAt: "2026-04-01T18:30:00+00:00" },
+    { id: "sv7zlC5Y7g0", title: "DinoBane Live - Sunday Roundup #1", thumbnail: "https://img.youtube.com/vi/sv7zlC5Y7g0/mqdefault.jpg", url: "https://www.youtube.com/watch?v=sv7zlC5Y7g0", publishedAt: "2026-03-29T06:08:38+00:00" },
+    { id: "9UpI8qBVmsM", title: "Some Crazy Noticing Going On...", thumbnail: "https://img.youtube.com/vi/9UpI8qBVmsM/mqdefault.jpg", url: "https://www.youtube.com/watch?v=9UpI8qBVmsM", publishedAt: "2026-03-22T00:00:00+00:00" },
     { id: "7pgalWg7Dzg", title: "This Is What Britain Could Actually Be", thumbnail: "https://img.youtube.com/vi/7pgalWg7Dzg/mqdefault.jpg", url: "https://www.youtube.com/watch?v=7pgalWg7Dzg", publishedAt: "2026-03-18T12:00:00+00:00" },
     { id: "nxKsD97dqAo", title: "This Is The Proof That Terrifies Them", thumbnail: "https://img.youtube.com/vi/nxKsD97dqAo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=nxKsD97dqAo", publishedAt: "2026-03-17T12:00:00+00:00" },
     { id: "ZliV-hUKp2M", title: "They Are Getting Desperate", thumbnail: "https://img.youtube.com/vi/ZliV-hUKp2M/mqdefault.jpg", url: "https://www.youtube.com/watch?v=ZliV-hUKp2M", publishedAt: "2026-03-16T12:00:00+00:00" },
@@ -3113,10 +3116,7 @@ function getFallbackVideos() {
     { id: "QFFO3EyGKUo", title: "Ben Habib Is Cooked", thumbnail: "https://img.youtube.com/vi/QFFO3EyGKUo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=QFFO3EyGKUo", publishedAt: "2026-03-10T19:58:30+00:00" },
     { id: "DFaVsor8JeI", title: "The 'DEBATE' Is Over", thumbnail: "https://img.youtube.com/vi/DFaVsor8JeI/mqdefault.jpg", url: "https://www.youtube.com/watch?v=DFaVsor8JeI", publishedAt: "2026-03-10T16:53:13+00:00" },
     { id: "fxEwgChVQEs", title: "The BATTLE LINES Have Been Drawn", thumbnail: "https://img.youtube.com/vi/fxEwgChVQEs/mqdefault.jpg", url: "https://www.youtube.com/watch?v=fxEwgChVQEs", publishedAt: "2026-03-09T14:21:40+00:00" },
-    { id: "8oVK_gK_aN8", title: "There Is No 'SPLIT' on The 'Right Wing'", thumbnail: "https://img.youtube.com/vi/8oVK_gK_aN8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8oVK_gK_aN8", publishedAt: "2026-03-07T14:13:31+00:00" },
-    { id: "4dCSN4G0G68", title: "Nothing About This Makes Sense. We Need To Unite", thumbnail: "https://img.youtube.com/vi/4dCSN4G0G68/mqdefault.jpg", url: "https://www.youtube.com/watch?v=4dCSN4G0G68", publishedAt: "2026-03-05T14:56:36+00:00" },
-    { id: "8qvL5O3faWg", title: "These Channels Are DANGEROUS", thumbnail: "https://img.youtube.com/vi/8qvL5O3faWg/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8qvL5O3faWg", publishedAt: "2026-03-05T12:09:24+00:00" },
-    { id: "28BGa1gqlXk", title: "This Is Why They DEMONISE The Working Class", thumbnail: "https://img.youtube.com/vi/28BGa1gqlXk/mqdefault.jpg", url: "https://www.youtube.com/watch?v=28BGa1gqlXk", publishedAt: "2026-03-04T12:00:00+00:00" },
+    { id: "WNdPUrG4zbA", title: "They're Just Not Welcome", thumbnail: "https://img.youtube.com/vi/WNdPUrG4zbA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=WNdPUrG4zbA", publishedAt: "2026-02-26T00:00:00+00:00" },
   ];
 }
 
