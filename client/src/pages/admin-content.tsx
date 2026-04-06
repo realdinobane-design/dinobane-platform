@@ -71,7 +71,7 @@ function ArticlesTab() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/admin/articles/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/articles/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/articles"] });
       toast({ title: "Article deleted" });
