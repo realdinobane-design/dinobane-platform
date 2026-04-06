@@ -2992,7 +2992,9 @@ async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
   function parseYtDlpOutput(stdout: string, methodName: string): any[] | null {
     try {
       const data = JSON.parse(stdout.trim());
-      const entries = (data.entries || []) as any[];
+      const entries = ((data.entries || []) as any[])
+        // Filter out community posts — they have no duration and IDs that are not 11 chars
+        .filter((e: any) => e.id && /^[A-Za-z0-9_-]{11}$/.test(e.id) && e.ie_key !== "YoutubePost");
       if (entries.length > 0) {
         console.log(`[youtube] fetched ${entries.length} videos via ${methodName}`);
         return entries.map((e: any, i: number) => ({
@@ -3100,23 +3102,23 @@ function parseYouTubeFeed(xml: string): any[] {
 }
 
 function getFallbackVideos() {
-  // Static fallback — updated 2026-04-06. Used only if all live fetch methods fail.
+  // Static fallback — updated 2026-04-06 from YouTube Studio. Used only if all live fetch methods fail.
   return [
-    { id: "83V3UNDnmm0", title: "Live now on Mercian", thumbnail: "https://img.youtube.com/vi/83V3UNDnmm0/mqdefault.jpg", url: "https://www.youtube.com/watch?v=83V3UNDnmm0", publishedAt: "2026-04-01T18:30:00+00:00" },
-    { id: "sv7zlC5Y7g0", title: "DinoBane Live - Sunday Roundup #1", thumbnail: "https://img.youtube.com/vi/sv7zlC5Y7g0/mqdefault.jpg", url: "https://www.youtube.com/watch?v=sv7zlC5Y7g0", publishedAt: "2026-03-29T06:08:38+00:00" },
-    { id: "9UpI8qBVmsM", title: "Some Crazy Noticing Going On...", thumbnail: "https://img.youtube.com/vi/9UpI8qBVmsM/mqdefault.jpg", url: "https://www.youtube.com/watch?v=9UpI8qBVmsM", publishedAt: "2026-03-22T00:00:00+00:00" },
-    { id: "7pgalWg7Dzg", title: "This Is What Britain Could Actually Be", thumbnail: "https://img.youtube.com/vi/7pgalWg7Dzg/mqdefault.jpg", url: "https://www.youtube.com/watch?v=7pgalWg7Dzg", publishedAt: "2026-03-18T12:00:00+00:00" },
-    { id: "nxKsD97dqAo", title: "This Is The Proof That Terrifies Them", thumbnail: "https://img.youtube.com/vi/nxKsD97dqAo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=nxKsD97dqAo", publishedAt: "2026-03-17T12:00:00+00:00" },
-    { id: "ZliV-hUKp2M", title: "They Are Getting Desperate", thumbnail: "https://img.youtube.com/vi/ZliV-hUKp2M/mqdefault.jpg", url: "https://www.youtube.com/watch?v=ZliV-hUKp2M", publishedAt: "2026-03-16T12:00:00+00:00" },
-    { id: "Tyho3Qiq8eY", title: "Graham Moore - [ Unfiltered ]", thumbnail: "https://img.youtube.com/vi/Tyho3Qiq8eY/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Tyho3Qiq8eY", publishedAt: "2026-03-13T20:19:50+00:00" },
-    { id: "glP5aWLwd6s", title: "Inside The Mind of a Leftist", thumbnail: "https://img.youtube.com/vi/glP5aWLwd6s/mqdefault.jpg", url: "https://www.youtube.com/watch?v=glP5aWLwd6s", publishedAt: "2026-03-12T13:54:12+00:00" },
-    { id: "Xfz1TaCRblA", title: "They Buried This Footage For a Reason", thumbnail: "https://img.youtube.com/vi/Xfz1TaCRblA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Xfz1TaCRblA", publishedAt: "2026-03-12T13:02:10+00:00" },
-    { id: "gfZDulfXDQU", title: "We're Taking It Back", thumbnail: "https://img.youtube.com/vi/gfZDulfXDQU/mqdefault.jpg", url: "https://www.youtube.com/watch?v=gfZDulfXDQU", publishedAt: "2026-03-11T12:23:38+00:00" },
-    { id: "Z1Ok0954i-8", title: "[ WARNING! ] This Video Will Make You a Patriot", thumbnail: "https://img.youtube.com/vi/Z1Ok0954i-8/mqdefault.jpg", url: "https://www.youtube.com/watch?v=Z1Ok0954i-8", publishedAt: "2026-03-11T07:11:48+00:00" },
-    { id: "QFFO3EyGKUo", title: "Ben Habib Is Cooked", thumbnail: "https://img.youtube.com/vi/QFFO3EyGKUo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=QFFO3EyGKUo", publishedAt: "2026-03-10T19:58:30+00:00" },
-    { id: "DFaVsor8JeI", title: "The 'DEBATE' Is Over", thumbnail: "https://img.youtube.com/vi/DFaVsor8JeI/mqdefault.jpg", url: "https://www.youtube.com/watch?v=DFaVsor8JeI", publishedAt: "2026-03-10T16:53:13+00:00" },
-    { id: "fxEwgChVQEs", title: "The BATTLE LINES Have Been Drawn", thumbnail: "https://img.youtube.com/vi/fxEwgChVQEs/mqdefault.jpg", url: "https://www.youtube.com/watch?v=fxEwgChVQEs", publishedAt: "2026-03-09T14:21:40+00:00" },
-    { id: "WNdPUrG4zbA", title: "They're Just Not Welcome", thumbnail: "https://img.youtube.com/vi/WNdPUrG4zbA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=WNdPUrG4zbA", publishedAt: "2026-02-26T00:00:00+00:00" },
+    { id: "TtRuM0dpxVc", title: "They Are Shi**ing Themselves and DELETING Everything", thumbnail: "https://img.youtube.com/vi/TtRuM0dpxVc/mqdefault.jpg", url: "https://www.youtube.com/watch?v=TtRuM0dpxVc", publishedAt: "2026-04-04T12:00:00+00:00" },
+    { id: "ZMOjxMSdcVI", title: "Islamo Commo Gay Trans Alliance...I'm Sure This Will Be Fine", thumbnail: "https://img.youtube.com/vi/ZMOjxMSdcVI/mqdefault.jpg", url: "https://www.youtube.com/watch?v=ZMOjxMSdcVI", publishedAt: "2026-04-01T12:00:00+00:00" },
+    { id: "0ZzQJl5atJo", title: "English Lives Don't Matter", thumbnail: "https://img.youtube.com/vi/0ZzQJl5atJo/mqdefault.jpg", url: "https://www.youtube.com/watch?v=0ZzQJl5atJo", publishedAt: "2026-03-31T12:00:00+00:00" },
+    { id: "2E30sLa1lSE", title: "Beware The Wolf In Sheep's Clothing", thumbnail: "https://img.youtube.com/vi/2E30sLa1lSE/mqdefault.jpg", url: "https://www.youtube.com/watch?v=2E30sLa1lSE", publishedAt: "2026-03-30T12:00:00+00:00" },
+    { id: "n-qTlmmIeEE", title: "Why The English Never Ask This Question", thumbnail: "https://img.youtube.com/vi/n-qTlmmIeEE/mqdefault.jpg", url: "https://www.youtube.com/watch?v=n-qTlmmIeEE", publishedAt: "2026-03-29T12:00:00+00:00" },
+    { id: "B4Qzq6UPTa4", title: "What Does A Reform UK Voter Think When Seeing This?", thumbnail: "https://img.youtube.com/vi/B4Qzq6UPTa4/mqdefault.jpg", url: "https://www.youtube.com/watch?v=B4Qzq6UPTa4", publishedAt: "2026-03-28T12:00:00+00:00" },
+    { id: "GZnGeQzKrTk", title: "Everyone Just Looked Into The Future", thumbnail: "https://img.youtube.com/vi/GZnGeQzKrTk/mqdefault.jpg", url: "https://www.youtube.com/watch?v=GZnGeQzKrTk", publishedAt: "2026-03-27T12:00:00+00:00" },
+    { id: "EYB8Bu_ddmE", title: "Dinobrain Attacks Dinobane", thumbnail: "https://img.youtube.com/vi/EYB8Bu_ddmE/mqdefault.jpg", url: "https://www.youtube.com/watch?v=EYB8Bu_ddmE", publishedAt: "2026-03-26T12:00:00+00:00" },
+    { id: "gJJQcfVyQcw", title: "So I heard You Wanted Some Good News", thumbnail: "https://img.youtube.com/vi/gJJQcfVyQcw/mqdefault.jpg", url: "https://www.youtube.com/watch?v=gJJQcfVyQcw", publishedAt: "2026-03-25T12:00:00+00:00" },
+    { id: "IV8c_f1D_hA", title: "Are They 'TRYING' To Be Evil?", thumbnail: "https://img.youtube.com/vi/IV8c_f1D_hA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=IV8c_f1D_hA", publishedAt: "2026-03-24T12:00:00+00:00" },
+    { id: "aN2rodXHvrk", title: "Englishmen Don't Surrender", thumbnail: "https://img.youtube.com/vi/aN2rodXHvrk/mqdefault.jpg", url: "https://www.youtube.com/watch?v=aN2rodXHvrk", publishedAt: "2026-03-23T12:00:00+00:00" },
+    { id: "JS8OmHvW2ec", title: "Just Sit Back And Smile", thumbnail: "https://img.youtube.com/vi/JS8OmHvW2ec/mqdefault.jpg", url: "https://www.youtube.com/watch?v=JS8OmHvW2ec", publishedAt: "2026-03-22T12:00:00+00:00" },
+    { id: "E84gtkL2leM", title: "This Is Why Restore Britain Will Win", thumbnail: "https://img.youtube.com/vi/E84gtkL2leM/mqdefault.jpg", url: "https://www.youtube.com/watch?v=E84gtkL2leM", publishedAt: "2026-03-21T12:00:00+00:00" },
+    { id: "8O2EWmOwW2M", title: "We All Know Why They Suppress Certain Videos", thumbnail: "https://img.youtube.com/vi/8O2EWmOwW2M/mqdefault.jpg", url: "https://www.youtube.com/watch?v=8O2EWmOwW2M", publishedAt: "2026-03-20T12:00:00+00:00" },
+    { id: "m0Yfmni47yA", title: "Let's Get Him To 10,000", thumbnail: "https://img.youtube.com/vi/m0Yfmni47yA/mqdefault.jpg", url: "https://www.youtube.com/watch?v=m0Yfmni47yA", publishedAt: "2026-03-19T12:00:00+00:00" },
   ];
 }
 
