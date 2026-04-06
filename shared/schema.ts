@@ -49,7 +49,7 @@ export const articles = pgTable("articles", {
   isPublic: boolean("is_public").notNull().default(true),
 });
 
-export const insertArticleSchema = createInsertSchema(articles).omit({ id: true, publishedAt: true });
+export const insertArticleSchema = createInsertSchema(articles).omit({ id: true });
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Article = typeof articles.$inferSelect;
 

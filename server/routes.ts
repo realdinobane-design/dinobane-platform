@@ -2734,6 +2734,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             videoId: v.id,
             thumbnail: v.thumbnail,
             isPublic: true,
+            publishedAt: v.publishedAt ? new Date(v.publishedAt) : new Date(),
           });
           invalidateArticlesCache();
           console.log(`[sync] article created: ${v.title}`);
@@ -3214,9 +3215,30 @@ async function generateArticleAI(title: string, url: string): Promise<string> {
     // Fetch the real transcript so the AI writes about the actual video content
     console.log(`[articles] Fetching transcript for: ${title}`);
     const transcript = await fetchVideoTranscript(url);
+
+    // If no transcript, try to get video description from YouTube Data API
+    let descriptionContext = "";
+    if (!transcript) {
+      const ytApiKey = process.env.YOUTUBE_API_KEY;
+      if (ytApiKey) {
+        try {
+          const videoIdMatch = url.match(/(?:v=|youtu\.be\/)([^&\s]+)/);
+          const videoId = videoIdMatch?.[1];
+          if (videoId) {
+            const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${ytApiKey}`, { signal: AbortSignal.timeout(8000) });
+            if (r.ok) {
+              const data = await r.json() as any;
+              const desc = data.items?.[0]?.snippet?.description || "";
+              if (desc.length > 50) descriptionContext = `\n\nVideo description from YouTube:\n"""\n${desc.slice(0, 1500)}\n"""`;
+            }
+          }
+        } catch {}
+      }
+    }
+
     const transcriptSection = transcript
       ? `\n\nHere is the full transcript of the video (use this as the basis for your article — write about what is actually said):\n\n"""\n${transcript.slice(0, 6000)}\n"""`
-      : `\n\n(No transcript available — write based on the video title and your knowledge of UK political issues.)`;
+      : descriptionContext || `\n\n(No transcript available — write based on the video title and your knowledge of UK political issues.)`;
 
     const prompt = `You are writing a political commentary article for DinoBane, a UK YouTube channel covering corruption, immigration, media censorship, and stories the mainstream media buries. The tone is direct, no-nonsense, pro-English, and right-leaning — like a sharp op-ed from the Spectator or Telegraph.
 
@@ -3262,7 +3284,10 @@ Return ONLY the article HTML using <p> tags. No title tag, no bullet points, no 
           continue;
         }
         const data = await r.json() as any;
-        const content = data.choices?.[0]?.message?.content?.trim();
+        let content = data.choices?.[0]?.message?.content?.trim() ?? "";
+        // Strip any leading "html" or markdown code fences the model may add
+        content = content.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+        content = content.replace(/^html\s*/i, "").trim();
         if (content && content.length > 200) {
           console.log(`[articles] Generated with model ${model} (${content.length} chars)`);
           return content;
