@@ -2984,6 +2984,46 @@ async function ensureYtDlp(): Promise<void> {
 // ─── YOUTUBE VIDEO FETCHER (yt-dlp primary, RSS fallback) ────────────────────
 async function fetchYouTubeVideos(limit = 15): Promise<any[]> {
   const channelUrl = "https://www.youtube.com/@Dinobane-Clips/videos";
+  const CHANNEL_ID = "UCEJTJU2HaQfSfKbxJcPlh7Q";
+  const YT_API_KEY = process.env.YOUTUBE_API_KEY;
+
+  // 0. YouTube Data API v3 (primary — fast, reliable, always up to date)
+  if (YT_API_KEY) {
+    try {
+      // Get uploads playlist ID (channel uploads = UC -> UU prefix)
+      const uploadsPlaylistId = "UU" + CHANNEL_ID.slice(2);
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${limit}&key=${YT_API_KEY}`;
+      const r = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (r.ok) {
+        const data = await r.json() as any;
+        const items = (data.items || []) as any[];
+        if (items.length > 0) {
+          console.log(`[youtube] fetched ${items.length} videos via YouTube Data API v3`);
+          return items
+            .filter((item: any) => item.snippet?.resourceId?.videoId) // exclude community posts
+            .map((item: any) => {
+              const videoId = item.snippet.resourceId.videoId;
+              return {
+                id: videoId,
+                title: item.snippet.title || "DinoBane Video",
+                description: item.snippet.description || "",
+                thumbnail: item.snippet.thumbnails?.medium?.url ||
+                  `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                url: `https://www.youtube.com/watch?v=${videoId}`,
+                publishedAt: item.snippet.publishedAt,
+                viewCount: null,
+                duration: null,
+              };
+            });
+        }
+      } else {
+        const err = await r.text();
+        console.warn(`[youtube] Data API v3 error: ${r.status} ${err.slice(0, 120)}`);
+      }
+    } catch (e: any) {
+      console.warn(`[youtube] Data API v3 failed: ${e.message?.slice(0, 120)}`);
+    }
+  }
 
   // Ensure yt-dlp is installed (self-heals if nixpacks build didn't include it)
   await ensureYtDlp();
