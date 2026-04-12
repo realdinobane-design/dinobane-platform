@@ -2089,15 +2089,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true, action: "created", id: user.id });
   });
 
-  // GET /api/debug/r2 — check R2 env vars (admin only)
+  // GET /api/debug/r2 — check R2 env vars and connectivity (admin only)
   app.get("/api/debug/r2", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
+    let connectivity = "unknown";
+    try {
+      const r = await fetch(`https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/`, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      connectivity = `reachable (${r.status})`;
+    } catch (e: any) { connectivity = `FAILED: ${e.message}`; }
     return res.json({
       R2_ACCOUNT_ID: !!process.env.R2_ACCOUNT_ID,
       R2_ACCESS_KEY_ID: !!process.env.R2_ACCESS_KEY_ID,
       R2_SECRET_ACCESS_KEY: !!process.env.R2_SECRET_ACCESS_KEY,
       R2_PUBLIC_URL: process.env.R2_PUBLIC_URL || null,
+      connectivity,
     });
   });
 
