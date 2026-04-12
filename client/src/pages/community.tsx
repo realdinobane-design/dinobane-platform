@@ -465,7 +465,7 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
             <div className="mt-2">
               {combinedImage && (
                 <div className="space-y-2">
-                  <img src={combinedImage} alt="Shared image" className="max-w-full max-h-72 rounded-sm border border-[#222] object-contain" />
+                  <img src={combinedImage} alt="Shared image" onClick={() => setLightboxSrc(combinedImage)} className="max-w-full max-h-72 rounded-sm border border-[#222] object-contain cursor-zoom-in" />
                   <p className="text-[14px] text-zinc-200 leading-relaxed break-words"
                     dangerouslySetInnerHTML={{ __html: renderMessageContent(displayContent) }} />
                 </div>
@@ -480,7 +480,8 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
                 <img
                   src={msg.content}
                   alt="Shared image"
-                  className="max-w-full max-h-72 rounded-sm border border-[#222] mt-1 object-contain"
+                  onClick={() => setLightboxSrc(msg.content)}
+                  className="max-w-full max-h-72 rounded-sm border border-[#222] mt-1 object-contain cursor-zoom-in"
                 />
               )}
               {urls.length > 0 && <LinkPreviewCard url={urls[0]} />}
@@ -575,6 +576,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [dmPartner, setDmPartner] = useState<any>(null); // active DM chat partner
   const [dmInboxOpen, setDmInboxOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ userId: number; username: string; contentType: "message" | "dm" | "user"; contentId?: number } | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1194,6 +1196,18 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
         contentId={reportTarget.contentId}
         onClose={() => setReportTarget(null)}
       />
+    )}
+    {lightboxSrc && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 cursor-zoom-out p-4"
+        onClick={() => setLightboxSrc(null)}
+      >
+        <img
+          src={lightboxSrc}
+          alt="Enlarged image"
+          className="max-w-full max-h-full rounded object-contain shadow-2xl"
+        />
+      </div>
     )}
     </>
   );
