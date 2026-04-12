@@ -97,10 +97,10 @@ export default function ArticlesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-black text-white mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Written Analysis
+            Videos
           </h1>
           <p className="text-muted-foreground text-sm">
-            Video breakdowns converted to text. Share, reference, archive.
+            Written analysis and breakdowns of the latest DinoBane videos.
             {activeTopic !== "all" && (
               <span className="ml-2 text-zinc-500">
                 · showing{" "}

@@ -71,7 +71,6 @@ function AppRoutes() {
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/contact" component={ContactPage} />
       <Route path="/news" component={NewsPage} />
-      <Route path="/videos" component={VideosPage} />
       <Route path="/articles" component={ArticlesPage} />
       <Route path="/articles/:id" component={ArticleDetailPage} />
 

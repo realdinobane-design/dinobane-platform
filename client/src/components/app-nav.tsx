@@ -20,8 +20,7 @@ const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"
 
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: null },
-  { href: "/videos", label: "Videos", icon: Youtube },
-  { href: "/articles", label: "Articles", icon: BookOpen },
+  { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
