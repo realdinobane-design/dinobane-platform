@@ -110,7 +110,7 @@ export default function HomePage() {
               <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
               Latest Video
             </h2>
-            <Link href="/videos" className="text-sm text-muted-foreground hover:text-red-400 transition-colors flex items-center gap-1">
+            <Link href="/articles" className="text-sm text-[#f0c800] hover:text-[#f0c800]/80 font-semibold transition-colors flex items-center gap-1">
               All videos <ArrowRight size={14} />
             </Link>
           </div>
