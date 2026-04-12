@@ -2167,30 +2167,50 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const r2PublicUrl = process.env.R2_PUBLIC_URL;
     if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
-        const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-        const { randomUUID } = await import("crypto");
-        const s3 = new S3Client({
-          region: "auto",
-          endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
-          credentials: { accessKeyId: r2AccessKey, secretAccessKey: r2SecretKey },
-          requestChecksumCalculation: "WHEN_REQUIRED" as any,
-          responseChecksumValidation: "WHEN_REQUIRED" as any,
-        });
+        const { createHmac, createHash } = await import("crypto");
         const matches = parsed.data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
         if (matches) {
           const mimeType = matches[1];
           const buffer = Buffer.from(matches[2], "base64");
           const ext = parsed.data.name.split(".").pop() || (parsed.data.type === "image" ? "jpg" : "mp4");
-          const key = `vault/${parsed.data.type}s/${randomUUID()}.${ext}`;
-          await s3.send(new PutObjectCommand({
-            Bucket: "dinobane-vault",
-            Key: key,
-            Body: buffer,
-            ContentType: mimeType,
-            CacheControl: "public, max-age=31536000",
-          }));
-          storedData = `${r2PublicUrl}/${key}`;
-          console.log(`[r2] uploaded: ${storedData}`);
+          const key = `vault/${parsed.data.type}s/${crypto.randomUUID()}.${ext}`;
+          const endpoint = `https://${r2AccountId}.r2.cloudflarestorage.com`;
+          const bucket = "dinobane-vault";
+          const url = `${endpoint}/${bucket}/${key}`;
+
+          // AWS Signature Version 4
+          const now = new Date();
+          const date = now.toISOString().slice(0,10).replace(/-/g,'');
+          const datetime = now.toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
+          const payloadHash = createHash('sha256').update(buffer).digest('hex');
+          const canonicalHeaders = `content-type:${mimeType}\nhost:${r2AccountId}.r2.cloudflarestorage.com\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${datetime}\n`;
+          const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+          const canonicalRequest = `PUT\n/${bucket}/${key}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+          const credentialScope = `${date}/auto/s3/aws4_request`;
+          const stringToSign = `AWS4-HMAC-SHA256\n${datetime}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
+          const sign = (key: Buffer, msg: string) => createHmac('sha256', key).update(msg).digest();
+          const signingKey = sign(sign(sign(sign(Buffer.from(`AWS4${r2SecretKey}`), date), 'auto'), 's3'), 'aws4_request');
+          const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+          const authHeader = `AWS4-HMAC-SHA256 Credential=${r2AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+          const uploadRes = await fetch(url, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': mimeType,
+              'x-amz-content-sha256': payloadHash,
+              'x-amz-date': datetime,
+              'Authorization': authHeader,
+              'Cache-Control': 'public, max-age=31536000',
+            },
+            body: buffer,
+          });
+          if (uploadRes.ok) {
+            storedData = `${r2PublicUrl}/${key}`;
+            console.log(`[r2] uploaded via fetch: ${storedData}`);
+          } else {
+            const err = await uploadRes.text();
+            console.warn(`[r2] upload failed ${uploadRes.status}: ${err.slice(0,200)}`);
+          }
         }
       } catch (e: any) {
         console.warn(`[r2] upload failed, falling back to base64: ${e.message}`);
