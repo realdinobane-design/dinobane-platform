@@ -2126,6 +2126,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
     if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const { pool } = await import("./db");
     const rows = await pool.query(
       `SELECT id, user_id as "userId", name, type, data_url as "dataUrl", size, uploaded_at as "uploadedAt" FROM media ORDER BY uploaded_at ASC`
     );
