@@ -2167,13 +2167,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const r2PublicUrl = process.env.R2_PUBLIC_URL;
     if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
-        const { createHmac, createHash } = await import("crypto");
+        const { createHmac, createHash, randomUUID } = await import("crypto");
         const matches = parsed.data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
         if (matches) {
           const mimeType = matches[1];
           const buffer = Buffer.from(matches[2], "base64");
           const ext = parsed.data.name.split(".").pop() || (parsed.data.type === "image" ? "jpg" : "mp4");
-          const key = `vault/${parsed.data.type}s/${crypto.randomUUID()}.${ext}`;
+          const key = `vault/${parsed.data.type}s/${randomUUID()}.${ext}`;
           const endpoint = `https://${r2AccountId}.r2.cloudflarestorage.com`;
           const bucket = "dinobane-vault";
           const url = `${endpoint}/${bucket}/${key}`;
@@ -2214,7 +2214,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
           }
         }
       } catch (e: any) {
-        console.warn(`[r2] upload failed, falling back to base64: ${e.message}`);
+        console.error(`[r2] upload exception: ${e.message} ${e.stack?.slice(0,300)}`);
+        return res.status(500).json({ error: `R2 exception: ${e.message}` });
       }
     }
 
