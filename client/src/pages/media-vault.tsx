@@ -366,7 +366,7 @@ export default function MediaVaultPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"images" | "videos">("images");
+  const [activeTab, setActiveTab] = useState<"images" | "videos">("videos");
   const [lightboxItem, setLightboxItem] = useState<MediaItem | null>(null);
 
   const openLightbox = (item: MediaItem) => setLightboxItem(item);
@@ -501,7 +501,7 @@ export default function MediaVaultPage() {
         {!mediaLoading && media.length > 0 && (
           <>
             <div className="flex items-center gap-1 mb-6 border-b border-zinc-800">
-              {(["images", "videos"] as const).map(tab => (
+              {(["videos", "images"] as const).map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px
                     ${activeTab === tab ? "border-[#cc2a2a] text-[#cc2a2a]" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
