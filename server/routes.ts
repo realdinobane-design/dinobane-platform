@@ -2165,6 +2165,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const r2AccessKey = process.env.R2_ACCESS_KEY_ID;
     const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY;
     const r2PublicUrl = process.env.R2_PUBLIC_URL;
+    console.log(`[r2-check] accountId=${!!r2AccountId} accessKey=${!!r2AccessKey} secretKey=${!!r2SecretKey} publicUrl=${r2PublicUrl?.slice(0,30)}`);
     if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
         const { createHmac, createHash, randomUUID } = await import("crypto");
