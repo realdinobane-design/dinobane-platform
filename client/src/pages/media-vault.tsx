@@ -559,7 +559,7 @@ export default function MediaVaultPage() {
               </section>
             )}
 
-            {/* Video list */}
+            {/* Video grid — thumbnails, click to open lightbox */}
             {activeTab === "videos" && (
               <section>
                 {videos.length === 0 ? (
@@ -568,38 +568,40 @@ export default function MediaVaultPage() {
                     <p className="text-sm text-zinc-500">No videos uploaded yet.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {videos.map(item => {
                       const s = stats[item.id] ?? { likeCount: 0, commentCount: 0, liked: false };
                       return (
-                        <div key={item.id} className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden" data-testid={`card-video-${item.id}`}>
-                          <div className="relative bg-black">
-                            <video src={item.dataUrl} controls controlsList="nodownload" className="w-full max-h-80" preload="metadata" />
+                        <div key={item.id} onClick={() => setLightboxItem(item)}
+                          className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden group cursor-pointer"
+                          data-testid={`card-video-${item.id}`}
+                        >
+                          {/* Video thumbnail — preload=none so nothing loads until clicked */}
+                          <div className="aspect-square overflow-hidden bg-zinc-900 relative">
+                            <video
+                              src={item.dataUrl}
+                              preload="none"
+                              className="w-full h-full object-cover"
+                            />
+                            {/* Play button overlay */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                              <div className="w-10 h-10 rounded-full bg-[#cc2a2a]/90 flex items-center justify-center shadow-lg">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="ml-0.5">
+                                  <polygon points="5,3 19,12 5,21" />
+                                </svg>
+                              </div>
+                            </div>
                           </div>
-                          <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800/60">
-                            <div className="w-0.5 h-8 bg-[#cc2a2a] rounded-full shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-zinc-200 truncate leading-tight">{item.name}</p>
-                              <p className="text-xs text-zinc-600 mt-0.5">{formatBytes(item.size)}</p>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="flex items-center gap-1 text-xs text-zinc-500">
-                                <Heart size={12} className={s.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />{s.likeCount}
-                              </span>
-                              <span className="flex items-center gap-1 text-xs text-zinc-500">
-                                <MessageCircle size={12} />{s.commentCount}
-                              </span>
-                              <button onClick={() => setLightboxItem(item)}
-                                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 rounded-sm transition-colors">
-                                <MessageCircle size={12} /> Comment
-                              </button>
-                              {isAdmin && (
-                                <button onClick={() => setLightboxItem(item)}
-                                  className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-400 border border-red-900/40 hover:border-red-700/60 px-3 py-1.5 rounded-sm transition-colors">
-                                  <Trash2 size={12} /> Manage
-                                </button>
-                              )}
-                            </div>
+                          <div className="px-2.5 pt-2 pb-1">
+                            <p className="text-xs font-medium text-zinc-300 truncate leading-tight">{item.name}</p>
+                          </div>
+                          <div className="flex items-center gap-3 px-2.5 py-1.5 border-t border-zinc-800/60">
+                            <span className="flex items-center gap-1 text-xs text-zinc-500">
+                              <Heart size={11} className={s.liked ? "fill-[#cc2a2a] text-[#cc2a2a]" : ""} />{s.likeCount}
+                            </span>
+                            <span className="flex items-center gap-1 text-xs text-zinc-500">
+                              <MessageCircle size={11} />{s.commentCount}
+                            </span>
                           </div>
                         </div>
                       );
