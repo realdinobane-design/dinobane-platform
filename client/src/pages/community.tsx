@@ -391,8 +391,18 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
   msg: MessageWithUser; channel: string; user: any; replyCount: number;
   onDm?: (partner: MessageWithUser["user"]) => void;
 }) {
-  const isImage = msg.content.startsWith("data:image/");
-  const urls = !isImage ? extractUrls(msg.content) : [];
+  // Parse combined image+text messages
+  let combinedImage: string | null = null;
+  let displayContent = msg.content;
+  try {
+    if (msg.content.startsWith('{"image":')) {
+      const parsed = JSON.parse(msg.content);
+      combinedImage = parsed.image;
+      displayContent = parsed.text || "";
+    }
+  } catch {}
+  const isImage = !combinedImage && msg.content.startsWith("data:image/");
+  const urls = !isImage && !combinedImage ? extractUrls(displayContent) : [];
   const qc = useQueryClient();
   const { toast } = useToast();
   const canDelete = user && (user.id === msg.userId || user.email === "realdinobane@gmail.com" || user.email === "yingchanzeng@gmail.com");
@@ -453,10 +463,17 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
 
             {/* Message body */}
             <div className="mt-2">
-              {!isImage && (
+              {combinedImage && (
+                <div className="space-y-2">
+                  <img src={combinedImage} alt="Shared image" className="max-w-full max-h-72 rounded-sm border border-[#222] object-contain" />
+                  <p className="text-[14px] text-zinc-200 leading-relaxed break-words"
+                    dangerouslySetInnerHTML={{ __html: renderMessageContent(displayContent) }} />
+                </div>
+              )}
+              {!isImage && !combinedImage && (
                 <p
                   className="text-[14px] text-zinc-200 leading-relaxed break-words"
-                  dangerouslySetInnerHTML={{ __html: renderMessageContent(msg.content) }}
+                  dangerouslySetInnerHTML={{ __html: renderMessageContent(displayContent) }}
                 />
               )}
               {isImage && (
@@ -671,22 +688,9 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const handleSend = async () => {
     if (sendMutation.isPending) return;
     const text = draft.trim();
-    // If both image and text — send image first, then text
+    // If both image and text — combine into single message as JSON
     if (pendingImage && text) {
-      sendMutation.mutate(pendingImage);
-      // Wait briefly then send text as a second message
-      await new Promise(r => setTimeout(r, 300));
-      await apiRequest("POST", "/api/messages", { channel: activeChannel, content: text })
-        .then(async (res) => {
-          const msg = await res.json();
-          qc.setQueryData(["/api/messages", activeChannel], (old: any[] = []) => {
-            if (old.some((m: any) => m.id === msg.id)) return old;
-            return [...old, msg];
-          });
-          setDraft("");
-          setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-        })
-        .catch(() => {});
+      sendMutation.mutate(JSON.stringify({ image: pendingImage, text }));
       return;
     }
     if (pendingImage) { sendMutation.mutate(pendingImage); return; }
