@@ -229,6 +229,14 @@ async function ensureBookmarksTable() {
 }
 ensureBookmarksTable();
 
+async function ensureMediaThumbnailColumn() {
+  try {
+    await pool.query(`ALTER TABLE media ADD COLUMN IF NOT EXISTS thumbnail TEXT`);
+    console.log("[media] thumbnail column ready");
+  } catch (e: any) { console.warn("[media] thumbnail column setup failed:", e.message); }
+}
+ensureMediaThumbnailColumn();
+
 async function ensureBlockReportTables() {
   try {
     await pool.query(`
@@ -2119,7 +2127,24 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const user = await storage.getUserById(req.session.userId);
     if (!user?.isMember) return res.status(403).json({ error: "Members only" });
     const items = await storage.getAllMedia();
-    return res.json(items);
+    // Strip full dataUrl from list — only send thumbnail for the grid
+    // Full dataUrl is fetched separately when a single item is opened
+    return res.json(items.map((item: any) => ({
+      ...item,
+      dataUrl: item.thumbnail || (item.type === "image" ? item.dataUrl : ""),
+      thumbnail: item.thumbnail || (item.type === "image" ? item.dataUrl : ""),
+    })));
+  });
+
+  // GET /api/media/:id — fetch single item with full dataUrl (called when lightbox opens)
+  app.get("/api/media/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
+    const id = parseInt(req.params.id);
+    const item = await storage.getMediaById(id);
+    if (!item) return res.status(404).json({ error: "Not found" });
+    return res.json(item);
   });
 
   app.post("/api/media", async (req, res) => {
@@ -2132,6 +2157,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       name: z.string().min(1).max(255),
       type: z.enum(["image", "video"]),
       dataUrl: z.string().min(10),
+      thumbnail: z.string().optional(),
       size: z.number().positive(),
     });
     const parsed = schema.safeParse(req.body);

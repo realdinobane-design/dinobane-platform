@@ -241,6 +241,11 @@ class DrizzleStorage implements IStorage {
     return db.select().from(media).where(eq(media.userId, userId)).orderBy(media.uploadedAt);
   }
 
+  async getMediaById(id: number): Promise<Media | undefined> {
+    const rows = await db.select().from(media).where(eq(media.id, id)).limit(1);
+    return rows[0];
+  }
+
   async getAllMedia(): Promise<Media[]> {
     return db.select().from(media).orderBy(media.uploadedAt);
   }
