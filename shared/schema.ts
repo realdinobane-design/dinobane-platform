@@ -60,7 +60,6 @@ export const media = pgTable("media", {
   name: text("name").notNull(),
   type: text("type").notNull(), // "image" | "video"
   dataUrl: text("data_url").notNull(),
-  thumbnail: text("thumbnail"),  // small JPEG preview, generated at upload time
   size: integer("size").notNull(),
   uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
 });

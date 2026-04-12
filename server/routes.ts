@@ -229,14 +229,6 @@ async function ensureBookmarksTable() {
 }
 ensureBookmarksTable();
 
-async function ensureMediaThumbnailColumn() {
-  try {
-    await pool.query(`ALTER TABLE media ADD COLUMN IF NOT EXISTS thumbnail TEXT`);
-    console.log("[media] thumbnail column ready");
-  } catch (e: any) { console.warn("[media] thumbnail column setup failed:", e.message); }
-}
-ensureMediaThumbnailColumn();
-
 async function ensureBlockReportTables() {
   try {
     await pool.query(`
@@ -2131,17 +2123,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
       `SELECT id, user_id as "userId", name, type, data_url as "dataUrl", size, uploaded_at as "uploadedAt" FROM media ORDER BY uploaded_at ASC`
     );
     return res.json(rows.rows);
-  });
-
-  // GET /api/media/:id — fetch single item with full dataUrl (called when lightbox opens)
-  app.get("/api/media/:id", async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-    const user = await storage.getUserById(req.session.userId);
-    if (!user?.isMember) return res.status(403).json({ error: "Members only" });
-    const id = parseInt(req.params.id);
-    const item = await storage.getMediaById(id);
-    if (!item) return res.status(404).json({ error: "Not found" });
-    return res.json(item);
   });
 
   app.post("/api/media", async (req, res) => {
