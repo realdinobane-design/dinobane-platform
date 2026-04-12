@@ -2126,13 +2126,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
     if (!user?.isMember) return res.status(403).json({ error: "Members only" });
-    const items = await storage.getAllMedia();
+    let items: any[] = [];
+    try {
+      items = await storage.getAllMedia();
+    } catch (e: any) {
+      // Fallback: query without thumbnail column if migration hasn't run yet
+      const rows = await pool.query(
+        `SELECT id, user_id as "userId", name, type, data_url as "dataUrl", size, uploaded_at as "uploadedAt" FROM media ORDER BY uploaded_at ASC`
+      );
+      items = rows.rows;
+    }
     // For the grid, send thumbnail if available, otherwise full dataUrl for images
     // Videos without a thumbnail show a placeholder — full data fetched on click
     return res.json(items.map((item: any) => ({
       ...item,
-      // Always keep full dataUrl for images (they're small enough)
-      // For videos: strip full dataUrl, only send thumbnail
       dataUrl: item.type === "image" ? item.dataUrl : (item.thumbnail || ""),
       thumbnail: item.thumbnail || (item.type === "image" ? item.dataUrl : ""),
     })));
