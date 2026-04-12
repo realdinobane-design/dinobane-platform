@@ -2165,9 +2165,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
     const { pool } = await import("./db");
+    const { r2Available, uploadToR2 } = await import("./r2");
+
+    // If R2 is configured, upload file to R2 and store URL instead of base64
+    let storedData = parsed.data.dataUrl;
+    if (r2Available()) {
+      try {
+        const r2Url = await uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
+        storedData = r2Url;
+        console.log(`[r2] uploaded: ${r2Url}`);
+      } catch (e: any) {
+        console.warn(`[r2] upload failed, falling back to base64: ${e.message}`);
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO media (user_id, name, type, data_url, size) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id as "userId", name, type, data_url as "dataUrl", size, uploaded_at as "uploadedAt"`,
-      [req.session.userId, parsed.data.name, parsed.data.type, parsed.data.dataUrl, parsed.data.size]
+      [req.session.userId, parsed.data.name, parsed.data.type, storedData, parsed.data.size]
     );
     const item = result.rows[0];
     return res.json(item);
@@ -2180,6 +2194,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!ADMIN_EMAIL.has(user.email)) return res.status(403).json({ error: "Only admins can delete media." });
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    // Clean up R2 file if stored there
+    const { pool: p } = await import("./db");
+    const existing = await p.query(`SELECT data_url FROM media WHERE id = $1`, [id]);
+    const dataUrl = existing.rows[0]?.data_url;
+    if (dataUrl && dataUrl.startsWith("http")) {
+      const { deleteFromR2 } = await import("./r2");
+      await deleteFromR2(dataUrl);
+    }
     await storage.deleteMedia(id, req.session.userId);
     return res.json({ ok: true });
   });
