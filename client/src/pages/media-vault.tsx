@@ -417,40 +417,33 @@ export default function MediaVaultPage() {
     }
     setUploading(true);
     try {
-      // Try R2 pre-signed upload first (browser uploads directly to Cloudflare)
-      const presignRes = await apiRequest("POST", "/api/media/presign", {
-        name: file.name, type, mimeType: file.type
-      });
-      const presignData = presignRes.ok ? await presignRes.json() : null;
+      const WORKER_URL = "https://weathered-mud-ae10dinobane-vault-worker.realdinobane.workers.dev";
+      const UPLOAD_SECRET = "DinoBane2026VaultSecret";
+      const key = `vault/${type}s/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
-      if (presignData?.uploadUrl) {
-        // Upload directly to R2 from browser
-        const uploadRes = await fetch(presignData.uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-        if (!uploadRes.ok) throw new Error(`R2 upload failed: ${uploadRes.status}`);
-        // Save the R2 URL to the database
-        const res = await apiRequest("POST", "/api/media", {
-          name: file.name, type,
-          dataUrl: presignData.publicUrl, // store URL not base64
-          size: file.size,
-        });
-        const uploaded = await res.json();
-        if (!uploaded?.id) throw new Error("Failed to save media record");
-      } else {
-        // Fallback: base64 (only if R2 not configured)
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, size: file.size });
-        const uploaded = await res.json();
-        if (!uploaded?.id) throw new Error("Upload failed");
+      // Upload directly to Cloudflare Worker → R2
+      const uploadRes = await fetch(`${WORKER_URL}/${key}`, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+          "x-upload-secret": UPLOAD_SECRET,
+        },
+      });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.text();
+        throw new Error(`Upload failed: ${uploadRes.status} ${err}`);
       }
+      const { url: r2Url } = await uploadRes.json();
+
+      // Save the R2 URL to the database
+      const res = await apiRequest("POST", "/api/media", {
+        name: file.name, type,
+        dataUrl: r2Url,
+        size: file.size,
+      });
+      const uploaded = await res.json();
+      if (!uploaded?.id) throw new Error("Failed to save media record");
 
       await qc.invalidateQueries({ queryKey: ["/api/media"] });
       toast({ title: "Uploaded", description: file.name });
