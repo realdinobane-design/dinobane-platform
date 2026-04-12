@@ -2127,11 +2127,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const user = await storage.getUserById(req.session.userId);
     if (!user?.isMember) return res.status(403).json({ error: "Members only" });
     const items = await storage.getAllMedia();
-    // Strip full dataUrl from list — only send thumbnail for the grid
-    // Full dataUrl is fetched separately when a single item is opened
+    // For the grid, send thumbnail if available, otherwise full dataUrl for images
+    // Videos without a thumbnail show a placeholder — full data fetched on click
     return res.json(items.map((item: any) => ({
       ...item,
-      dataUrl: item.thumbnail || (item.type === "image" ? item.dataUrl : ""),
+      // Always keep full dataUrl for images (they're small enough)
+      // For videos: strip full dataUrl, only send thumbnail
+      dataUrl: item.type === "image" ? item.dataUrl : (item.thumbnail || ""),
       thumbnail: item.thumbnail || (item.type === "image" ? item.dataUrl : ""),
     })));
   });
