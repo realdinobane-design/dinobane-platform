@@ -2154,7 +2154,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
       name: z.string().min(1).max(255),
       type: z.enum(["image", "video"]),
       dataUrl: z.string().min(10),
-      thumbnail: z.string().optional(),
       size: z.number().positive(),
     });
     const parsed = schema.safeParse(req.body);
@@ -2165,7 +2164,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
       return res.status(400).json({ error: `File too large. Max ${parsed.data.type === "image" ? "5MB" : "50MB"}.` });
     }
 
-    const item = await storage.createMedia({ userId: req.session.userId, ...parsed.data });
+    const { pool } = await import("./db");
+    const result = await pool.query(
+      `INSERT INTO media (user_id, name, type, data_url, size) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id as "userId", name, type, data_url as "dataUrl", size, uploaded_at as "uploadedAt"`,
+      [req.session.userId, parsed.data.name, parsed.data.type, parsed.data.dataUrl, parsed.data.size]
+    );
+    const item = result.rows[0];
     return res.json(item);
   });
 
