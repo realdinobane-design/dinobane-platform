@@ -368,18 +368,8 @@ export default function MediaVaultPage() {
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<"images" | "videos">("images");
   const [lightboxItem, setLightboxItem] = useState<MediaItem | null>(null);
-  const [lightboxFull, setLightboxFull] = useState<MediaItem | null>(null);
 
-  // Fetch full dataUrl when lightbox opens
-  const openLightbox = async (item: MediaItem) => {
-    setLightboxItem(item);
-    setLightboxFull(null);
-    try {
-      const res = await apiRequest("GET", `/api/media/${item.id}`);
-      const full = await res.json();
-      setLightboxFull(full);
-    } catch {}
-  };
+  const openLightbox = (item: MediaItem) => setLightboxItem(item);
 
   // Local stats override — lets like/comment mutations update the grid instantly
   // without refetching the whole bulk stats endpoint
@@ -419,45 +409,6 @@ export default function MediaVaultPage() {
     }));
   };
 
-  // Generate a small thumbnail (JPEG, max 320px) from a file using canvas
-  const generateThumbnail = (file: File, type: "image" | "video"): Promise<string> =>
-    new Promise((resolve) => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      if (type === "image") {
-        const img = new Image();
-        img.onload = () => {
-          const size = 320;
-          const ratio = Math.min(size / img.width, size / img.height);
-          canvas.width = Math.round(img.width * ratio);
-          canvas.height = Math.round(img.height * ratio);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
-          URL.revokeObjectURL(img.src);
-        };
-        img.onerror = () => resolve("");
-        img.src = URL.createObjectURL(file);
-      } else {
-        const video = document.createElement("video");
-        video.preload = "metadata";
-        video.muted = true;
-        video.onloadeddata = () => {
-          video.currentTime = 1; // seek to 1 second for a meaningful frame
-        };
-        video.onseeked = () => {
-          const size = 320;
-          const ratio = Math.min(size / video.videoWidth, size / video.videoHeight);
-          canvas.width = Math.round(video.videoWidth * ratio);
-          canvas.height = Math.round(video.videoHeight * ratio);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
-          URL.revokeObjectURL(video.src);
-        };
-        video.onerror = () => resolve("");
-        video.src = URL.createObjectURL(file);
-      }
-    });
-
   const handleFileUpload = async (file: File, type: "image" | "video") => {
     const maxMB = type === "image" ? MAX_IMAGE_MB : MAX_VIDEO_MB;
     if (file.size > maxMB * 1024 * 1024) {
@@ -466,16 +417,13 @@ export default function MediaVaultPage() {
     }
     setUploading(true);
     try {
-      const [dataUrl, thumbnail] = await Promise.all([
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        }),
-        generateThumbnail(file, type),
-      ]);
-      const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, thumbnail, size: file.size });
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, size: file.size });
       const uploaded = await res.json();
       if (!uploaded) throw new Error("Upload failed");
       await qc.invalidateQueries({ queryKey: ["/api/media"] });
@@ -497,9 +445,9 @@ export default function MediaVaultPage() {
     <>
       {lightboxItem && (
         <MediaLightbox
-          item={lightboxFull || lightboxItem}
+          item={lightboxItem}
           items={tabItems}
-          onClose={() => { setLightboxItem(null); setLightboxFull(null); }}
+          onClose={() => setLightboxItem(null)}
           onNavigate={openLightbox}
           currentUser={user}
           isAdmin={isAdmin}
@@ -630,12 +578,15 @@ export default function MediaVaultPage() {
                           className="bg-[#111] border border-zinc-800 rounded-sm overflow-hidden group cursor-pointer"
                           data-testid={`card-video-${item.id}`}
                         >
-                          {/* Video thumbnail — static image, full video loads only in lightbox */}
+                          {/* Video thumbnail — preload metadata only so browser shows first frame */}
                           <div className="aspect-square overflow-hidden bg-zinc-900 relative">
-                            {item.thumbnail
-                              ? <img src={item.thumbnail} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                              : <div className="w-full h-full flex items-center justify-center"><Film size={32} className="text-zinc-700" /></div>
-                            }
+                            <video
+                              src={item.dataUrl}
+                              preload="metadata"
+                              muted
+                              playsInline
+                              className="w-full h-full object-cover pointer-events-none"
+                            />
                             {/* Play button overlay */}
                             <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
                               <div className="w-10 h-10 rounded-full bg-[#cc2a2a]/90 flex items-center justify-center shadow-lg">
