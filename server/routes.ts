@@ -2165,13 +2165,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
     const { pool } = await import("./db");
-    const { r2Available, uploadToR2 } = await import("./r2");
+    const r2Module = await import("./r2").catch(() => null);
 
     // If R2 is configured, upload file to R2 and store URL instead of base64
     let storedData = parsed.data.dataUrl;
-    if (r2Available()) {
+    if (r2Module?.r2Available()) {
       try {
-        const r2Url = await uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
+        const r2Url = await r2Module.uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
         storedData = r2Url;
         console.log(`[r2] uploaded: ${r2Url}`);
       } catch (e: any) {

@@ -30,6 +30,9 @@ const allowlist = [
   "xlsx",
   "zod",
   "zod-validation-error",
+  "@aws-sdk/client-s3",
+  "@aws-sdk/s3-request-presigner",
+  "@smithy/node-http-handler",
 ];
 
 async function buildAll() {
