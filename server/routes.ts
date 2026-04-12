@@ -2089,6 +2089,47 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true, action: "created", id: user.id });
   });
 
+  // POST /api/media/presign — generate a pre-signed URL for direct browser-to-R2 upload
+  app.post("/api/media/presign", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(401).json({ error: "User not found" });
+    if (!ADMIN_EMAILS.has(user.email)) return res.status(403).json({ error: "Admins only" });
+    const r2AccountId = process.env.R2_ACCOUNT_ID;
+    const r2AccessKey = process.env.R2_ACCESS_KEY_ID;
+    const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY;
+    const r2PublicUrl = process.env.R2_PUBLIC_URL;
+    if (!r2AccountId || !r2AccessKey || !r2SecretKey || !r2PublicUrl) {
+      return res.status(503).json({ error: "R2 not configured" });
+    }
+    const { name, type, mimeType } = req.body;
+    const { createHmac, createHash, randomUUID } = await import("crypto");
+    const ext = name?.split(".").pop() || (type === "image" ? "jpg" : "mp4");
+    const key = `vault/${type}s/${randomUUID()}.${ext}`;
+    // Generate presigned PUT URL valid for 15 minutes
+    const now = new Date();
+    const date = now.toISOString().slice(0,10).replace(/-/g,'');
+    const datetime = now.toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
+    const expiresIn = 900; // 15 min
+    const credentialScope = `${date}/auto/s3/aws4_request`;
+    const credential = `${r2AccessKey}/${credentialScope}`;
+    const canonicalQueryString = [
+      `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
+      `X-Amz-Credential=${encodeURIComponent(credential)}`,
+      `X-Amz-Date=${datetime}`,
+      `X-Amz-Expires=${expiresIn}`,
+      `X-Amz-SignedHeaders=host`,
+    ].join('&');
+    const host = `${r2AccountId}.r2.cloudflarestorage.com`;
+    const canonicalRequest = `PUT\n/${"dinobane-vault"}/${key}\n${canonicalQueryString}\nhost:${host}\n\nhost\nUNSIGNED-PAYLOAD`;
+    const stringToSign = `AWS4-HMAC-SHA256\n${datetime}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
+    const sign = (k: Buffer, msg: string) => createHmac('sha256', k).update(msg).digest();
+    const signingKey = sign(sign(sign(sign(Buffer.from(`AWS4${r2SecretKey}`), date), 'auto'), 's3'), 'aws4_request');
+    const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+    const uploadUrl = `https://${host}/dinobane-vault/${key}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+    return res.json({ uploadUrl, key, publicUrl: `${r2PublicUrl}/${key}` });
+  });
+
   // GET /api/debug/r2 — check R2 env vars and connectivity (admin only)
   app.get("/api/debug/r2", async (req, res) => {
     const check = await requireAdmin(req, res);

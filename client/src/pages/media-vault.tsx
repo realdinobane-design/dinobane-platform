@@ -417,15 +417,41 @@ export default function MediaVaultPage() {
     }
     setUploading(true);
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+      // Try R2 pre-signed upload first (browser uploads directly to Cloudflare)
+      const presignRes = await apiRequest("POST", "/api/media/presign", {
+        name: file.name, type, mimeType: file.type
       });
-      const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, size: file.size });
-      const uploaded = await res.json();
-      if (!uploaded) throw new Error("Upload failed");
+      const presignData = presignRes.ok ? await presignRes.json() : null;
+
+      if (presignData?.uploadUrl) {
+        // Upload directly to R2 from browser
+        const uploadRes = await fetch(presignData.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        if (!uploadRes.ok) throw new Error(`R2 upload failed: ${uploadRes.status}`);
+        // Save the R2 URL to the database
+        const res = await apiRequest("POST", "/api/media", {
+          name: file.name, type,
+          dataUrl: presignData.publicUrl, // store URL not base64
+          size: file.size,
+        });
+        const uploaded = await res.json();
+        if (!uploaded?.id) throw new Error("Failed to save media record");
+      } else {
+        // Fallback: base64 (only if R2 not configured)
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const res = await apiRequest("POST", "/api/media", { name: file.name, type, dataUrl, size: file.size });
+        const uploaded = await res.json();
+        if (!uploaded?.id) throw new Error("Upload failed");
+      }
+
       await qc.invalidateQueries({ queryKey: ["/api/media"] });
       toast({ title: "Uploaded", description: file.name });
       setActiveTab(type === "image" ? "images" : "videos");
