@@ -1199,13 +1199,13 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
     )}
     {lightboxSrc && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 cursor-zoom-out p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 cursor-zoom-out p-8"
         onClick={() => setLightboxSrc(null)}
       >
         <img
           src={lightboxSrc}
           alt="Enlarged image"
-          className="max-w-full max-h-full rounded object-contain shadow-2xl"
+          className="max-w-2xl max-h-[80vh] w-auto h-auto rounded border border-[#333] object-contain shadow-2xl"
         />
       </div>
     )}
