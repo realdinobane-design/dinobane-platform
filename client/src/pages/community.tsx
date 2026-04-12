@@ -880,7 +880,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
             <Hash size={13} className="text-[#cc2a2a] shrink-0" />
             <span className="font-black text-white text-sm" style={{ fontFamily: "'Clash Display', sans-serif" }}>{activeCh.label}</span>
           </div>
-          {/* Scrollable tabs row */}
+          {/* Scrollable channel tabs row */}
           <div className="flex items-center overflow-x-auto scrollbar-none pb-2 px-2 gap-1">
             {CHANNELS.map(ch => (
               <button
@@ -896,27 +896,29 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 #{ch.label}
               </button>
             ))}
-            {/* Members button — opens member list modal */}
+          </div>
+
+          {/* Members + Messages — distinct buttons below the channel tabs */}
+          <div className="flex gap-2 px-2 pb-2.5">
             <button
               onClick={() => setMobileMembersOpen(true)}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-sm font-bold uppercase tracking-wide border border-[#222] text-zinc-500 hover:text-[#f0c800] hover:border-[#f0c800]/30 transition-colors whitespace-nowrap ml-1"
+              className="flex-1 flex items-center justify-center gap-2 py-2 text-[12px] font-bold uppercase tracking-wider rounded border border-[#f0c800]/40 bg-[#f0c800]/10 text-[#f0c800] hover:bg-[#f0c800]/20 transition-colors"
             >
-              <Users size={12} />
+              <Users size={13} />
               Members
-              {(membersList.length > 0) && (
+              {membersList.length > 0 && (
                 <span className="bg-green-500/20 text-green-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{membersList.length}</span>
               )}
             </button>
-            {/* Messages button — opens DM inbox */}
             {user && (
               <button
                 onClick={() => setDmInboxOpen(true)}
-                className="shrink-0 relative flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-sm font-bold uppercase tracking-wide border border-[#222] text-zinc-500 hover:text-[#f0c800] hover:border-[#f0c800]/30 transition-colors whitespace-nowrap"
+                className="flex-1 relative flex items-center justify-center gap-2 py-2 text-[12px] font-bold uppercase tracking-wider rounded border border-[#f0c800]/40 bg-[#f0c800]/10 text-[#f0c800] hover:bg-[#f0c800]/20 transition-colors"
               >
-                <MessageSquare size={12} />
+                <MessageSquare size={13} />
                 Messages
                 {(dmUnread?.count ?? 0) > 0 && (
-                  <span className="bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-1">{dmUnread!.count > 9 ? "9+" : dmUnread!.count}</span>
+                  <span className="bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">{dmUnread!.count > 9 ? "9+" : dmUnread!.count}</span>
                 )}
               </button>
             )}
