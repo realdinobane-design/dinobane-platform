@@ -2089,6 +2089,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true, action: "created", id: user.id });
   });
 
+  // GET /api/debug/r2 — check R2 env vars (admin only)
+  app.get("/api/debug/r2", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    return res.json({
+      R2_ACCOUNT_ID: !!process.env.R2_ACCOUNT_ID,
+      R2_ACCESS_KEY_ID: !!process.env.R2_ACCESS_KEY_ID,
+      R2_SECRET_ACCESS_KEY: !!process.env.R2_SECRET_ACCESS_KEY,
+      R2_PUBLIC_URL: process.env.R2_PUBLIC_URL || null,
+    });
+  });
+
   // GET /api/intel/schedule-info — returns current intel briefing send time (used by cron)
   app.get("/api/intel/schedule-info", async (_req, res) => {
     const sendTimeUtc = await storage.getSetting("intel_briefing_time_utc") || "07:00";
