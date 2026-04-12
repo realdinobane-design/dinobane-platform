@@ -387,9 +387,10 @@ function ReplyThread({
 
 // ─── POST CARD ────────────────────────────────────────────────────────────────
 
-function PostCard({ msg, channel, user, replyCount, onDm }: {
+function PostCard({ msg, channel, user, replyCount, onDm, onImageClick }: {
   msg: MessageWithUser; channel: string; user: any; replyCount: number;
   onDm?: (partner: MessageWithUser["user"]) => void;
+  onImageClick?: (src: string) => void;
 }) {
   // Parse combined image+text messages
   let combinedImage: string | null = null;
@@ -465,7 +466,7 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
             <div className="mt-2">
               {combinedImage && (
                 <div className="space-y-2">
-                  <img src={combinedImage} alt="Shared image" onClick={() => setLightboxSrc(combinedImage)} className="max-w-full max-h-72 rounded-sm border border-[#222] object-contain cursor-zoom-in" />
+                  <img src={combinedImage} alt="Shared image" onClick={() => onImageClick?.(combinedImage!)} className="max-w-full max-h-72 rounded-sm border border-[#222] object-contain cursor-zoom-in" />
                   <p className="text-[14px] text-zinc-200 leading-relaxed break-words"
                     dangerouslySetInnerHTML={{ __html: renderMessageContent(displayContent) }} />
                 </div>
@@ -480,7 +481,7 @@ function PostCard({ msg, channel, user, replyCount, onDm }: {
                 <img
                   src={msg.content}
                   alt="Shared image"
-                  onClick={() => setLightboxSrc(msg.content)}
+                  onClick={() => onImageClick?.(msg.content)}
                   className="max-w-full max-h-72 rounded-sm border border-[#222] mt-1 object-contain cursor-zoom-in"
                 />
               )}
@@ -1023,6 +1024,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                     user={user}
                     replyCount={replyCounts[post.id] ?? 0}
                     onDm={(partner) => user && partner.id !== user.id && setDmPartner(partner)}
+                    onImageClick={setLightboxSrc}
                   />
                 ))
             )}
