@@ -2146,15 +2146,40 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
     const { pool } = await import("./db");
-    const r2Module = await import("./r2").catch(() => null);
 
     // If R2 is configured, upload file to R2 and store URL instead of base64
     let storedData = parsed.data.dataUrl;
-    if (r2Module?.r2Available()) {
+    const r2AccountId = process.env.R2_ACCOUNT_ID;
+    const r2AccessKey = process.env.R2_ACCESS_KEY_ID;
+    const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY;
+    const r2PublicUrl = process.env.R2_PUBLIC_URL;
+    if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
-        const r2Url = await r2Module.uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
-        storedData = r2Url;
-        console.log(`[r2] uploaded: ${r2Url}`);
+        const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+        const { randomUUID } = await import("crypto");
+        const s3 = new S3Client({
+          region: "auto",
+          endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+          credentials: { accessKeyId: r2AccessKey, secretAccessKey: r2SecretKey },
+          requestChecksumCalculation: "WHEN_REQUIRED" as any,
+          responseChecksumValidation: "WHEN_REQUIRED" as any,
+        });
+        const matches = parsed.data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], "base64");
+          const ext = parsed.data.name.split(".").pop() || (parsed.data.type === "image" ? "jpg" : "mp4");
+          const key = `vault/${parsed.data.type}s/${randomUUID()}.${ext}`;
+          await s3.send(new PutObjectCommand({
+            Bucket: "dinobane-vault",
+            Key: key,
+            Body: buffer,
+            ContentType: mimeType,
+            CacheControl: "public, max-age=31536000",
+          }));
+          storedData = `${r2PublicUrl}/${key}`;
+          console.log(`[r2] uploaded: ${storedData}`);
+        }
       } catch (e: any) {
         console.warn(`[r2] upload failed, falling back to base64: ${e.message}`);
       }
