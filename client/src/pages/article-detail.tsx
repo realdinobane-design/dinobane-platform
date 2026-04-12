@@ -82,8 +82,8 @@ export default function ArticleDetailPage() {
       <div className="flex flex-wrap gap-2 mb-8 pb-6 border-b border-border">
         {article.youtubeUrl && (
           <a href={article.youtubeUrl} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" className="bg-red-700 hover:bg-red-600 text-white gap-2" data-testid="button-watch-video">
-              <Youtube size={14} /> Watch Video
+            <Button size="default" className="bg-[#cc2a2a] hover:bg-[#aa2020] text-white gap-2 font-bold px-6 py-2.5 text-sm uppercase tracking-wider" data-testid="button-watch-video">
+              <Youtube size={16} /> Watch on YouTube
             </Button>
           </a>
         )}
@@ -121,12 +121,18 @@ export default function ArticleDetailPage() {
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
 
-      {/* Source */}
+      {/* Watch on YouTube CTA at bottom */}
       {article.youtubeUrl && (
-        <div className="mt-10 pt-6 border-t border-border">
-          <p className="text-xs text-muted-foreground">
-            Source: <a href={article.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 underline">{article.youtubeUrl}</a>
-          </p>
+        <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-white mb-0.5">Watch the full video</p>
+            <p className="text-xs text-muted-foreground">See the original DinoBane video on YouTube</p>
+          </div>
+          <a href={article.youtubeUrl} target="_blank" rel="noopener noreferrer">
+            <Button size="default" className="bg-[#cc2a2a] hover:bg-[#aa2020] text-white gap-2 font-bold px-6 uppercase tracking-wider shrink-0">
+              <Youtube size={16} /> Watch on YouTube
+            </Button>
+          </a>
         </div>
       )}
     </div>

@@ -182,9 +182,20 @@ export default function ArticlesPage() {
                 data-testid={`link-article-${a.id}`}
               >
                 {a.thumbnail && (
-                  <div className="hidden sm:block flex-shrink-0 w-32 aspect-video rounded overflow-hidden">
-                    <img src={a.thumbnail} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
-                  </div>
+                  <a
+                    href={a.youtubeUrl || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="hidden sm:block flex-shrink-0 w-48 aspect-video rounded overflow-hidden relative group/thumb"
+                  >
+                    <img src={a.thumbnail} alt={a.title} className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300" loading="lazy" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/thumb:bg-black/50 transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-[#cc2a2a]/90 flex items-center justify-center shadow-lg">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="ml-0.5"><polygon points="5,3 19,12 5,21" /></svg>
+                      </div>
+                    </div>
+                  </a>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
