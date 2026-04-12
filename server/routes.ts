@@ -2209,7 +2209,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
             console.log(`[r2] uploaded via fetch: ${storedData}`);
           } else {
             const err = await uploadRes.text();
-            console.warn(`[r2] upload failed ${uploadRes.status}: ${err.slice(0,200)}`);
+            console.error(`[r2] upload failed ${uploadRes.status}: ${err.slice(0,500)}`);
+            return res.status(500).json({ error: `R2 upload failed: ${uploadRes.status} ${err.slice(0,200)}` });
           }
         }
       } catch (e: any) {
