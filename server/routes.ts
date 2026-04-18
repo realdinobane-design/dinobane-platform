@@ -726,7 +726,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!user || !resend) return res.json({ ok: true });
 
     const token = crypto.randomBytes(32).toString("hex");
-    const expires = Date.now() + 60 * 60 * 1000; // 1 hour
+    const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     await storePasswordResetToken(token, user.id, expires);
 
     const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
