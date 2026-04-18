@@ -717,13 +717,44 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch (e: any) {}
   }
 
+  // Rate limiter for forgot-password: max 3 requests per email per hour
+  const resetRateLimit = new Map<string, { count: number; resetAt: number }>();
+
   // POST /api/auth/forgot-password — sends reset link
   app.post("/api/auth/forgot-password", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email required" });
+
+    // Rate limit: 3 attempts per email per hour
+    const key = (email as string).toLowerCase().trim();
+    const now = Date.now();
+    const rl = resetRateLimit.get(key);
+    if (rl) {
+      if (now < rl.resetAt && rl.count >= 3) {
+        return res.json({ ok: true }); // silently drop — don't tell spammers they're blocked
+      }
+      if (now >= rl.resetAt) {
+        resetRateLimit.set(key, { count: 1, resetAt: now + 60 * 60 * 1000 });
+      } else {
+        rl.count++;
+      }
+    } else {
+      resetRateLimit.set(key, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    }
+
     // Always return 200 to prevent email enumeration
     const user = await storage.getUserByEmail(email);
     if (!user || !resend) return res.json({ ok: true });
+
+    // Delete any existing tokens for this user before creating a new one
+    try {
+      const { pool } = await import("./db");
+      await pool.query(`DELETE FROM password_reset_tokens WHERE user_id=$1`, [user.id]);
+    } catch {}
+    // Clean old entries from in-memory map too
+    for (const [t, r] of passwordResetTokens.entries()) {
+      if (r.userId === user.id) passwordResetTokens.delete(t);
+    }
 
     const token = crypto.randomBytes(32).toString("hex");
     const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
@@ -741,7 +772,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         <tr>
           <td style="padding:28px 28px 12px;">
             <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;">Reset your password</h2>
-            <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Hi ${user.displayName}, click the button below to reset your password. This link expires in 1 hour.</p>
+            <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Hi ${user.displayName}, click the button below to reset your password. This link expires in 24 hours.</p>
             <a href="${resetUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password &rarr;</a>
           </td>
         </tr>
