@@ -50,13 +50,14 @@ export default function ResetPasswordPage() {
   if (tokenError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center space-y-4">
+        <div className="w-full max-w-md text-center space-y-6">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
-          <h1 className="text-xl font-bold text-white uppercase tracking-wider">Invalid Link</h1>
-          <p className="text-sm text-muted-foreground">{tokenError}</p>
+          <h1 className="text-xl font-bold text-white uppercase tracking-wider">This link has expired</h1>
+          <p className="text-sm text-muted-foreground">Password reset links are only valid for 24 hours. Click below to get a fresh one — it only takes a second.</p>
           <Link href="/forgot-password">
-            <Button className="bg-primary hover:bg-primary/90 text-white">Request New Reset Link</Button>
+            <Button className="w-full bg-[#cc2a2a] hover:bg-[#aa2020] text-white font-bold uppercase tracking-widest py-3">Get a new reset link</Button>
           </Link>
+          <p className="text-xs text-muted-foreground/50">If you keep having trouble, email <a href="mailto:contact@realdinobane.com" className="text-[#cc2a2a] hover:underline">contact@realdinobane.com</a></p>
         </div>
       </div>
     );
