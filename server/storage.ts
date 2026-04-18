@@ -19,6 +19,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUserMembership(id: number, isMember: boolean): Promise<User>;
+  setMembershipExpiry(id: number, expiry: Date): Promise<void>;
   deleteUser(id: number): Promise<void>;
   updateStripeCustomerId(id: number, stripeCustomerId: string): Promise<User>;
   updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null; password?: string }): Promise<User>;
@@ -99,11 +100,17 @@ class DrizzleStorage implements IStorage {
 
   async updateUserMembership(id: number, isMember: boolean): Promise<User> {
     const [user] = await db.update(users)
-      .set({ isMember, memberSince: isMember ? new Date() : null })
+      .set({ isMember, memberSince: isMember ? new Date() : null, membershipExpiry: isMember ? null : undefined })
       .where(eq(users.id, id))
       .returning();
     if (!user) throw new Error("User not found");
     return user;
+  }
+
+  async setMembershipExpiry(id: number, expiry: Date): Promise<void> {
+    await db.update(users)
+      .set({ membershipExpiry: expiry })
+      .where(eq(users.id, id));
   }
 
   async deleteUser(id: number): Promise<void> {

@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   isMember: boolean("is_member").notNull().default(false),
   memberSince: timestamp("member_since"),
+  membershipExpiry: timestamp("membership_expiry", { withTimezone: true }),
   stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

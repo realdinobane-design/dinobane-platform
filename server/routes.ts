@@ -1131,7 +1131,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
               }
             } catch (e) { console.error("[webhook] customer lookup failed:", e); }
           }
-          if (userId) await storage.updateUserMembership(userId, false);
+          if (userId) {
+            // Grace period: keep access for 30 days, then revoke
+            const expiry = new Date();
+            expiry.setDate(expiry.getDate() + 30);
+            await storage.setMembershipExpiry(userId, expiry);
+            console.log(`[webhook] subscription cancelled for userId ${userId} — access until ${expiry.toISOString()}`);
+          }
           break;
         }
         case "customer.subscription.updated": {
@@ -2226,6 +2232,62 @@ export function registerRoutes(httpServer: Server, app: Express) {
     sendIntelBriefingToAllMembers()
       .then(sent => console.log(`[auto-broadcast] complete — sent to ${sent} members`))
       .catch(e => console.error(`[auto-broadcast] failed: ${e.message}`));
+  });
+
+  // POST /api/cron/membership-expiry — daily cron to revoke expired memberships and send 4-day warnings
+  app.post("/api/cron/membership-expiry", async (req, res) => {
+    const secret = req.headers["x-cron-secret"];
+    if (secret !== "DinoBane2026CronSecret") return res.status(403).json({ error: "Forbidden" });
+    const { pool: p } = await import("./db");
+    const now = new Date();
+    const fourDaysFromNow = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
+    const fiveDaysFromNow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+    // 1. Revoke memberships that have expired
+    const expired = await p.query(
+      `SELECT id, username, email FROM users WHERE is_member = true AND membership_expiry IS NOT NULL AND membership_expiry <= $1`,
+      [now]
+    );
+    for (const user of expired.rows) {
+      await p.query(`UPDATE users SET is_member = false, membership_expiry = NULL WHERE id = $1`, [user.id]);
+      console.log(`[membership-expiry] revoked membership for ${user.username} (${user.email})`);
+    }
+
+    // 2. Send 4-day warning emails (expiry between now+4d and now+5d to avoid duplicate sends)
+    const warning = await p.query(
+      `SELECT id, username, email FROM users WHERE is_member = true AND membership_expiry IS NOT NULL AND membership_expiry >= $1 AND membership_expiry < $2`,
+      [fourDaysFromNow, fiveDaysFromNow]
+    );
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+    for (const user of warning.rows) {
+      if (!resend) continue;
+      try {
+        await resend.emails.send({
+          from: "DinoBane <noreply@dinobane.com>",
+          to: user.email,
+          replyTo: "contact@realdinobane.com",
+          subject: "Your DinoBane membership expires in 4 days",
+          html: `
+            <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#0d0d0d;color:#eee;padding:32px;border-radius:8px;">
+              <h2 style="color:#f5c842;margin-top:0;">Membership Expiring Soon</h2>
+              <p>Hi ${user.username},</p>
+              <p>Your DinoBane membership will expire in <strong>4 days</strong>.</p>
+              <p>To keep your access, log in and renew your membership before it expires.</p>
+              <p style="text-align:center;margin:32px 0;">
+                <a href="${appUrl}/#/membership" style="background:#f5c842;color:#000;padding:12px 28px;border-radius:4px;text-decoration:none;font-weight:bold;">Renew Membership</a>
+              </p>
+              <p>If you need help, reply to this email or contact us at <a href="mailto:contact@realdinobane.com" style="color:#f5c842;">contact@realdinobane.com</a>.</p>
+              <p style="color:#666;font-size:12px;margin-top:32px;">&copy; 2026 DinoBane</p>
+            </div>
+          `
+        });
+        console.log(`[membership-expiry] sent 4-day warning to ${user.username} (${user.email})`);
+      } catch (e: any) {
+        console.error(`[membership-expiry] failed to send warning to ${user.email}: ${e.message}`);
+      }
+    }
+
+    res.json({ ok: true, revoked: expired.rows.length, warned: warning.rows.length });
   });
 
   // ─── MEDIA VAULT ─────────────────────────────────────────────────────────────
