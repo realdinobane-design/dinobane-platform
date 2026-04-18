@@ -3342,44 +3342,120 @@ function getFallbackVideos() {
 
 // ─── AI ARTICLE GENERATION (OpenRouter) ───────────────────────────────────────
 async function fetchVideoTranscript(videoUrl: string): Promise<string | null> {
-  const tmpBase = `/tmp/transcript_${Date.now()}`;
+  const videoIdMatch = videoUrl.match(/(?:v=|youtu\.be\/)([^&\s]+)/);
+  const videoId = videoIdMatch?.[1];
+  if (!videoId) return null;
+
+  const ytApiKey = process.env.YOUTUBE_API_KEY;
+  if (!ytApiKey) {
+    console.warn('[articles] YOUTUBE_API_KEY not set — cannot fetch transcript');
+    return null;
+  }
+
   try {
-    // Try auto-generated English captions first, then manual captions
-    await execAsync(
-      `yt-dlp --write-auto-sub --write-sub --sub-lang en --sub-format vtt --skip-download --no-playlist -o "${tmpBase}" "${videoUrl}"`,
-      { timeout: 40_000 }
+    // Step 1: get list of caption tracks for this video
+    const listRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${ytApiKey}`,
+      { signal: AbortSignal.timeout(10_000) }
     );
-    // Find the downloaded vtt file
-    const { stdout: found } = await execAsync(`ls "${tmpBase}"*.vtt 2>/dev/null || echo ''`);
-    const vttFile = found.trim().split('\n')[0];
-    if (!vttFile) return null;
-
-    const { readFileSync, unlinkSync } = await import('fs');
-    const raw = readFileSync(vttFile, 'utf8');
-    // Clean up temp file
-    try { unlinkSync(vttFile); } catch {}
-
-    // Parse VTT: strip headers, timestamps, tags, deduplicate lines
-    const lines = raw.split('\n');
-    const textLines: string[] = [];
-    for (const line of lines) {
-      const l = line.trim();
-      if (!l) continue;
-      if (l.startsWith('WEBVTT') || l.startsWith('Kind:') || l.startsWith('Language:')) continue;
-      if (/^\d{2}:\d{2}/.test(l)) continue; // timestamp
-      const clean = l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-      if (clean) textLines.push(clean);
+    if (!listRes.ok) {
+      console.warn(`[articles] captions list failed: ${listRes.status}`);
+      return null;
     }
-    // Deduplicate consecutive identical lines (VTT repeats lines as they scroll)
-    const deduped: string[] = [];
-    let prev = '';
-    for (const l of textLines) {
-      if (l !== prev) { deduped.push(l); prev = l; }
+    const listData = await listRes.json() as any;
+    const tracks = (listData.items || []) as any[];
+
+    // Prefer auto-generated English, then manual English, then any English
+    const track = tracks.find((t: any) => t.snippet.language === 'en' && t.snippet.trackKind === 'asr')
+      || tracks.find((t: any) => t.snippet.language === 'en')
+      || tracks.find((t: any) => t.snippet.language?.startsWith('en'));
+
+    if (!track) {
+      console.warn(`[articles] no English captions for ${videoId}`);
+      return null;
     }
-    const transcript = deduped.join(' ').replace(/\s+/g, ' ').trim();
-    return transcript.length > 100 ? transcript : null;
+
+    // Step 2: download the caption track as SRT (requires OAuth for private/unlisted,
+    // but ASR tracks on public videos are accessible)
+    // The YouTube Data API v3 caption download requires OAuth — use yt-dlp as fallback
+    // but first try the public timedtext endpoint which works without auth
+    const timedTextUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}&fmt=vtt&kind=asr`;
+    const ttRes = await fetch(timedTextUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DinoBane/1.0)' },
+      signal: AbortSignal.timeout(15_000)
+    });
+
+    if (ttRes.ok) {
+      const raw = await ttRes.text();
+      if (raw.length > 200) {
+        // Parse VTT
+        const lines = raw.split('\n');
+        const textLines: string[] = [];
+        for (const line of lines) {
+          const l = line.trim();
+          if (!l || l.startsWith('WEBVTT') || l.startsWith('Kind:') || l.startsWith('Language:')) continue;
+          if (/^\d{2}:\d{2}/.test(l)) continue;
+          const clean = l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+          if (clean) textLines.push(clean);
+        }
+        const deduped: string[] = [];
+        let prev = '';
+        for (const l of textLines) { if (l !== prev) { deduped.push(l); prev = l; } }
+        const transcript = deduped.join(' ').replace(/\s+/g, ' ').trim();
+        if (transcript.length > 100) {
+          console.log(`[articles] transcript fetched via timedtext (${transcript.length} chars)`);
+          return transcript;
+        }
+      }
+    }
+
+    // Step 3: yt-dlp with YouTube cookies from env var (handles age-restricted videos)
+    const tmpBase = `/tmp/transcript_${Date.now()}`;
+    const ytCookies = process.env.YOUTUBE_COOKIES;
+    let cookiesArg = '';
+    if (ytCookies) {
+      const cookiesFile = `/tmp/yt-cookies-${Date.now()}.txt`;
+      const { writeFileSync } = await import('fs');
+      writeFileSync(cookiesFile, ytCookies);
+      cookiesArg = `--cookies "${cookiesFile}"`;
+    }
+    try {
+      await execAsync(
+        `yt-dlp ${cookiesArg} --write-auto-sub --write-sub --sub-lang en --sub-format vtt --skip-download --no-playlist -o "${tmpBase}" "${videoUrl}"`,
+        { timeout: 60_000 }
+      );
+      const { stdout: found } = await execAsync(`ls "${tmpBase}"*.vtt 2>/dev/null || echo ''`);
+      const vttFile = found.trim().split('\n')[0];
+      if (vttFile) {
+        const { readFileSync, unlinkSync } = await import('fs');
+        const raw = readFileSync(vttFile, 'utf8');
+        try { unlinkSync(vttFile); } catch {}
+        const lines = raw.split('\n');
+        const textLines: string[] = [];
+        for (const line of lines) {
+          const l = line.trim();
+          if (!l || l.startsWith('WEBVTT') || l.startsWith('Kind:') || l.startsWith('Language:')) continue;
+          if (/^\d{2}:\d{2}/.test(l)) continue;
+          const clean = l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+          if (clean) textLines.push(clean);
+        }
+        const deduped: string[] = [];
+        let prev = '';
+        for (const l of textLines) { if (l !== prev) { deduped.push(l); prev = l; } }
+        const transcript = deduped.join(' ').replace(/\s+/g, ' ').trim();
+        if (transcript.length > 100) {
+          console.log(`[articles] transcript fetched via yt-dlp (${transcript.length} chars)`);
+          return transcript;
+        }
+      }
+    } catch (ytErr: any) {
+      console.warn(`[articles] yt-dlp failed: ${ytErr.message?.slice(0, 100)}`);
+    }
+
+    console.warn(`[articles] all transcript methods failed for ${videoId}`);
+    return null;
   } catch (e: any) {
-    console.warn(`[articles] transcript fetch failed for ${videoUrl}: ${e.message?.slice(0, 100)}`);
+    console.warn(`[articles] transcript fetch error: ${e.message?.slice(0, 100)}`);
     return null;
   }
 }
