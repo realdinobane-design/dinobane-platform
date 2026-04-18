@@ -832,6 +832,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
     if (!user) return res.status(401).json({ error: "User not found" });
+    // Update last_seen — fire and forget, don't block response
+    const { pool: p } = await import("./db");
+    p.query(`UPDATE users SET last_seen = NOW() WHERE id = $1`, [req.session.userId]).catch(() => {});
     const { password: _, ...safeUser } = user;
     return res.json(safeUser);
   });
@@ -1647,9 +1650,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/users", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
-    const users = await storage.getAllUsers();
-    const safe = users.map(({ password: _, ...u }) => u);
-    return res.json(safe);
+    const { pool: p } = await import("./db");
+    const rows = await p.query(`
+      SELECT id, username, email, display_name as "displayName", avatar_initials as "avatarInitials",
+        avatar_color as "avatarColor", avatar_url as "avatarUrl",
+        is_member as "isMember", member_since as "memberSince", created_at as "createdAt",
+        last_seen as "lastSeen"
+      FROM users ORDER BY created_at ASC
+    `);
+    return res.json(rows.rows);
   });
 
   // DELETE /api/admin/users/:id/membership — cancel Stripe + mark isMember=false

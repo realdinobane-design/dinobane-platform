@@ -406,6 +406,17 @@ function UserRow({
             </span>
           )}
         </p>
+        <p className="text-xs mt-0.5">
+          {user.lastSeen ? (() => {
+            const diff = Date.now() - new Date(user.lastSeen).getTime();
+            const mins = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            const label = mins < 2 ? "Online now" : mins < 60 ? `${mins}m ago` : hours < 24 ? `${hours}h ago` : days < 7 ? `${days}d ago` : format(new Date(user.lastSeen), "d MMM yyyy");
+            const isOnline = mins < 5;
+            return <span className={isOnline ? "text-green-400" : "text-muted-foreground/40"}>{isOnline ? "🟢 " : "Last seen: "}{label}</span>;
+          })() : <span className="text-muted-foreground/30">Never logged in</span>}
+        </p>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
