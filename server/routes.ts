@@ -1088,6 +1088,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
             await storage.updateUserMembership(userId, true);
             const webhookUser = await storage.getUserById(userId);
             if (webhookUser) {
+              // Auto-cancel any duplicate subscriptions — keep only the oldest active one
+              if (stripe && webhookUser.stripeCustomerId) {
+                try {
+                  const allSubs = await stripe.subscriptions.list({
+                    customer: webhookUser.stripeCustomerId,
+                    status: "active",
+                    limit: 10,
+                  });
+                  if (allSubs.data.length > 1) {
+                    // Keep oldest (last in array), cancel the rest
+                    const sorted = allSubs.data.sort((a, b) => a.created - b.created);
+                    for (const dup of sorted.slice(1)) {
+                      await stripe.subscriptions.cancel(dup.id);
+                      console.log(`[webhook] auto-cancelled duplicate subscription ${dup.id} for userId ${userId}`);
+                    }
+                  }
+                } catch (e: any) {
+                  console.warn(`[webhook] duplicate sub cleanup failed: ${e.message}`);
+                }
+              }
               sendWelcomeEmail(webhookUser.email, webhookUser.displayName).catch(() => {});
               notifyAdminNewMember(webhookUser.email, webhookUser.displayName).catch(() => {});
             }
