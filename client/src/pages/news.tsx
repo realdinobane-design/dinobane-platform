@@ -413,6 +413,7 @@ export default function NewsPage() {
   const isAdmin = !!(user?.email && ADMIN_EMAILS.has(user.email));
 
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState<"feed" | "saved">("feed");
   const [sourceFilter, setSourceFilter] = useState("all-sources");
   const [viewFilter, setViewFilter] = useState<"all" | "viral" | "suppressed" | "latest">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -426,7 +427,7 @@ export default function NewsPage() {
   });
 
   // Bookmarks
-  const { data: bookmarks = [] } = useQuery<{ storyLink: string }[]>({
+  const { data: bookmarks = [] } = useQuery<{ id: number; storyLink: string; storyTitle: string; storySource: string; createdAt: string }[]>({
     queryKey: ["/api/bookmarks"],
     queryFn: () => apiRequest("GET", "/api/bookmarks").then(r => r.json()),
     enabled: !!user,
@@ -605,8 +606,22 @@ export default function NewsPage() {
           <div className="flex flex-col border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
             {/* Scrollable filter row */}
             <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto scrollbar-none">
-              {/* View filter pills */}
-              {(["all", "viral", "suppressed", "latest"] as const).map(v => (
+              {/* Tabs: Feed / Saved */}
+              {user && (
+                <>
+                  <button
+                    onClick={() => setActiveTab("feed")}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${activeTab === "feed" ? "bg-[#cc2a2a] text-white" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#cc2a2a]/40 hover:text-white"}`}
+                  >Feed</button>
+                  <button
+                    onClick={() => setActiveTab("saved")}
+                    className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${activeTab === "saved" ? "bg-[#f5c842] text-black" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#f5c842]/40 hover:text-white"}`}
+                  ><BookmarkCheck size={10} />Saved {bookmarks.length > 0 && <span className="ml-0.5 bg-[#f5c842] text-black rounded-full px-1 text-[9px] font-black">{bookmarks.length}</span>}</button>
+                  <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />
+                </>
+              )}
+              {/* View filter pills — only show in feed tab */}
+              {activeTab === "feed" && (["all", "viral", "suppressed", "latest"] as const).map(v => (
                 <button
                   key={v}
                   onClick={() => setViewFilter(v)}
@@ -623,9 +638,9 @@ export default function NewsPage() {
                   {v === "all" ? "All Stories" : v.charAt(0).toUpperCase() + v.slice(1)}
                 </button>
               ))}
-              <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />
+              {activeTab === "feed" && <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />}
               {/* Source type pills */}
-              {SOURCE_FILTERS.map(f => (
+              {activeTab === "feed" && SOURCE_FILTERS.map(f => (
                 <button
                   key={f.id}
                   onClick={() => setSourceFilter(f.id)}
@@ -652,7 +667,7 @@ export default function NewsPage() {
               </div>
               {/* Refresh */}
               <button
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] })}
+                onClick={() => { queryClient.removeQueries({ queryKey: ["/api/intel/feed"] }); queryClient.fetchQuery({ queryKey: ["/api/intel/feed"], queryFn: () => apiRequest("GET", "/api/intel/feed?t=" + Date.now()).then(r => r.json()) }); }}
                 disabled={isLoading}
                 className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-zinc-500 hover:text-white border border-[#222] hover:border-[#cc2a2a]/40 px-3 py-1.5 rounded-sm transition-colors"
                 data-testid="news-refresh"
@@ -663,16 +678,56 @@ export default function NewsPage() {
             </div>
           </div>
 
-          {/* Story count bar */}
+          {/* Story count bar - only in feed tab */}
+          {activeTab === "feed" && (
           <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#0d0d0d] shrink-0">
             <span className="text-[11px] text-zinc-500">
               Updated {lastUpdated || "—"} · <span className="text-zinc-300 font-semibold">{sorted.length} stories loaded</span>
               {viewFilter !== "all" && <span className="ml-2 text-[#cc2a2a]">· Filtered: {viewFilter}</span>}
             </span>
           </div>
+          )}
+
+          {/* Saved articles panel */}
+          {activeTab === "saved" && (
+            <div className="flex-1 overflow-y-auto px-4 py-5 max-w-3xl mx-auto w-full">
+              {!user ? (
+                <p className="text-zinc-500 text-sm">Log in to see your saved articles.</p>
+              ) : bookmarks.length === 0 ? (
+                <div className="text-center py-16">
+                  <Bookmark size={32} className="mx-auto mb-3 text-zinc-700" />
+                  <p className="text-zinc-500 text-sm">No saved articles yet.</p>
+                  <p className="text-zinc-600 text-xs mt-1">Hit <strong className="text-zinc-400">Save</strong> on any story to bookmark it here.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {bookmarks.map((b) => (
+                    <div key={b.id} className="flex items-start justify-between gap-3 bg-[#111] border border-[#1e1e1e] rounded-sm px-4 py-3 hover:border-[#cc2a2a]/30 transition-colors group">
+                      <div className="flex-1 min-w-0">
+                        <a href={b.storyLink} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-zinc-200 group-hover:text-white line-clamp-2 leading-snug">{b.storyTitle}</a>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] text-zinc-500">{b.storySource}</span>
+                          <span className="text-[10px] text-zinc-700">·</span>
+                          <span className="text-[11px] text-zinc-600">{new Date(b.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a href={b.storyLink} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-white transition-colors"><ExternalLink size={13} /></a>
+                        <button
+                          onClick={() => bookmarkMutation.mutate({ link: b.storyLink, title: b.storyTitle, source: b.storySource } as any)}
+                          className="text-[#f5c842] hover:text-zinc-400 transition-colors"
+                          title="Remove bookmark"
+                        ><BookmarkCheck size={13} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Feed */}
-          <div className="flex-1 overflow-y-auto">
+          {activeTab === "feed" && (<div className="flex-1 overflow-y-auto">
             <div className="px-4 py-5 max-w-3xl mx-auto">
 
               {/* Loading */}
@@ -737,7 +792,8 @@ export default function NewsPage() {
               )}
 
             </div>
-          </div>
+          </div>)}
+
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
@@ -810,7 +866,7 @@ export default function NewsPage() {
                 </a>
               ))}
             </div>
-          </div>
+          </div>)}
         </div>
       </div>
     </div>
