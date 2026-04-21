@@ -866,7 +866,7 @@ export default function NewsPage() {
                 </a>
               ))}
             </div>
-          </div>)}
+          </div>
         </div>
       </div>
     </div>
