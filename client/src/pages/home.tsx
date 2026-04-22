@@ -102,6 +102,32 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── X / TWITTER CTA BANNER ─────────────────────────────────────── */}
+      <section className="w-full bg-black border-y border-[#1a1a1a]">
+        <a
+          href="https://x.com/realdinobane"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-6 px-6 py-5 max-w-5xl mx-auto group hover:opacity-90 transition-opacity"
+        >
+          <div className="flex items-center gap-5">
+            <div className="shrink-0 w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-7 h-7 fill-black" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-white font-black text-lg leading-tight">Follow DinoBane on X</p>
+              <p className="text-zinc-400 text-sm mt-0.5">Real-time updates, breaking news and unfiltered commentary — @realdinobane</p>
+            </div>
+          </div>
+          <div className="shrink-0 flex items-center gap-2 bg-white text-black font-black text-sm px-5 py-2.5 rounded-full group-hover:bg-zinc-200 transition-colors">
+            Follow
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+      </section>
+
       {/* ─── LATEST VIDEO FEATURE ─────────────────────────────────────────── */}
       {latestVideo && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
