@@ -166,19 +166,14 @@ function isSuppressed(item: NewsItem): boolean {
   return (isAlt || isIntl) && !isViral(item);
 }
 
-// NEWS DUMP: Released on Friday afternoon, over a weekend, or uses "quiet" language
+// NEWS DUMP: Only Friday afternoon releases — government tactic to bury bad news
+// Stories flow into the feed normally but are highlighted in gold
 function isNewsDump(item: NewsItem): boolean {
   if (!item.pubDate) return false;
   const d = new Date(item.pubDate);
-  const day = d.getDay(); // 0=Sun, 5=Fri, 6=Sat
+  const day = d.getDay(); // 5 = Friday
   const hour = d.getHours();
-  const title = (item.title + " " + (item.description || "")).toLowerCase();
-  const dumpWords = ["quietly","buried","slipped","released alongside","late night","u-turn",
-    "sneaked","snuck","under the radar","unannounced","without debate","written statement",
-    "statutory instrument","parliament recess","prorogued","bank holiday"];
-  const isDumpLanguage = dumpWords.some(w => title.includes(w));
-  // Friday after 3pm, Saturday, Sunday, or dump language used
-  return isDumpLanguage || (day === 5 && hour >= 15) || day === 6 || day === 0;
+  return day === 5 && hour >= 15; // Friday after 3pm only
 }
 
 // Which category does this story best match?
@@ -335,8 +330,8 @@ function StoryCard({ item, index, isAdmin, onBlock, isBookmarked, onBookmark }: 
       href={item.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block bg-[#111] border border-[#1e1e1e] hover:border-[#cc2a2a]/50 rounded-sm transition-all duration-200 overflow-hidden"
-      style={{ borderLeft: `4px solid ${accentColor}` }}
+      className={`group block border rounded-sm transition-all duration-200 overflow-hidden ${newsDump ? "bg-[#1a1500] border-[#f5c842]/40 hover:border-[#f5c842]" : "bg-[#111] border-[#1e1e1e] hover:border-[#cc2a2a]/50"}`}
+      style={{ borderLeft: `4px solid ${newsDump ? "#f5c842" : accentColor}` }}
     >
 
       <div className="px-6 py-5">
@@ -652,8 +647,8 @@ export default function NewsPage() {
     if (viewFilter === "latest") {
       return new Date(b.pubDate || 0).getTime() - new Date(a.pubDate || 0).getTime();
     }
-    const aScore = (isNewsDump(a) ? 3 : 0) + (isViral(a) ? 2 : 0) + (isSuppressed(a) ? 1 : 0);
-    const bScore = (isNewsDump(b) ? 3 : 0) + (isViral(b) ? 2 : 0) + (isSuppressed(b) ? 1 : 0);
+    const aScore = (isViral(a) ? 2 : 0) + (isSuppressed(a) ? 1 : 0);
+    const bScore = (isViral(b) ? 2 : 0) + (isSuppressed(b) ? 1 : 0);
     if (bScore !== aScore) return bScore - aScore;
     return new Date(b.pubDate || 0).getTime() - new Date(a.pubDate || 0).getTime();
   });
@@ -819,11 +814,16 @@ export default function NewsPage() {
 
           {/* Story count bar - only in feed tab */}
           {activeTab === "feed" && (
-          <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#0d0d0d] shrink-0">
+          <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#0d0d0d] shrink-0 flex items-center gap-3">
             <span className="text-[11px] text-zinc-500">
-              Updated {lastUpdated || "—"} · <span className="text-zinc-300 font-semibold">{sorted.length} stories loaded</span>
-              {viewFilter !== "all" && <span className="ml-2 text-[#cc2a2a]">· Filtered: {viewFilter}</span>}
+              Updated {lastUpdated || "—"} · <span className="text-zinc-300 font-semibold">{sorted.length} stories</span>
+              {viewFilter !== "all" && <span className="ml-2 text-[#cc2a2a]">· {viewFilter}</span>}
             </span>
+            {newsDumpCount > 0 && (
+              <span className="text-[11px] font-black text-yellow-400">
+                📢 {newsDumpCount} Friday news {newsDumpCount === 1 ? "dump" : "dumps"} in feed
+              </span>
+            )}
           </div>
           )}
 
