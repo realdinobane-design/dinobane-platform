@@ -2781,11 +2781,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
         const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
         return db - da;
       });
-      const top100 = filtered.slice(0, 100);
+      const top200 = filtered.slice(0, 200);
 
       // Cache immediately with RSS-only images — users get fast response
-      intelCache = { data: top100, fetchedAt: Date.now() };
-      console.log(`[intel] cache refreshed — ${top100.length} stories from ${FEEDS.length} feeds`);
+      intelCache = { data: top200, fetchedAt: Date.now() };
+      console.log(`[intel] cache refreshed — ${top200.length} stories from ${FEEDS.length} feeds`);
 
       // Background enrichment: fetch og:image for stories missing inline images
       // Runs AFTER cache is set so it never blocks a user request
@@ -2804,7 +2804,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               || null;
           } catch { return null; }
         }
-        const noImage = top100.filter((item: any) => !item.image).slice(0, 30);
+        const noImage = top200.filter((item: any) => !item.image).slice(0, 30);
         if (!noImage.length) return;
         const results = await Promise.allSettled(noImage.map((item: any) => fetchOgImage(item.link)));
         let enriched = 0;
@@ -2814,7 +2814,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         if (enriched > 0) console.log(`[intel] enriched ${enriched} story images in background`);
       })().catch(() => {});
 
-      return top100;
+      return top200;
     } finally {
       intelFetchInProgress = false;
     }
