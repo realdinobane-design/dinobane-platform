@@ -151,10 +151,11 @@ const HERO_IMAGES = [
 function stripHtml(html: string): string {
   if (!html) return "";
   return html
-    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^>]*>/g, " ")        // full tags
+    .replace(/<[^>]*$/g, "")          // partial/unclosed tags at end of string
     .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "")
+    .replace(/&gt;/g, "")
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .replace(/&nbsp;/g, " ")
