@@ -867,7 +867,7 @@ export default function NewsPage() {
 
         {/* ── RIGHT SIDEBAR ── */}
         <div className="w-[38vw] max-w-2xl shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
-          <div className="p-3 text-[150%]">
+          <div className="p-3 text-[200%]">
             {/* Hero banner */}
             <HeroBanner items={items ?? []} />
 
