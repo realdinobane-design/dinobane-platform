@@ -532,6 +532,34 @@ export default function NewsPage() {
   });
   const bookmarkedLinks = new Set(bookmarks.map((b: any) => b.storyLink));
 
+  // Admin custom stories
+  const [showCustomPanel, setShowCustomPanel] = useState(false);
+  const [customUrl, setCustomUrl] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
+  const [customSource, setCustomSource] = useState("");
+
+  const { data: customStories = [], refetch: refetchCustom } = useQuery<any[]>({
+    queryKey: ["/api/admin/intel/custom"],
+    queryFn: () => apiRequest("GET", "/api/admin/intel/custom").then(r => r.json()),
+    enabled: isAdmin,
+    staleTime: 30000,
+  });
+
+  const addCustomMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/intel/custom", { title: customTitle, link: customUrl, source: customSource || "Admin Pick" }).then(r => r.json()),
+    onSuccess: () => {
+      setCustomUrl(""); setCustomTitle(""); setCustomSource("");
+      refetchCustom();
+      queryClient.removeQueries({ queryKey: ["/api/intel/feed"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] });
+    },
+  });
+
+  const removeCustomMutation = useMutation({
+    mutationFn: (link: string) => apiRequest("DELETE", "/api/admin/intel/custom", { link }).then(r => r.json()),
+    onSuccess: () => { refetchCustom(); queryClient.invalidateQueries({ queryKey: ["/api/intel/feed"] }); },
+  });
+
   const bookmarkMutation = useMutation({
     mutationFn: (item: NewsItem) =>
       apiRequest("POST", "/api/bookmarks", { storyLink: item.link, storyTitle: item.title, storySource: item.source }).then(r => r.json()),

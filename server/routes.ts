@@ -2124,6 +2124,49 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true, blockedCount: updated.length });
   });
 
+  // POST /api/admin/intel/custom — admin adds a custom story link to the feed
+  app.post("/api/admin/intel/custom", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { title, link, source, description } = req.body;
+    if (!title || !link) return res.status(400).json({ error: "title and link required" });
+    const { pool: p } = await import("./db");
+    const existing = await p.query(`SELECT value FROM app_settings WHERE key = 'intel_custom_stories'`);
+    const stories = existing.rows[0] ? JSON.parse(existing.rows[0].value) : [];
+    // Avoid duplicates
+    if (stories.find((s: any) => s.link === link)) return res.status(409).json({ error: "Link already added" });
+    const newStory = { title, link, source: source || "Admin Pick", description: description || "", pubDate: new Date().toISOString(), pinned: true };
+    stories.unshift(newStory);
+    await p.query(`INSERT INTO app_settings (key, value) VALUES ('intel_custom_stories', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [JSON.stringify(stories)]);
+    // Inject into live cache immediately
+    if (intelCache) intelCache.data = [newStory, ...intelCache.data];
+    return res.json({ ok: true, story: newStory });
+  });
+
+  // DELETE /api/admin/intel/custom — admin removes a custom story by link
+  app.delete("/api/admin/intel/custom", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { link } = req.body;
+    if (!link) return res.status(400).json({ error: "link required" });
+    const { pool: p } = await import("./db");
+    const existing = await p.query(`SELECT value FROM app_settings WHERE key = 'intel_custom_stories'`);
+    const stories = existing.rows[0] ? JSON.parse(existing.rows[0].value) : [];
+    const updated = stories.filter((s: any) => s.link !== link);
+    await p.query(`INSERT INTO app_settings (key, value) VALUES ('intel_custom_stories', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [JSON.stringify(updated)]);
+    if (intelCache) intelCache.data = intelCache.data.filter((s: any) => s.link !== link);
+    return res.json({ ok: true });
+  });
+
+  // GET /api/admin/intel/custom — list custom stories
+  app.get("/api/admin/intel/custom", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { pool: p } = await import("./db");
+    const existing = await p.query(`SELECT value FROM app_settings WHERE key = 'intel_custom_stories'`);
+    return res.json(existing.rows[0] ? JSON.parse(existing.rows[0].value) : []);
+  });
+
   // GET /api/admin/intel/blocked — list all blocked story URLs
   app.get("/api/admin/intel/blocked", async (req, res) => {
     const check = await requireAdmin(req, res);
