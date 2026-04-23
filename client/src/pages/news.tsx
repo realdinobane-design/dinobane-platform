@@ -9,27 +9,6 @@ import { ADMIN_EMAILS } from "@/lib/constants";
 
 // ─── X TIMELINE WIDGET ───────────────────────────────────────────────────────
 function XTimeline() {
-  useEffect(() => {
-    const render = () => {
-      if ((window as any).twttr?.widgets) {
-        (window as any).twttr.widgets.load();
-      }
-    };
-    // If script already loaded, render immediately
-    if ((window as any).twttr?.widgets) {
-      render();
-    } else {
-      // Otherwise wait for it
-      const interval = setInterval(() => {
-        if ((window as any).twttr?.widgets) {
-          render();
-          clearInterval(interval);
-        }
-      }, 300);
-      return () => clearInterval(interval);
-    }
-  }, []);
-
   return (
     <div>
       <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1 flex items-center gap-1.5">
@@ -38,15 +17,14 @@ function XTimeline() {
         </svg>
         @realdinobane
       </div>
-      <div className="rounded-sm overflow-hidden border border-[#1a1a1a]">
-        <a
-          className="twitter-timeline"
-          data-theme="dark"
-          data-chrome="noheader nofooter noborders transparent"
-          data-tweet-limit="6"
-          data-dnt="true"
-          href="https://twitter.com/realdinobane"
-        >Tweets by @realdinobane</a>
+      <div className="rounded-sm overflow-hidden border border-[#1a1a1a] bg-black">
+        <iframe
+          src="https://syndication.twitter.com/srv/timeline-profile/screen-name/realdinobane?dnt=true&theme=dark&chrome=noheader%20nofooter%20noborders&tweet_limit=6"
+          style={{ width: "100%", height: "500px", border: "none" }}
+          title="@realdinobane on X"
+          scrolling="yes"
+          allowFullScreen
+        />
       </div>
     </div>
   );
