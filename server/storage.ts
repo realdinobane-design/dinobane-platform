@@ -1,6 +1,6 @@
 import { eq, desc, ilike, and, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db } from "./db";
+import { db, pool } from "./db";
 import {
   users, messages, articles, media, mediaLikes, mediaComments, appSettings,
   privateMessages, dmNotifications, messageReactions, blockedUsers, reports,
@@ -528,7 +528,7 @@ export const storage = new DrizzleStorage();
 // ─── MIGRATIONS + SEED ────────────────────────────────────────────────────────
 // Called once on server startup. Creates tables if missing, seeds admin + articles.
 export async function runMigrationsAndSeed() {
-  const { pool } = await import("./db");
+
 
   // Run DDL — idempotent (IF NOT EXISTS)
   await pool.query(`

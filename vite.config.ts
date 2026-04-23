@@ -16,6 +16,28 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Split heavy third-party libraries into their own long-cacheable chunks
+    // so a page edit doesn't bust the vendor cache.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "wouter", "wouter/use-hash-location"],
+          "query-vendor": ["@tanstack/react-query"],
+          "radix-vendor": [
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-label",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-toggle",
+            "@radix-ui/react-tooltip",
+          ],
+        },
+      },
+    },
   },
   server: {
     fs: {
