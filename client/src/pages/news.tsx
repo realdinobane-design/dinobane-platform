@@ -86,11 +86,56 @@ const SOURCE_TAGS: Record<string, string[]> = {
 
 // Heuristic category tags per story for left sidebar counts
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  "UK Corruption":        ["starmer","labour","tory","parliament","westminster","mp ","mps ","corruption","scandal","fraud","bribe","inquiry","misconduct","keir","sunak","reeves","hancock"],
-  "Immigration":          ["immigra","migrant","asylum","border","channel","grooming","gang","deporta","visa","illegal","boat","rwand","small boat"],
-  "Media & Censorship":   ["bbc","ofcom","censor","ban","platform","debank","free speech","silenc","suspend","restrict","mainstream media","msm","guardian"],
-  "Geopolitics":          ["ukraine","russia","nato","israel","gaza","wef","epstein","trump","china","taiwan","iran","davos","zelensky","putin"],
-  "Govt News Dumps":      ["friday","budget day","alongside","quietly","buried","slipped","released late","late night","dumped","u-turn"],
+  "UK Corruption":        [
+    "starmer","labour","tory","parliament","westminster","mp ","mps ","corruption","scandal","fraud","bribe",
+    "inquiry","misconduct","keir","sunak","reeves","hancock","cover-up","cover up","whitewash","cronyism",
+    "lobbying","lobbied","donations","donor","party donor","sleaze","backhander","expenses","rigged",
+    "police failure","cps","crown prosecution","home office","civil servant","quango","nhs scandal",
+    "reform uk","nigel farage","rupert lowe","lee anderson","net zero","two-tier","two tier",
+    "grooming gang","inquiry blocked","no investigation","mbe","honour","honours list"
+  ],
+  "Immigration":          [
+    "immigra","migrant","asylum","border","channel","grooming","gang","deporta","visa","illegal","boat",
+    "rwand","small boat","dingy","dinghy","hotel","taxpayer funded","hotels for migrants",
+    "afghan","eritrea","albania","eritrean","albanian","trafficking","modern slavery",
+    "population","demographic","replacement","english minority","majority minority",
+    "net migration","net zero migration","legal migration","student visa","work visa",
+    "open borders","free movement","mass immigration","uncontrolled"
+  ],
+  "Media & Censorship":   [
+    "bbc","ofcom","censor","banned","ban","platform","debank","free speech","silenc","suspend","restrict",
+    "mainstream media","msm","guardian","ch4","channel 4","itv news","sky news","fact check",
+    "misinformation","disinformation","hate speech","online safety","online safety bill",
+    "social media","twitter","facebook","youtube","tiktok","algorithm","demonetis","deplatform",
+    "press freedom","journalist","arrested","detained","investigated","gagged","suppressed",
+    "propaganda","narrative","state media","public broadcaster"
+  ],
+  "Geopolitics":          [
+    "ukraine","russia","nato","israel","gaza","wef","epstein","trump","china","taiwan","iran",
+    "davos","zelensky","putin","world economic forum","schwab","global","globalist",
+    "un ","united nations","who ","world health","imf","world bank","soros","bilderberg",
+    "middle east","war","conflict","nuclear","sanction","tariff","trade war","proxy war",
+    "deep state","cia","mi5","mi6","five eyes","surveillance","nwo","new world order"
+  ],
+  "Govt News Dumps":      [
+    "friday","budget day","alongside","quietly","buried","slipped","released late","late night",
+    "dumped","u-turn","sneaked","snuck","under the radar","unannounced","without debate",
+    "statutory instrument","written statement","emergency","recess","parliament prorogued"
+  ],
+  "Economy & Cost of Living": [
+    "inflation","cost of living","energy bill","energy price","fuel","petrol","diesel",
+    "mortgage","rent","housing","eviction","homeless","food bank","poverty","wage",
+    "tax rise","tax hike","national insurance","income tax","council tax","stamp duty",
+    "recession","gdp","growth","budget","spending cut","austerity","debt","deficit",
+    "interest rate","bank of england","pound","sterling","economy"
+  ],
+  "Culture & Identity":   [
+    "woke","gender","trans","transgender","lgb","pronoun","diversity","inclusion","dei",
+    "critical race","white privilege","decoloni","statues","history","heritage","flag",
+    "english","englishness","british identity","st george","union jack","coronation",
+    "church of england","islam","muslim","sharia","halal","grooming","honour killing",
+    "school","curriculum","children","indoctrination","safeguarding","nspcc"
+  ],
 };
 
 // Which articles might be "viral" vs "suppressed" based on source type
@@ -125,12 +170,14 @@ function storyCategory(item: NewsItem): string {
 }
 
 const CATEGORY_FILTERS = [
-  { id: "all",             label: "All Stories",          icon: null },
-  { id: "UK Corruption",   label: "UK Corruption",        icon: null },
-  { id: "Immigration",     label: "Immigration / Demographics", icon: null },
-  { id: "Media & Censorship", label: "Media & Censorship",icon: null },
-  { id: "Geopolitics",     label: "Geopolitics",          icon: null },
-  { id: "Govt News Dumps", label: "Govt News Dumps",      icon: null },
+  { id: "all",                      label: "All Stories" },
+  { id: "UK Corruption",            label: "UK Corruption" },
+  { id: "Immigration",              label: "Immigration" },
+  { id: "Media & Censorship",       label: "Media & Censorship" },
+  { id: "Geopolitics",              label: "Geopolitics" },
+  { id: "Economy & Cost of Living", label: "Economy" },
+  { id: "Culture & Identity",       label: "Culture & Identity" },
+  { id: "Govt News Dumps",          label: "News Dumps" },
 ];
 
 const SOURCE_FILTERS = [
@@ -633,11 +680,11 @@ export default function NewsPage() {
                 <>
                   <button
                     onClick={() => setActiveTab("feed")}
-                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${activeTab === "feed" ? "bg-[#cc2a2a] text-white" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#cc2a2a]/40 hover:text-white"}`}
+                    className={`shrink-0 text-[12px] font-bold px-4 py-2 rounded-sm transition-colors ${activeTab === "feed" ? "bg-[#cc2a2a] text-white" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#cc2a2a]/40 hover:text-white"}`}
                   >Feed</button>
                   <button
                     onClick={() => setActiveTab("saved")}
-                    className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${activeTab === "saved" ? "bg-[#f5c842] text-black" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#f5c842]/40 hover:text-white"}`}
+                    className={`shrink-0 flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 rounded-sm transition-colors ${activeTab === "saved" ? "bg-[#f5c842] text-black" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#f5c842]/40 hover:text-white"}`}
                   ><BookmarkCheck size={10} />Saved {bookmarks.length > 0 && <span className="ml-0.5 bg-[#f5c842] text-black rounded-full px-1 text-[9px] font-black">{bookmarks.length}</span>}</button>
                   <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />
                 </>
