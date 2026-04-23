@@ -7,6 +7,51 @@ import { ADMIN_EMAILS } from "@/lib/constants";
 
 // ─── SOURCE METADATA ──────────────────────────────────────────────────────────
 
+// ─── X TIMELINE WIDGET ───────────────────────────────────────────────────────
+function XTimeline() {
+  useEffect(() => {
+    const render = () => {
+      if ((window as any).twttr?.widgets) {
+        (window as any).twttr.widgets.load();
+      }
+    };
+    // If script already loaded, render immediately
+    if ((window as any).twttr?.widgets) {
+      render();
+    } else {
+      // Otherwise wait for it
+      const interval = setInterval(() => {
+        if ((window as any).twttr?.widgets) {
+          render();
+          clearInterval(interval);
+        }
+      }, 300);
+      return () => clearInterval(interval);
+    }
+  }, []);
+
+  return (
+    <div>
+      <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1 flex items-center gap-1.5">
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-zinc-600" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+        @realdinobane
+      </div>
+      <div className="rounded-sm overflow-hidden border border-[#1a1a1a]">
+        <a
+          className="twitter-timeline"
+          data-theme="dark"
+          data-chrome="noheader nofooter noborders transparent"
+          data-tweet-limit="6"
+          data-dnt="true"
+          href="https://twitter.com/realdinobane"
+        >Tweets by @realdinobane</a>
+      </div>
+    </div>
+  );
+}
+
 const SOURCE_META: Record<string, { color: string; type: "alt" | "mainstream" | "intl" }> = {
   "Guido Fawkes":           { color: "#ef4444", type: "alt" },
   "Spiked Online":          { color: "#f97316", type: "alt" },
@@ -850,20 +895,7 @@ export default function NewsPage() {
             <div className="border-t border-[#1a1a1a] my-3" />
 
             {/* X / Twitter Timeline */}
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1 flex items-center gap-1.5">
-              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-zinc-600" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-              @realdinobane
-            </div>
-            <div className="rounded-sm overflow-hidden border border-[#1a1a1a]">
-              <a
-                className="twitter-timeline"
-                data-theme="dark"
-                data-chrome="noheader nofooter noborders transparent"
-                data-tweet-limit="6"
-                data-dnt="true"
-                href="https://twitter.com/realdinobane"
-              >Tweets by @realdinobane</a>
-            </div>
+            <XTimeline />
           </div>
         </div>
       </div>
