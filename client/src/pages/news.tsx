@@ -138,26 +138,47 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   ],
 };
 
-// Which articles might be "viral" vs "suppressed" based on source type
+// VIRAL: Story appears in BOTH mainstream AND alt-media sources (cross-source spread = trending),
+// OR has high-urgency language in title AND appears in a mainstream outlet
 function isViral(item: NewsItem): boolean {
-  const tags = SOURCE_TAGS[item.source] || [];
-  const hasMainstream = tags.includes("mainstream");
   const title = item.title.toLowerCase();
-  const explosiveWords = ["record","surge","exposed","scandal","leaked","shock","crisis","collapse","ban","fury","outrage","exclusive","breaking","court","arrest","cover"];
-  return explosiveWords.some(w => title.includes(w));
+  const mainTags = SOURCE_TAGS[item.source] || [];
+  const isMainstream = mainTags.includes("mainstream");
+  const isAlt = mainTags.includes("alt-media");
+  const urgentWords = [
+    "record","surge","exposed","scandal","leaked","shock","crisis","collapse","ban",
+    "fury","outrage","exclusive","breaking","court","arrest","cover-up","cover up",
+    "resign","sacked","fired","jailed","convicted","emergency","urgent","bombshell",
+    "explosive","damning","reveals","confession","evidence","proof","caught"
+  ];
+  const hasUrgency = urgentWords.some(w => title.includes(w));
+  // Viral = mainstream covering something explosive, OR alt-media story with very high urgency
+  return (isMainstream && hasUrgency) || (isAlt && urgentWords.filter(w => title.includes(w)).length >= 2);
 }
 
+// SUPPRESSED: Stories from alt-media sources covering topics the mainstream ignores —
+// i.e. alt-media stories that are NOT also appearing in mainstream outlets
 function isSuppressed(item: NewsItem): boolean {
   const tags = SOURCE_TAGS[item.source] || [];
-  return tags.includes("alt-media") && !isViral(item);
+  const isAlt = tags.includes("alt-media");
+  const isIntl = SOURCE_META[item.source]?.type === "intl";
+  // Suppressed = alt or intl source, not viral enough to be picked up by mainstream
+  return (isAlt || isIntl) && !isViral(item);
 }
 
+// NEWS DUMP: Released on Friday afternoon, over a weekend, or uses "quiet" language
 function isNewsDump(item: NewsItem): boolean {
   if (!item.pubDate) return false;
   const d = new Date(item.pubDate);
-  const day = d.getDay(); // 5 = Friday
+  const day = d.getDay(); // 0=Sun, 5=Fri, 6=Sat
   const hour = d.getHours();
-  return day === 5 && hour >= 16;
+  const title = (item.title + " " + (item.description || "")).toLowerCase();
+  const dumpWords = ["quietly","buried","slipped","released alongside","late night","u-turn",
+    "sneaked","snuck","under the radar","unannounced","without debate","written statement",
+    "statutory instrument","parliament recess","prorogued","bank holiday"];
+  const isDumpLanguage = dumpWords.some(w => title.includes(w));
+  // Friday after 3pm, Saturday, Sunday, or dump language used
+  return isDumpLanguage || (day === 5 && hour >= 15) || day === 6 || day === 0;
 }
 
 // Which category does this story best match?
@@ -569,7 +590,7 @@ export default function NewsPage() {
     if (viewFilter === "suppressed" && !isSuppressed(item)) return false;
     if (viewFilter === "latest") {
       const diff = Date.now() - new Date(item.pubDate || 0).getTime();
-      if (diff > 12 * 60 * 60 * 1000) return false; // last 12h
+      if (diff > 24 * 60 * 60 * 1000) return false; // last 24h
     }
     // Search
     if (searchQuery) {
@@ -579,8 +600,11 @@ export default function NewsPage() {
     return true;
   });
 
-  // Sort: news dumps and viral first
+  // Sort: latest = pure date order; everything else = score-ranked then by date
   const sorted = [...filteredItems].sort((a, b) => {
+    if (viewFilter === "latest") {
+      return new Date(b.pubDate || 0).getTime() - new Date(a.pubDate || 0).getTime();
+    }
     const aScore = (isNewsDump(a) ? 3 : 0) + (isViral(a) ? 2 : 0) + (isSuppressed(a) ? 1 : 0);
     const bScore = (isNewsDump(b) ? 3 : 0) + (isViral(b) ? 2 : 0) + (isSuppressed(b) ? 1 : 0);
     if (bScore !== aScore) return bScore - aScore;
