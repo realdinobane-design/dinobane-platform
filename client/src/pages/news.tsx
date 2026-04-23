@@ -454,7 +454,7 @@ function HeroBanner({ items }: { items: NewsItem[] }) {
 
   return (
     <div
-      className="relative w-full h-[528px] overflow-hidden rounded-sm mb-4 shrink-0"
+      className="relative w-full h-44 lg:h-[528px] overflow-hidden rounded-sm mb-4 shrink-0"
       style={{
         backgroundImage: `url(${hero.src})`,
         backgroundSize: "cover",
