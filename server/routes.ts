@@ -251,7 +251,25 @@ async function ensureBlockReportTables() {
 }
 ensureBlockReportTables();
 
-// ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
+// Performance indexes — all IF NOT EXISTS, additive only. See audit item B5.
+async function ensurePerformanceIndexes() {
+  try {
+    // Community feed scroll — ordering messages in a channel by recency
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_channel_created ON messages(channel, created_at DESC)`);
+    // Reply-thread lookups
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_id) WHERE parent_id IS NOT NULL`);
+    // Media comment list ordering
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_comments_media ON media_comments(media_id, created_at DESC)`);
+    // Stripe webhook: look up user by Stripe customer id
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id) WHERE stripe_customer_id IS NOT NULL`);
+    // Like-count-per-media (augments the existing UNIQUE(media_id, user_id))
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_likes_media ON media_likes(media_id)`);
+    console.log("[perf] indexes ready");
+  } catch (e: any) { console.warn("[perf] index setup failed:", e.message); }
+}
+ensurePerformanceIndexes();
+
+// ─── MENTION EMAIL RATE LIMITER ────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
   if (!resend) return;

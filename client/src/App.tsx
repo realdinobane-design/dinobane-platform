@@ -4,25 +4,31 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+
+// HomePage is the landing page — eagerly loaded so first paint is instant.
 import HomePage from "@/pages/home";
-import ArticlesPage from "@/pages/articles";
-import ArticleDetailPage from "@/pages/article-detail";
-import NewsPage from "@/pages/news";
-import CommunityPage from "@/pages/community";
-import MembershipPage from "@/pages/membership";
-import LoginPage from "@/pages/login";
-import RegisterPage from "@/pages/register";
-import ProfilePage from "@/pages/profile";
-import MediaVaultPage from "@/pages/media-vault";
-import AdminUsersPage from "@/pages/admin-users";
-import AdminEmailsPage from "@/pages/admin-emails";
-import AdminContentPage from "@/pages/admin-content";
-import MembersPage from "@/pages/members";
-import ForgotPasswordPage from "@/pages/forgot-password";
-import ResetPasswordPage from "@/pages/reset-password";
-import PrivacyPage from "@/pages/privacy";
-import ContactPage from "@/pages/contact";
+
+// All other pages are split into their own chunk and loaded on demand.
+// Visitors who only hit the landing page never download these.
+import { lazy, Suspense } from "react";
+const NotFound = lazy(() => import("@/pages/not-found"));
+const ArticlesPage = lazy(() => import("@/pages/articles"));
+const ArticleDetailPage = lazy(() => import("@/pages/article-detail"));
+const NewsPage = lazy(() => import("@/pages/news"));
+const CommunityPage = lazy(() => import("@/pages/community"));
+const MembershipPage = lazy(() => import("@/pages/membership"));
+const LoginPage = lazy(() => import("@/pages/login"));
+const RegisterPage = lazy(() => import("@/pages/register"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const MediaVaultPage = lazy(() => import("@/pages/media-vault"));
+const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
+const AdminEmailsPage = lazy(() => import("@/pages/admin-emails"));
+const AdminContentPage = lazy(() => import("@/pages/admin-content"));
+const MembersPage = lazy(() => import("@/pages/members"));
+const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
+const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
+const PrivacyPage = lazy(() => import("@/pages/privacy"));
+const ContactPage = lazy(() => import("@/pages/contact"));
 import { AppNav } from "@/components/app-nav";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
@@ -55,6 +61,12 @@ function AuthRoute({ component: Component }: { component: React.ComponentType })
   if (isLoading) return null;
   if (!user) return <Redirect to="/login" />;
   return <Component />;
+}
+
+// Shown briefly while a lazy-loaded page chunk downloads. Intentionally minimal
+// so it doesn't flash for cached chunks.
+function PageLoader() {
+  return <div className="min-h-[50vh]" aria-busy="true" aria-label="Loading" />;
 }
 
 function AppRoutes() {
@@ -112,7 +124,9 @@ function InnerApp() {
           <div className="min-h-screen bg-background text-foreground flex flex-col">
             <AppNav />
             <main className="flex-1">
-              <AppRoutes />
+              <Suspense fallback={<PageLoader />}>
+                <AppRoutes />
+              </Suspense>
             </main>
             <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground space-y-2">
               <p>© 2026 DinoBane. All rights reserved.</p>
