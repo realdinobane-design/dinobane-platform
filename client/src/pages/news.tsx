@@ -262,18 +262,7 @@ function StoryCard({ item, index, isAdmin, onBlock, isBookmarked, onBookmark }: 
       className="group block bg-[#111] border border-[#1e1e1e] hover:border-[#cc2a2a]/50 rounded-sm transition-all duration-200 overflow-hidden"
       style={{ borderLeft: `4px solid ${accentColor}` }}
     >
-      {/* Source image — top of card, cropped banner */}
-      {item.image && (
-        <div className="w-full h-36 lg:h-72 overflow-hidden bg-[#0d0d0d]">
-          <img
-            src={item.image}
-            alt=""
-            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-[1.02] transition-all duration-300"
-            loading="lazy"
-            onError={(e) => { (e.target as HTMLImageElement).closest('.overflow-hidden')?.remove(); }}
-          />
-        </div>
-      )}
+
       <div className="px-6 py-5">
         {/* Tag row */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -328,6 +317,19 @@ function StoryCard({ item, index, isAdmin, onBlock, isBookmarked, onBookmark }: 
         >
           {item.title}
         </h3>
+
+        {/* Image — below title */}
+        {item.image && (
+          <div className="w-full h-36 lg:h-72 overflow-hidden bg-[#0d0d0d] mb-4 rounded-sm">
+            <img
+              src={item.image}
+              alt=""
+              className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-[1.02] transition-all duration-300"
+              loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).closest('.overflow-hidden')?.remove(); }}
+            />
+          </div>
+        )}
 
         {/* Description — 5 lines, larger text */}
         {item.description && (
