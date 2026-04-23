@@ -509,6 +509,7 @@ export default function NewsPage() {
   const [sourceFilter, setSourceFilter] = useState("all-sources");
   const [viewFilter, setViewFilter] = useState<"all" | "viral" | "suppressed" | "latest">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday" | "week">("all");
 
   const blockMutation = useMutation({
     mutationFn: (link: string) =>
@@ -633,6 +634,15 @@ export default function NewsPage() {
     if (viewFilter === "latest") {
       const diff = Date.now() - new Date(item.pubDate || 0).getTime();
       if (diff > 24 * 60 * 60 * 1000) return false; // last 24h
+    }
+    // Date filter
+    if (dateFilter !== "all" && item.pubDate) {
+      const now = Date.now();
+      const pub = new Date(item.pubDate).getTime();
+      const diff = now - pub;
+      if (dateFilter === "today" && diff > 24 * 60 * 60 * 1000) return false;
+      if (dateFilter === "yesterday" && (diff < 24 * 60 * 60 * 1000 || diff > 48 * 60 * 60 * 1000)) return false;
+      if (dateFilter === "week" && diff > 7 * 24 * 60 * 60 * 1000) return false;
     }
     // Search
     if (searchQuery) {
@@ -787,6 +797,30 @@ export default function NewsPage() {
                   {f.label}
                 </button>
               ))}
+              {activeTab === "feed" && <div className="w-px h-4 bg-[#333] shrink-0 mx-1" />}
+              {/* Date filter pills */}
+              {activeTab === "feed" && (
+                <>
+                  {([
+                    { id: "all",       label: "All Dates" },
+                    { id: "today",     label: "Today" },
+                    { id: "yesterday", label: "Yesterday" },
+                    { id: "week",      label: "This Week" },
+                  ] as const).map(d => (
+                    <button
+                      key={d.id}
+                      onClick={() => setDateFilter(d.id)}
+                      className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${
+                        dateFilter === d.id
+                          ? "bg-[#1a1a1a] text-white border-[3px] border-[#f5c842]"
+                          : "text-zinc-500 border-[3px] border-transparent hover:text-zinc-300"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </>
+              )}
               {/* Search */}
               <div className="relative shrink-0 ml-auto">
                 <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
