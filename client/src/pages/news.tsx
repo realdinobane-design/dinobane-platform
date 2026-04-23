@@ -477,12 +477,13 @@ function HeroBanner({ items }: { items: NewsItem[] }) {
           </div>
         </div>
 
-        <div>
+        <a href={items[heroIndex]?.link || "#"} target="_blank" rel="noopener noreferrer" className="block hover:opacity-90 transition-opacity">
           <div className="text-[#cc2a2a] text-[9px] lg:text-lg font-black tracking-widest uppercase mb-1 lg:mb-3">{hero.label}</div>
+          {items[heroIndex]?.source && <div className="text-zinc-400 text-[9px] lg:text-sm font-bold tracking-widest uppercase mb-1 lg:mb-2">{items[heroIndex].source}</div>}
           <div className="text-white text-sm lg:text-3xl font-black leading-tight lg:leading-snug" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            {items[0]?.title || "Loading latest intelligence..."}
+            {items[heroIndex]?.title || "Loading latest intelligence..."}
           </div>
-        </div>
+        </a>
       </div>
 
       {/* Hero dots */}
