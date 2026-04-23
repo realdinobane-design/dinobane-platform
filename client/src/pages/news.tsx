@@ -264,7 +264,7 @@ function StoryCard({ item, index, isAdmin, onBlock, isBookmarked, onBookmark }: 
     >
       {/* Source image — top of card, cropped banner */}
       {item.image && (
-        <div className="w-full h-36 overflow-hidden bg-[#0d0d0d]">
+        <div className="w-full h-36 lg:h-72 overflow-hidden bg-[#0d0d0d]">
           <img
             src={item.image}
             alt=""
