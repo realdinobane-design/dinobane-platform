@@ -143,21 +143,18 @@ class DrizzleStorage implements IStorage {
   }
 
   async getMessages(channel: string): Promise<(Message & { user: User })[]> {
-    // Only return top-level posts (no parentId)
+    // Only return top-level posts (no parentId). Single query with join —
+    // previously loaded every user in the DB just to zip names onto messages.
     const rows = await db
-      .select()
+      .select({ message: messages, user: users })
       .from(messages)
+      .leftJoin(users, eq(messages.userId, users.id))
       .where(and(eq(messages.channel, channel), sql`${messages.parentId} IS NULL`))
       .orderBy(messages.createdAt);
 
-    if (rows.length === 0) return [];
-
-    const allUsers = await db.select().from(users);
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
     return rows
-      .map(m => ({ ...m, user: userMap.get(m.userId)! }))
-      .filter(m => m.user);
+      .filter(r => r.user)
+      .map(r => ({ ...r.message, user: r.user! }));
   }
 
   async getMessagesByUser(userId: number): Promise<(Message & { user: User })[]> {
@@ -178,20 +175,17 @@ class DrizzleStorage implements IStorage {
   }
 
   async getReplies(parentId: number): Promise<(Message & { user: User })[]> {
+    // Single join query — see getMessages.
     const rows = await db
-      .select()
+      .select({ message: messages, user: users })
       .from(messages)
+      .leftJoin(users, eq(messages.userId, users.id))
       .where(eq(messages.parentId, parentId))
       .orderBy(messages.createdAt);
 
-    if (rows.length === 0) return [];
-
-    const allUsers = await db.select().from(users);
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
     return rows
-      .map(m => ({ ...m, user: userMap.get(m.userId)! }))
-      .filter(m => m.user);
+      .filter(r => r.user)
+      .map(r => ({ ...r.message, user: r.user! }));
   }
 
   async getReplyCount(parentId: number): Promise<number> {
@@ -332,15 +326,17 @@ class DrizzleStorage implements IStorage {
 
   // ─── Media comments ───────────────────────────────────────────────────────
   async getMediaComments(mediaId: number): Promise<(MediaComment & { user: User })[]> {
-    const rows = await db.select().from(mediaComments)
+    // Single join query — previously did one getUserById per comment.
+    const rows = await db
+      .select({ comment: mediaComments, user: users })
+      .from(mediaComments)
+      .leftJoin(users, eq(mediaComments.userId, users.id))
       .where(eq(mediaComments.mediaId, mediaId))
       .orderBy(mediaComments.createdAt);
-    const result = [];
-    for (const row of rows) {
-      const user = await this.getUserById(row.userId);
-      if (user) result.push({ ...row, user });
-    }
-    return result;
+
+    return rows
+      .filter(r => r.user)
+      .map(r => ({ ...r.comment, user: r.user! }));
   }
 
   async createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: User }> {
@@ -377,10 +373,11 @@ class DrizzleStorage implements IStorage {
       )
       .orderBy(privateMessages.createdAt);
     if (!rows.length) return [];
-    // Fetch both users individually to avoid array type issues
-    const [fromUser] = await db.select().from(users).where(eq(users.id, userA));
-    const [toUser] = await db.select().from(users).where(eq(users.id, userB));
-    const userMap: Record<number, any> = { [userA]: fromUser, [userB]: toUser };
+    // Single query for both participants instead of two round trips.
+    const bothUsers = await db.select().from(users)
+      .where(sql`${users.id} IN (${userA}, ${userB})`);
+    const userMap: Record<number, any> = {};
+    for (const u of bothUsers) userMap[u.id] = u;
     return rows.map(r => ({ ...r, from: userMap[r.fromId], to: userMap[r.toId] }));
   }
 

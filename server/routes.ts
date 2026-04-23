@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
 import { Resend } from "resend";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, insertArticleSchema } from "@shared/schema";
 import { z } from "zod";
@@ -463,8 +464,26 @@ function relayPage(destination: string, message: string): string {
 }
 
 export function registerRoutes(httpServer: Server, app: Express) {
+  // Rate limiters — lightweight per-IP buckets to blunt credential stuffing
+  // and spam. Complementary to the existing hCaptcha flow and the in-memory
+  // forgot-password limiter; they do NOT replace them.
+  const loginLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    limit: 20,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "Too many login attempts. Please try again in a few minutes." },
+  });
+  const signupLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "Too many signup attempts. Please try again later." },
+  });
+
   // ─── AUTH ROUTES ────────────────────────────────────────────────────────────
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", signupLimiter, async (req, res) => {
     try {
       // displayName is optional from frontend — falls back to username
       const schema = z.object({
@@ -648,7 +667,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true });
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", loginLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email and password required" });
@@ -1187,10 +1206,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── COMMUNITY (MESSAGES) ────────────────────────────────────────────────────
   // GET /api/community/members — public list of paid members (username + display name + avatar)
+  //
+  // This endpoint is called on every open of the community sidebar. The
+  // filtered list is small and rarely changes, so we memoise it for 30s
+  // to avoid re-scanning the users table on every page load.
+  let membersCache: { expires: number; data: any[] } | null = null;
   app.get("/api/community/members", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Members only" });
     const me = await storage.getUserById(req.session.userId);
     if (!me?.isMember) return res.status(403).json({ error: "Membership required" });
+    if (membersCache && membersCache.expires > Date.now()) {
+      return res.json(membersCache.data);
+    }
     const all = await storage.getAllUsers();
     const members = all
       .filter(u => u.isMember)
@@ -1203,6 +1230,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         avatarUrl: u.avatarUrl ?? null,
       }))
       .sort((a, b) => a.username.localeCompare(b.username));
+    membersCache = { expires: Date.now() + 30_000, data: members };
     return res.json(members);
   });
 
@@ -1451,15 +1479,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // GET /api/admin/messages — list all community messages across all channels (admin)
+  //
+  // Previously ran getMessages() six times in sequence (one per channel) and
+  // also loaded every user in the DB on each of those calls. The refactored
+  // storage.getMessages already does a single join, so we now call it in
+  // parallel rather than sequentially and keep the exact same output shape.
   app.get("/api/admin/messages", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
     const channels = ["general", "politics", "media", "immigration", "corruption", "free-speech"];
-    const all: any[] = [];
-    for (const ch of channels) {
-      const msgs = await storage.getMessages(ch);
-      msgs.forEach(m => all.push({ ...m, channel: ch }));
-    }
+    const results = await Promise.all(
+      channels.map(async ch => (await storage.getMessages(ch)).map(m => ({ ...m, channel: ch })))
+    );
+    const all = results.flat();
     all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return res.json(all);
   });
