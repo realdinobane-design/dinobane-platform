@@ -2781,11 +2781,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
         const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
         return db - da;
       });
-      const top200 = filtered.slice(0, 200);
+      const top100 = filtered.slice(0, 100);
 
       // Cache immediately with RSS-only images — users get fast response
-      intelCache = { data: top200, fetchedAt: Date.now() };
-      console.log(`[intel] cache refreshed — ${top200.length} stories from ${FEEDS.length} feeds`);
+      intelCache = { data: top100, fetchedAt: Date.now() };
+      console.log(`[intel] cache refreshed — ${top100.length} stories from ${FEEDS.length} feeds`);
 
       // Background enrichment: fetch og:image for stories missing inline images
       // Runs AFTER cache is set so it never blocks a user request
