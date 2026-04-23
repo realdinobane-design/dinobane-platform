@@ -903,7 +903,7 @@ export default function NewsPage() {
                   <div>
                     <p className="text-yellow-400 text-xs font-black uppercase tracking-widest">News Dump Alert</p>
                     <p className="text-zinc-400 text-xs mt-0.5">
-                      {sorted.filter(isNewsDump).length} story{sorted.filter(isNewsDump).length > 1 ? "ies" : "y"} released on Friday evening — a common government tactic to bury bad news.
+                      {sorted.filter(isNewsDump).length} {sorted.filter(isNewsDump).length === 1 ? "story" : "stories"} released on a Friday evening or weekend — a common government tactic to bury bad news.
                     </p>
                   </div>
                 </div>
