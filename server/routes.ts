@@ -2587,7 +2587,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── INTEL / NEWS RSS FEED ──────────────────────────────────────────────────
   // ─── INTEL FEED CACHE — avoids fetching 26 RSS feeds on every page load ────────
   let intelCache: { data: any[]; fetchedAt: number } | null = null;
-  const INTEL_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+  const INTEL_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
   let intelFetchInProgress = false;
 
   async function refreshIntelCache(): Promise<any[]> {

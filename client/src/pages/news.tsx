@@ -534,6 +534,18 @@ export default function NewsPage() {
   const { data: items, isLoading, isError, dataUpdatedAt } = useQuery<NewsItem[]>({
     queryKey: ["/api/intel/feed"],
     staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000, // keep in memory 1 hour
+    initialData: () => {
+      try {
+        const cached = localStorage.getItem("dinobane_intel_cache");
+        if (cached) {
+          const { data, ts } = JSON.parse(cached);
+          // Use localStorage data if less than 30 mins old
+          if (Date.now() - ts < 30 * 60 * 1000) return data;
+        }
+      } catch {}
+      return undefined;
+    },
   });
 
   const lastUpdated = dataUpdatedAt
