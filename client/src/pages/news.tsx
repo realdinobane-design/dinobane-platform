@@ -34,6 +34,15 @@ const SOURCE_META: Record<string, { color: string; type: "alt" | "mainstream" | 
   "Reclaim The Net":        { color: "#6ee7b7", type: "intl" },
   "The Gateway Pundit":     { color: "#fdba74", type: "intl" },
   "Westmonster":            { color: "#fca5a5", type: "alt" },
+  "Rebel News":             { color: "#ef4444", type: "alt" },
+  "The European Conservative": { color: "#3b82f6", type: "alt" },
+  "Sovereignty":            { color: "#f5c842", type: "alt" },
+  "Remix News":             { color: "#a855f7", type: "intl" },
+  "The Post Millennial":    { color: "#22c55e", type: "intl" },
+  "Politicalite":           { color: "#f97316", type: "alt" },
+  "True North":             { color: "#0ea5e9", type: "intl" },
+  "Watts Up With That":     { color: "#14b8a6", type: "alt" },
+  "Liberty Sentinel":       { color: "#f43f5e", type: "alt" },
 };
 
 const SOURCE_TAGS: Record<string, string[]> = {
@@ -63,6 +72,15 @@ const SOURCE_TAGS: Record<string, string[]> = {
   "Reclaim The Net":        ["censorship", "alt-media"],
   "The Gateway Pundit":     ["geopolitics", "alt-media"],
   "Westmonster":            ["politics", "alt-media"],
+  "Rebel News":             ["politics", "immigration", "alt-media"],
+  "The European Conservative": ["politics", "geopolitics", "alt-media"],
+  "Sovereignty":            ["politics", "uk-corruption", "alt-media"],
+  "Remix News":             ["geopolitics", "alt-media"],
+  "The Post Millennial":    ["politics", "censorship", "alt-media"],
+  "Politicalite":           ["politics", "alt-media"],
+  "True North":             ["politics", "alt-media"],
+  "Watts Up With That":     ["culture", "alt-media"],
+  "Liberty Sentinel":       ["politics", "censorship", "alt-media"],
 };
 
 // Heuristic category tags per story for left sidebar counts
@@ -831,40 +849,20 @@ export default function NewsPage() {
 
             <div className="border-t border-[#1a1a1a] my-3" />
 
-            {/* YouTube shortcut */}
-            <a
-              href="https://www.youtube.com/@Dinobane-Clips"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 p-2.5 rounded-sm bg-[#cc2a2a]/10 border border-[#cc2a2a]/30 hover:bg-[#cc2a2a]/20 transition-colors group"
-            >
-              <Youtube size={14} className="text-[#cc2a2a] shrink-0" />
-              <div>
-                <p className="text-[11px] font-bold text-white">@Dinobane-Clips</p>
-                <p className="text-[9px] text-zinc-500">Watch on YouTube</p>
-              </div>
-              <ExternalLink size={10} className="text-zinc-600 group-hover:text-[#cc2a2a] ml-auto transition-colors" />
-            </a>
-
-            <div className="border-t border-[#1a1a1a] my-3" />
-
-            {/* Suppressed stories list */}
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Suppressed</div>
-            <div className="space-y-1">
-              {(items ?? []).filter(isSuppressed).slice(0, 4).map((item, i) => (
-                <a
-                  key={i}
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block group p-2 rounded-sm bg-purple-950/20 border border-purple-900/30 hover:border-purple-700/50 transition-colors"
-                >
-                  <p className="text-[11px] text-zinc-400 leading-snug group-hover:text-white transition-colors line-clamp-2">
-                    {item.title}
-                  </p>
-                  <p className="text-[9px] text-zinc-600 mt-0.5">{item.source}</p>
-                </a>
-              ))}
+            {/* X / Twitter Timeline */}
+            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1 flex items-center gap-1.5">
+              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-zinc-600" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              @realdinobane
+            </div>
+            <div className="rounded-sm overflow-hidden border border-[#1a1a1a]">
+              <a
+                className="twitter-timeline"
+                data-theme="dark"
+                data-chrome="noheader nofooter noborders transparent"
+                data-tweet-limit="6"
+                data-dnt="true"
+                href="https://twitter.com/realdinobane"
+              >Tweets by @realdinobane</a>
             </div>
           </div>
         </div>
