@@ -466,32 +466,32 @@ function HeroBanner({ items }: { items: NewsItem[] }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
       {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-between p-4">
-        <div className="flex items-center gap-2">
-          <img src="/brand/logo-x.jpg" alt="DinoBane" className="w-8 h-8 rounded-sm object-cover" />
+      <div className="absolute inset-0 flex flex-col justify-between p-4 lg:p-8">
+        <div className="flex items-center gap-2 lg:gap-4">
+          <img src="/brand/logo-x.jpg" alt="DinoBane" className="w-8 h-8 lg:w-20 lg:h-20 rounded-sm object-cover" />
           <div>
-            <div className="text-white text-xs font-black tracking-widest uppercase" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <div className="text-white text-xs lg:text-3xl font-black tracking-widest uppercase" style={{ fontFamily: "'Clash Display', sans-serif" }}>
               DinoBane Intel
             </div>
-            <div className="text-zinc-400 text-[9px] tracking-widest uppercase">UK Political Intelligence Feed</div>
+            <div className="text-zinc-400 text-[9px] lg:text-sm tracking-widest uppercase">UK Political Intelligence Feed</div>
           </div>
         </div>
 
         <div>
-          <div className="text-[#cc2a2a] text-[9px] font-black tracking-widest uppercase mb-1">{hero.label}</div>
-          <div className="text-white text-sm font-black leading-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <div className="text-[#cc2a2a] text-[9px] lg:text-lg font-black tracking-widest uppercase mb-1 lg:mb-3">{hero.label}</div>
+          <div className="text-white text-sm lg:text-3xl font-black leading-tight lg:leading-snug" style={{ fontFamily: "'Clash Display', sans-serif" }}>
             {items[0]?.title || "Loading latest intelligence..."}
           </div>
         </div>
       </div>
 
       {/* Hero dots */}
-      <div className="absolute bottom-3 right-4 flex gap-1">
+      <div className="absolute bottom-3 right-4 lg:bottom-6 lg:right-6 flex gap-1 lg:gap-2">
         {HERO_IMAGES.map((_, i) => (
           <button
             key={i}
             onClick={() => setHeroIndex(i)}
-            className={`w-1.5 h-1.5 rounded-full transition-colors ${i === heroIndex ? "bg-[#cc2a2a]" : "bg-white/30"}`}
+            className={`w-1.5 h-1.5 lg:w-3 lg:h-3 rounded-full transition-colors ${i === heroIndex ? "bg-[#cc2a2a]" : "bg-white/30"}`}
           />
         ))}
       </div>
