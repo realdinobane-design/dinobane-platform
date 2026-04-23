@@ -1739,9 +1739,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const allUsers = await storage.getAllUsers();
     const members = allUsers.filter((u: any) => u.isMember);
     let sent = 0;
+    // Small throttle between sends so a large member list does not hammer the
+    // transactional email provider (most providers rate-limit ~10–14/sec).
     for (const u of members) {
       await sendWelcomeEmail(u.email, u.displayName);
       sent++;
+      await new Promise((r) => setTimeout(r, 200));
     }
     console.log(`[admin] sent welcome email to ${sent} existing members`);
     return res.json({ ok: true, sent });
@@ -2211,31 +2214,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!r2AccountId || !r2AccessKey || !r2SecretKey || !r2PublicUrl) {
       return res.status(503).json({ error: "R2 not configured" });
     }
-    const { name, type, mimeType } = req.body;
-    const { createHmac, createHash, randomUUID } = await import("crypto");
+    const { name, type } = req.body as { name?: string; type?: "image" | "video" };
+    const { randomUUID } = await import("crypto");
     const ext = name?.split(".").pop() || (type === "image" ? "jpg" : "mp4");
     const key = `vault/${type}s/${randomUUID()}.${ext}`;
-    // Generate presigned PUT URL valid for 15 minutes
-    const now = new Date();
-    const date = now.toISOString().slice(0,10).replace(/-/g,'');
-    const datetime = now.toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
-    const expiresIn = 900; // 15 min
-    const credentialScope = `${date}/auto/s3/aws4_request`;
-    const credential = `${r2AccessKey}/${credentialScope}`;
-    const canonicalQueryString = [
-      `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
-      `X-Amz-Credential=${encodeURIComponent(credential)}`,
-      `X-Amz-Date=${datetime}`,
-      `X-Amz-Expires=${expiresIn}`,
-      `X-Amz-SignedHeaders=host`,
-    ].join('&');
-    const host = `${r2AccountId}.r2.cloudflarestorage.com`;
-    const canonicalRequest = `PUT\n/${"dinobane-vault"}/${key}\n${canonicalQueryString}\nhost:${host}\n\nhost\nUNSIGNED-PAYLOAD`;
-    const stringToSign = `AWS4-HMAC-SHA256\n${datetime}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
-    const sign = (k: Buffer, msg: string) => createHmac('sha256', k).update(msg).digest();
-    const signingKey = sign(sign(sign(sign(Buffer.from(`AWS4${r2SecretKey}`), date), 'auto'), 's3'), 'aws4_request');
-    const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
-    const uploadUrl = `https://${host}/dinobane-vault/${key}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+
+    // Use the AWS SDK's signer (@aws-sdk/s3-request-presigner) instead of
+    // hand-rolled SigV4 — identical output, less surface area for bugs.
+    const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const s3 = new S3Client({
+      region: "auto",
+      endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: r2AccessKey, secretAccessKey: r2SecretKey },
+    });
+    const uploadUrl = await getSignedUrl(
+      s3,
+      new PutObjectCommand({ Bucket: "dinobane-vault", Key: key }),
+      { expiresIn: 900 }
+    );
     return res.json({ uploadUrl, key, publicUrl: `${r2PublicUrl}/${key}` });
   });
 
@@ -2380,52 +2377,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
     console.log(`[r2-check] accountId=${!!r2AccountId} accessKey=${!!r2AccessKey} secretKey=${!!r2SecretKey} publicUrl=${r2PublicUrl?.slice(0,30)}`);
     if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
-        const { createHmac, createHash, randomUUID } = await import("crypto");
-        const matches = parsed.data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (matches) {
-          const mimeType = matches[1];
-          const buffer = Buffer.from(matches[2], "base64");
-          const ext = parsed.data.name.split(".").pop() || (parsed.data.type === "image" ? "jpg" : "mp4");
-          const key = `vault/${parsed.data.type}s/${randomUUID()}.${ext}`;
-          const endpoint = `https://${r2AccountId}.r2.cloudflarestorage.com`;
-          const bucket = "dinobane-vault";
-          const url = `${endpoint}/${bucket}/${key}`;
-
-          // AWS Signature Version 4
-          const now = new Date();
-          const date = now.toISOString().slice(0,10).replace(/-/g,'');
-          const datetime = now.toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
-          const payloadHash = createHash('sha256').update(buffer).digest('hex');
-          const canonicalHeaders = `content-type:${mimeType}\nhost:${r2AccountId}.r2.cloudflarestorage.com\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${datetime}\n`;
-          const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
-          const canonicalRequest = `PUT\n/${bucket}/${key}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-          const credentialScope = `${date}/auto/s3/aws4_request`;
-          const stringToSign = `AWS4-HMAC-SHA256\n${datetime}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
-          const sign = (key: Buffer, msg: string) => createHmac('sha256', key).update(msg).digest();
-          const signingKey = sign(sign(sign(sign(Buffer.from(`AWS4${r2SecretKey}`), date), 'auto'), 's3'), 'aws4_request');
-          const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
-          const authHeader = `AWS4-HMAC-SHA256 Credential=${r2AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-          const uploadRes = await fetch(url, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': mimeType,
-              'x-amz-content-sha256': payloadHash,
-              'x-amz-date': datetime,
-              'Authorization': authHeader,
-              'Cache-Control': 'public, max-age=31536000',
-            },
-            body: buffer,
-          });
-          if (uploadRes.ok) {
-            storedData = `${r2PublicUrl}/${key}`;
-            console.log(`[r2] uploaded via fetch: ${storedData}`);
-          } else {
-            const err = await uploadRes.text();
-            console.error(`[r2] upload failed ${uploadRes.status}: ${err.slice(0,500)}`);
-            return res.status(500).json({ error: `R2 upload failed: ${uploadRes.status} ${err.slice(0,200)}` });
-          }
-        }
+        // Delegate to the AWS SDK-based helper in server/r2.ts instead of
+        // hand-rolling SigV4 with crypto + fetch.
+        const { uploadToR2 } = await import("./r2");
+        storedData = await uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
+        console.log(`[r2] uploaded via sdk: ${storedData}`);
       } catch (e: any) {
         console.error(`[r2] upload exception: ${e.message} ${e.stack?.slice(0,300)}`);
         return res.status(500).json({ error: `R2 exception: ${e.message}` });
