@@ -738,8 +738,8 @@ export default function NewsPage() {
                   onClick={() => setSourceFilter(f.id)}
                   className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${
                     sourceFilter === f.id
-                      ? "bg-[#1a1a1a] text-white border border-[#cc2a2a]/50"
-                      : "text-zinc-500 border border-transparent hover:text-zinc-300"
+                      ? "bg-[#1a1a1a] text-white border-[3px] border-[#f5c842]"
+                      : "text-zinc-500 border-[3px] border-transparent hover:text-zinc-300"
                   }`}
                 >
                   {f.label}
