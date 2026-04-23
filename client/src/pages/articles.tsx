@@ -58,6 +58,8 @@ export default function ArticlesPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [ytUrl, setYtUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [showTranscript, setShowTranscript] = useState(false);
   const [activeTopic, setActiveTopic] = useState<TopicId | "all">("all");
 
   const { data: articles = [], isLoading } = useQuery<Article[]>({
@@ -70,12 +72,14 @@ export default function ArticlesPage() {
 
   const generateMutation = useMutation({
     mutationFn: async (url: string) => {
-      const res = await apiRequest("POST", "/api/articles/generate", { youtubeUrl: url });
+      const res = await apiRequest("POST", "/api/articles/generate", { youtubeUrl: url, transcript: transcript.trim() || undefined });
       return res.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/articles"] });
       setYtUrl("");
+      setTranscript("");
+      setShowTranscript(false);
       toast({ title: "Article generated", description: "The video has been converted to a written article." });
     },
     onError: () => {
@@ -144,6 +148,21 @@ export default function ArticlesPage() {
               Generate
             </Button>
           </div>
+          <button
+            onClick={() => setShowTranscript(v => !v)}
+            className="mt-2 text-xs text-zinc-500 hover:text-[#f5c842] transition-colors flex items-center gap-1"
+          >
+            {showTranscript ? "▲ Hide transcript" : "▼ Paste transcript (optional — improves accuracy)"}
+          </button>
+          {showTranscript && (
+            <textarea
+              value={transcript}
+              onChange={e => setTranscript(e.target.value)}
+              placeholder="Paste the full video transcript here. If provided, the article will be written based on exactly what was said in the video."
+              rows={8}
+              className="mt-2 w-full bg-background border border-border text-white text-sm rounded px-3 py-2 focus:outline-none focus:border-[#f5c842]/50 placeholder:text-zinc-600 resize-y font-mono"
+            />
+          )}
         </div>
       )}
 
