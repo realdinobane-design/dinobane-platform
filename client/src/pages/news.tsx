@@ -7,28 +7,6 @@ import { ADMIN_EMAILS } from "@/lib/constants";
 
 // ─── SOURCE METADATA ──────────────────────────────────────────────────────────
 
-// ─── X TIMELINE WIDGET ───────────────────────────────────────────────────────
-function XTimeline() {
-  return (
-    <div>
-      <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1 flex items-center gap-1.5">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-zinc-600" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
-        @realdinobane
-      </div>
-      <div className="rounded-sm overflow-hidden border border-[#1a1a1a] bg-black">
-        <iframe
-          src="https://syndication.twitter.com/srv/timeline-profile/screen-name/realdinobane?dnt=true&theme=dark&chrome=noheader%20nofooter%20noborders&tweet_limit=6"
-          style={{ width: "100%", height: "500px", border: "none" }}
-          title="@realdinobane on X"
-          scrolling="yes"
-          allowFullScreen
-        />
-      </div>
-    </div>
-  );
-}
 
 const SOURCE_META: Record<string, { color: string; type: "alt" | "mainstream" | "intl" }> = {
   "Guido Fawkes":           { color: "#ef4444", type: "alt" },
@@ -838,7 +816,7 @@ export default function NewsPage() {
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
-        <div className="w-80 shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
+        <div className="w-96 shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
           <div className="p-3">
             {/* Hero banner */}
             <HeroBanner items={items ?? []} />
@@ -846,7 +824,7 @@ export default function NewsPage() {
             {/* Top stories by category */}
             <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Top Stories</div>
             <div className="space-y-1">
-              {(items ?? []).filter(isViral).slice(0, 5).map((item, i) => {
+              {(items ?? []).filter(isViral).slice(0, 10).map((item, i) => {
                 const meta = SOURCE_META[item.source];
                 return (
                   <a
@@ -872,8 +850,7 @@ export default function NewsPage() {
 
             <div className="border-t border-[#1a1a1a] my-3" />
 
-            {/* X / Twitter Timeline */}
-            <XTimeline />
+
           </div>
         </div>
       </div>
