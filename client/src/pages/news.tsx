@@ -669,7 +669,7 @@ export default function NewsPage() {
         </div>
 
         {/* ── MAIN CONTENT ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-[1] min-w-0 flex flex-col overflow-hidden">
 
           {/* Top bar */}
           <div className="flex flex-col border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
@@ -866,7 +866,7 @@ export default function NewsPage() {
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
-        <div className="w-96 shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
+        <div className="flex-[2] min-w-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
           <div className="p-3">
             {/* Hero banner */}
             <HeroBanner items={items ?? []} />
