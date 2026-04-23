@@ -1,9 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Youtube, ExternalLink } from "lucide-react";
+import { Youtube, ExternalLink, ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
+const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 import { TOPICS, detectTopic, topicMeta, type TopicId } from "@/lib/topics";
 
 interface Video {
@@ -50,6 +53,26 @@ function TopicPills({ active, onChange }: { active: TopicId | "all"; onChange: (
 
 export default function VideosPage() {
   const [activeTopic, setActiveTopic] = useState<TopicId | "all">("all");
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [genUrl, setGenUrl] = useState("");
+  const [genTranscript, setGenTranscript] = useState("");
+  const [genResult, setGenResult] = useState<{ title: string } | null>(null);
+  const { user } = useAuth();
+  const isAdmin = !!(user?.email && ADMIN_EMAILS.has(user.email));
+  const queryClient = useQueryClient();
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/articles/generate", { youtubeUrl: genUrl, transcript: genTranscript });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setGenResult(data);
+      setGenUrl("");
+      setGenTranscript("");
+      queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+    },
+  });
 
   const { data: videos = [], isLoading } = useQuery<Video[]>({
     queryKey: ["/api/youtube/feed"],
@@ -88,6 +111,64 @@ export default function VideosPage() {
           <Youtube size={16} /> View Channel
         </a>
       </div>
+
+      {/* Admin — Manual Article Generator */}
+      {isAdmin && (
+        <div className="mb-6 border border-[#1e1e1e] rounded-sm overflow-hidden">
+          <button
+            onClick={() => setShowGenerator(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-[#111] hover:bg-[#161616] transition-colors text-left"
+          >
+            <div className="flex items-center gap-2 text-sm font-bold text-[#f5c842]">
+              <FileText size={14} /> Generate Article from Transcript
+            </div>
+            {showGenerator ? <ChevronUp size={14} className="text-zinc-500" /> : <ChevronDown size={14} className="text-zinc-500" />}
+          </button>
+          {showGenerator && (
+            <div className="bg-[#0d0d0d] px-4 py-4 space-y-3 border-t border-[#1e1e1e]">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1 uppercase tracking-wider">YouTube URL</label>
+                <input
+                  type="text"
+                  value={genUrl}
+                  onChange={e => setGenUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full bg-[#111] border border-[#2a2a2a] text-white text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-[#f5c842]/50 placeholder:text-zinc-600"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1 uppercase tracking-wider">
+                  Transcript <span className="text-zinc-600 normal-case font-normal">(paste full transcript here)</span>
+                </label>
+                <textarea
+                  value={genTranscript}
+                  onChange={e => setGenTranscript(e.target.value)}
+                  placeholder="Paste the video transcript here... The article will be written based on this content."
+                  rows={8}
+                  className="w-full bg-[#111] border border-[#2a2a2a] text-white text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-[#f5c842]/50 placeholder:text-zinc-600 resize-y font-mono"
+                />
+              </div>
+              {genResult && (
+                <div className="bg-[#111] border border-green-800 rounded-sm px-4 py-3 text-sm text-green-400">
+                  ✓ Article generated: <strong className="text-white">"{genResult.title}"</strong> — view it in the Articles section.
+                </div>
+              )}
+              {generateMutation.isError && (
+                <div className="bg-[#111] border border-red-800 rounded-sm px-4 py-3 text-sm text-red-400">
+                  Failed to generate article. Check the URL is correct.
+                </div>
+              )}
+              <button
+                onClick={() => generateMutation.mutate()}
+                disabled={!genUrl.trim() || generateMutation.isPending}
+                className="flex items-center gap-2 bg-[#cc2a2a] hover:bg-[#b52424] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm px-5 py-2.5 rounded-sm transition-colors"
+              >
+                {generateMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Generating...</> : "Generate Article"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Topic filter pills */}
       <TopicPills active={activeTopic} onChange={setActiveTopic} />

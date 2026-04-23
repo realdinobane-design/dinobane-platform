@@ -1363,7 +1363,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
 
-    const { youtubeUrl } = req.body;
+    const { youtubeUrl, transcript: manualTranscript } = req.body;
     if (!youtubeUrl) return res.status(400).json({ error: "YouTube URL required" });
 
     const videoIdMatch = youtubeUrl.match(/(?:v=|youtu\.be\/)([^&\s]+)/);
@@ -1380,7 +1380,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     } catch {}
 
-    const content = await generateArticleAI(title, youtubeUrl);
+    const content = await generateArticleAI(title, youtubeUrl, manualTranscript);
     const article = await storage.createArticle({
       title,
       content,
@@ -3542,14 +3542,20 @@ async function fetchVideoTranscript(videoUrl: string): Promise<string | null> {
   }
 }
 
-async function generateArticleAI(title: string, url: string): Promise<string> {
+async function generateArticleAI(title: string, url: string, manualTranscript?: string): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     console.warn("[articles] OPENROUTER_API_KEY not set — skipping AI generation");
   } else {
-    // Fetch the real transcript so the AI writes about the actual video content
-    console.log(`[articles] Fetching transcript for: ${title}`);
-    const transcript = await fetchVideoTranscript(url);
+    // Use manual transcript if provided, otherwise fetch automatically
+    let transcript: string | null = null;
+    if (manualTranscript && manualTranscript.trim().length > 50) {
+      transcript = manualTranscript.trim();
+      console.log(`[articles] Using manual transcript (${transcript.length} chars) for: ${title}`);
+    } else {
+      console.log(`[articles] Fetching transcript for: ${title}`);
+      transcript = await fetchVideoTranscript(url);
+    }
 
     // If no transcript, try to get video description from YouTube Data API
     let descriptionContext = "";
