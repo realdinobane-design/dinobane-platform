@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { runMigrationsAndSeed } from "./storage";
+import { pool } from "./db";
 import { createServer } from "http";
 
 const app = express();
@@ -14,24 +15,36 @@ declare module "http" {
   }
 }
 
+// Global JSON/urlencoded body limit. All media uploads go via the Cloudflare
+// Worker directly to R2, so legitimate JSON bodies are always small. The
+// Stripe webhook route registers its own raw-body parser in routes.ts before
+// this middleware sees it, so lowering the limit here is safe.
 app.use(
   express.json({
-    limit: "100mb",
+    limit: "2mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
-app.use(express.urlencoded({ extended: false, limit: "100mb" }));
+app.use(express.urlencoded({ extended: false, limit: "2mb" }));
 app.use(cookieParser());
+
+// ─── SECURITY HEADERS (defence in depth; TLS is handled by Cloudflare) ───────
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  next();
+});
 
 // ─── DB-BACKED PERSISTENT SESSIONS ───────────────────────────────────────────
 // Sessions survive server restarts — cookie lives 30 days, data stored in PG.
 function genSid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
-// Lazy-import pool after DB is ready
 async function ensureSessionsTable() {
-  const { pool } = await import("./db");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sessions (
       sid  TEXT PRIMARY KEY,
@@ -48,7 +61,10 @@ async function ensureSessionsTable() {
 const sessionCache = new Map<string, { userId?: number }>();
 
 app.use(async (req: any, res: any, next: any) => {
-  const { pool } = await import("./db");
+  // Static assets and non-API paths don't need a DB-backed session — skip the
+  // session check entirely for those. Saves a DB round trip per asset.
+  if (!req.path.startsWith("/api")) return next();
+
   const COOKIE_MAX_AGE = 30 * 24 * 3600; // 30 days
   let sid = req.cookies?.dinobane_sid;
 
@@ -73,9 +89,7 @@ app.use(async (req: any, res: any, next: any) => {
     set userId(v: number | undefined) {
       store.userId = v;
       // Fire-and-forget DB write
-      import("./db").then(({ pool: p }) => {
-        p.query("UPDATE sessions SET user_id=$1, last_seen=now() WHERE sid=$2", [v ?? null, sid]).catch(() => {});
-      });
+      pool.query("UPDATE sessions SET user_id=$1, last_seen=now() WHERE sid=$2", [v ?? null, sid]).catch(() => {});
     },
     save(cb?: (err?: any) => void) {
       // Session is written synchronously on userId set — save() is a no-op for compatibility
@@ -83,9 +97,7 @@ app.use(async (req: any, res: any, next: any) => {
     },
     destroy(cb: () => void) {
       sessionCache.delete(sid);
-      import("./db").then(({ pool: p }) => {
-        p.query("DELETE FROM sessions WHERE sid=$1", [sid]).catch(() => {});
-      });
+      pool.query("DELETE FROM sessions WHERE sid=$1", [sid]).catch(() => {});
       if (cb) cb();
     },
   };
@@ -118,8 +130,13 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      // Only include the response body for 5xx errors, and truncate to 200
+      // chars. Full bodies were being written to stdout on every request,
+      // which meant session/password-reset tokens were ending up in log
+      // storage.
+      if (res.statusCode >= 500 && capturedJsonResponse) {
+        const snippet = JSON.stringify(capturedJsonResponse).slice(0, 200);
+        logLine += ` :: ${snippet}`;
       }
 
       log(logLine);

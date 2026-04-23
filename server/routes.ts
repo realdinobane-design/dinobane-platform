@@ -5,7 +5,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
 import { Resend } from "resend";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
+import { pool } from "./db";
 import { insertUserSchema, insertMessageSchema, insertArticleSchema } from "@shared/schema";
 import { z } from "zod";
 import crypto from "crypto";
@@ -93,7 +95,6 @@ const verificationTokens = new Map<string, { userId: number; email: string; expi
 async function storeVerificationToken(token: string, userId: number, email: string, expires: number) {
   verificationTokens.set(token, { userId, email, expires });
   try {
-    const { pool } = await import("./db");
     await pool.query(
       `INSERT INTO verification_tokens (token, user_id, email, expires_at)
        VALUES ($1, $2, $3, to_timestamp($4 / 1000.0))
@@ -108,7 +109,6 @@ async function getVerificationToken(token: string): Promise<{ userId: number; em
   if (verificationTokens.has(token)) return verificationTokens.get(token)!;
   // Fall back to DB (after server restart)
   try {
-    const { pool } = await import("./db");
     const r = await pool.query(
       `SELECT user_id, email, EXTRACT(EPOCH FROM expires_at)*1000 AS expires_ms
        FROM verification_tokens WHERE token=$1`,
@@ -125,14 +125,12 @@ async function getVerificationToken(token: string): Promise<{ userId: number; em
 async function deleteVerificationToken(token: string) {
   verificationTokens.delete(token);
   try {
-    const { pool } = await import("./db");
     await pool.query(`DELETE FROM verification_tokens WHERE token=$1`, [token]);
   } catch (e: any) { console.warn("[verify-token] db delete failed:", e.message); }
 }
 
 async function ensureVerificationTokensTable() {
   try {
-    const { pool } = await import("./db");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS verification_tokens (
         token TEXT PRIMARY KEY,
@@ -149,7 +147,6 @@ ensureVerificationTokensTable();
 
 async function ensureAppSettingsTable() {
   try {
-    const { pool } = await import("./db");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS app_settings (
         key TEXT PRIMARY KEY,
@@ -162,7 +159,6 @@ async function ensureAppSettingsTable() {
 ensureAppSettingsTable();
 
 async function ensureDmTables() {
-  const { pool } = await import("./db");
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS private_messages (
@@ -190,7 +186,6 @@ async function ensureDmTables() {
 ensureDmTables();
 
 async function ensureReactionsTable() {
-  const { pool } = await import("./db");
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS message_reactions (
@@ -211,7 +206,6 @@ async function ensureReactionsTable() {
 ensureReactionsTable();
 
 async function ensureBookmarksTable() {
-  const { pool } = await import("./db");
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS intel_bookmarks (
@@ -258,7 +252,25 @@ async function ensureBlockReportTables() {
 }
 ensureBlockReportTables();
 
-// ─── MENTION EMAIL RATE LIMITER ───────────────────────────────────────────────
+// Performance indexes — all IF NOT EXISTS, additive only. See audit item B5.
+async function ensurePerformanceIndexes() {
+  try {
+    // Community feed scroll — ordering messages in a channel by recency
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_channel_created ON messages(channel, created_at DESC)`);
+    // Reply-thread lookups
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_id) WHERE parent_id IS NOT NULL`);
+    // Media comment list ordering
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_comments_media ON media_comments(media_id, created_at DESC)`);
+    // Stripe webhook: look up user by Stripe customer id
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id) WHERE stripe_customer_id IS NOT NULL`);
+    // Like-count-per-media (augments the existing UNIQUE(media_id, user_id))
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_likes_media ON media_likes(media_id)`);
+    console.log("[perf] indexes ready");
+  } catch (e: any) { console.warn("[perf] index setup failed:", e.message); }
+}
+ensurePerformanceIndexes();
+
+// ─── MENTION EMAIL RATE LIMITER ────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
   if (!resend) return;
@@ -463,8 +475,26 @@ function relayPage(destination: string, message: string): string {
 }
 
 export function registerRoutes(httpServer: Server, app: Express) {
+  // Rate limiters — lightweight per-IP buckets to blunt credential stuffing
+  // and spam. Complementary to the existing hCaptcha flow and the in-memory
+  // forgot-password limiter; they do NOT replace them.
+  const loginLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    limit: 20,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "Too many login attempts. Please try again in a few minutes." },
+  });
+  const signupLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "Too many signup attempts. Please try again later." },
+  });
+
   // ─── AUTH ROUTES ────────────────────────────────────────────────────────────
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", signupLimiter, async (req, res) => {
     try {
       // displayName is optional from frontend — falls back to username
       const schema = z.object({
@@ -648,7 +678,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ ok: true });
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", loginLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email and password required" });
@@ -678,7 +708,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   async function storePasswordResetToken(token: string, userId: number, expires: number) {
     passwordResetTokens.set(token, { userId, expires });
     try {
-      const { pool } = await import("./db");
       await pool.query(
         `CREATE TABLE IF NOT EXISTS password_reset_tokens (
           token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at TIMESTAMPTZ NOT NULL
@@ -696,7 +725,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   async function getPasswordResetToken(token: string): Promise<{ userId: number; expires: number } | null> {
     if (passwordResetTokens.has(token)) return passwordResetTokens.get(token)!;
     try {
-      const { pool } = await import("./db");
       const r = await pool.query(
         `SELECT user_id, EXTRACT(EPOCH FROM expires_at)*1000 AS expires_ms FROM password_reset_tokens WHERE token=$1`,
         [token]
@@ -712,7 +740,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   async function deletePasswordResetToken(token: string) {
     passwordResetTokens.delete(token);
     try {
-      const { pool } = await import("./db");
       await pool.query(`DELETE FROM password_reset_tokens WHERE token=$1`, [token]);
     } catch (e: any) {}
   }
@@ -748,7 +775,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     // Delete any existing tokens for this user before creating a new one
     try {
-      const { pool } = await import("./db");
       await pool.query(`DELETE FROM password_reset_tokens WHERE user_id=$1`, [user.id]);
     } catch {}
     // Clean old entries from in-memory map too
@@ -833,7 +859,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const user = await storage.getUserById(req.session.userId);
     if (!user) return res.status(401).json({ error: "User not found" });
     // Update last_seen — fire and forget, don't block response
-    const { pool: p } = await import("./db");
+    const p = pool;
     p.query(`UPDATE users SET last_seen = NOW() WHERE id = $1`, [req.session.userId]).catch(() => {});
     const { password: _, ...safeUser } = user;
     return res.json(safeUser);
@@ -1187,10 +1213,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── COMMUNITY (MESSAGES) ────────────────────────────────────────────────────
   // GET /api/community/members — public list of paid members (username + display name + avatar)
+  //
+  // This endpoint is called on every open of the community sidebar. The
+  // filtered list is small and rarely changes, so we memoise it for 30s
+  // to avoid re-scanning the users table on every page load.
+  let membersCache: { expires: number; data: any[] } | null = null;
   app.get("/api/community/members", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Members only" });
     const me = await storage.getUserById(req.session.userId);
     if (!me?.isMember) return res.status(403).json({ error: "Membership required" });
+    if (membersCache && membersCache.expires > Date.now()) {
+      return res.json(membersCache.data);
+    }
     const all = await storage.getAllUsers();
     const members = all
       .filter(u => u.isMember)
@@ -1203,6 +1237,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         avatarUrl: u.avatarUrl ?? null,
       }))
       .sort((a, b) => a.username.localeCompare(b.username));
+    membersCache = { expires: Date.now() + 30_000, data: members };
     return res.json(members);
   });
 
@@ -1451,15 +1486,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // GET /api/admin/messages — list all community messages across all channels (admin)
+  //
+  // Previously ran getMessages() six times in sequence (one per channel) and
+  // also loaded every user in the DB on each of those calls. The refactored
+  // storage.getMessages already does a single join, so we now call it in
+  // parallel rather than sequentially and keep the exact same output shape.
   app.get("/api/admin/messages", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
     const channels = ["general", "politics", "media", "immigration", "corruption", "free-speech"];
-    const all: any[] = [];
-    for (const ch of channels) {
-      const msgs = await storage.getMessages(ch);
-      msgs.forEach(m => all.push({ ...m, channel: ch }));
-    }
+    const results = await Promise.all(
+      channels.map(async ch => (await storage.getMessages(ch)).map(m => ({ ...m, channel: ch })))
+    );
+    const all = results.flat();
     all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return res.json(all);
   });
@@ -1472,7 +1511,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const caller = await storage.getUserById(req.session.userId);
     if (!caller) return res.status(401).json({ error: "User not found" });
     // Find the message to verify ownership
-    const { pool } = await import("./db");
     const r = await pool.query(`SELECT user_id FROM messages WHERE id = $1`, [id]);
     if (r.rows.length === 0) return res.status(404).json({ error: "Message not found" });
     const isOwner = r.rows[0].user_id === req.session.userId;
@@ -1596,7 +1634,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/admin/dm/clear-throttle", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
-    const { pool } = await import("./db");
     await pool.query(`DELETE FROM dm_notifications`);
     return res.json({ ok: true, message: "DM email throttle cleared" });
   });
@@ -1631,7 +1668,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // GET /api/bookmarks — get current user's bookmarks
   app.get("/api/bookmarks", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
-    const { pool } = await import("./db");
     const r = await pool.query(
       `SELECT * FROM intel_bookmarks WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.session.userId]
@@ -1644,7 +1680,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const { storyLink, storyTitle, storySource } = req.body;
     if (!storyLink || !storyTitle) return res.status(400).json({ error: "storyLink and storyTitle required" });
-    const { pool } = await import("./db");
     // Check if exists
     const existing = await pool.query(
       `SELECT id FROM intel_bookmarks WHERE user_id = $1 AND story_link = $2`,
@@ -1676,7 +1711,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/users", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
-    const { pool: p } = await import("./db");
+    const p = pool;
     const rows = await p.query(`
       SELECT id, username, email, display_name as "displayName", avatar_initials as "avatarInitials",
         avatar_color as "avatarColor", avatar_url as "avatarUrl",
@@ -1739,9 +1774,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const allUsers = await storage.getAllUsers();
     const members = allUsers.filter((u: any) => u.isMember);
     let sent = 0;
+    // Small throttle between sends so a large member list does not hammer the
+    // transactional email provider (most providers rate-limit ~10–14/sec).
     for (const u of members) {
       await sendWelcomeEmail(u.email, u.displayName);
       sent++;
+      await new Promise((r) => setTimeout(r, 200));
     }
     console.log(`[admin] sent welcome email to ${sent} existing members`);
     return res.json({ ok: true, sent });
@@ -2130,7 +2168,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!check.ok) return;
     const { title, link, source, description } = req.body;
     if (!title || !link) return res.status(400).json({ error: "title and link required" });
-    const { pool: p } = await import("./db");
+    const p = pool;
     const existing = await p.query(`SELECT value FROM app_settings WHERE key = 'intel_custom_stories'`);
     const stories = existing.rows[0] ? JSON.parse(existing.rows[0].value) : [];
     // Avoid duplicates
@@ -2149,7 +2187,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!check.ok) return;
     const { link } = req.body;
     if (!link) return res.status(400).json({ error: "link required" });
-    const { pool: p } = await import("./db");
+    const p = pool;
     const existing = await p.query(`SELECT value FROM app_settings WHERE key = 'intel_custom_stories'`);
     const stories = existing.rows[0] ? JSON.parse(existing.rows[0].value) : [];
     const updated = stories.filter((s: any) => s.link !== link);
@@ -2162,7 +2200,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/intel/custom", async (req, res) => {
     const check = await requireAdmin(req, res);
     if (!check.ok) return;
-    const { pool: p } = await import("./db");
+    const p = pool;
     const existing = await p.query(`SELECT value FROM app_settings WHERE key = 'intel_custom_stories'`);
     return res.json(existing.rows[0] ? JSON.parse(existing.rows[0].value) : []);
   });
@@ -2211,31 +2249,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!r2AccountId || !r2AccessKey || !r2SecretKey || !r2PublicUrl) {
       return res.status(503).json({ error: "R2 not configured" });
     }
-    const { name, type, mimeType } = req.body;
-    const { createHmac, createHash, randomUUID } = await import("crypto");
+    const { name, type } = req.body as { name?: string; type?: "image" | "video" };
+    const { randomUUID } = await import("crypto");
     const ext = name?.split(".").pop() || (type === "image" ? "jpg" : "mp4");
     const key = `vault/${type}s/${randomUUID()}.${ext}`;
-    // Generate presigned PUT URL valid for 15 minutes
-    const now = new Date();
-    const date = now.toISOString().slice(0,10).replace(/-/g,'');
-    const datetime = now.toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
-    const expiresIn = 900; // 15 min
-    const credentialScope = `${date}/auto/s3/aws4_request`;
-    const credential = `${r2AccessKey}/${credentialScope}`;
-    const canonicalQueryString = [
-      `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
-      `X-Amz-Credential=${encodeURIComponent(credential)}`,
-      `X-Amz-Date=${datetime}`,
-      `X-Amz-Expires=${expiresIn}`,
-      `X-Amz-SignedHeaders=host`,
-    ].join('&');
-    const host = `${r2AccountId}.r2.cloudflarestorage.com`;
-    const canonicalRequest = `PUT\n/${"dinobane-vault"}/${key}\n${canonicalQueryString}\nhost:${host}\n\nhost\nUNSIGNED-PAYLOAD`;
-    const stringToSign = `AWS4-HMAC-SHA256\n${datetime}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
-    const sign = (k: Buffer, msg: string) => createHmac('sha256', k).update(msg).digest();
-    const signingKey = sign(sign(sign(sign(Buffer.from(`AWS4${r2SecretKey}`), date), 'auto'), 's3'), 'aws4_request');
-    const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
-    const uploadUrl = `https://${host}/dinobane-vault/${key}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+
+    // Use the AWS SDK's signer (@aws-sdk/s3-request-presigner) instead of
+    // hand-rolled SigV4 — identical output, less surface area for bugs.
+    const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const s3 = new S3Client({
+      region: "auto",
+      endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: r2AccessKey, secretAccessKey: r2SecretKey },
+    });
+    const uploadUrl = await getSignedUrl(
+      s3,
+      new PutObjectCommand({ Bucket: "dinobane-vault", Key: key }),
+      { expiresIn: 900 }
+    );
     return res.json({ uploadUrl, key, publicUrl: `${r2PublicUrl}/${key}` });
   });
 
@@ -2281,7 +2313,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/cron/membership-expiry", async (req, res) => {
     const secret = req.headers["x-cron-secret"];
     if (secret !== "DinoBane2026CronSecret") return res.status(403).json({ error: "Forbidden" });
-    const { pool: p } = await import("./db");
+    const p = pool;
     const now = new Date();
     const fourDaysFromNow = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
     const fiveDaysFromNow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
@@ -2342,7 +2374,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
     if (!user?.isMember) return res.status(403).json({ error: "Members only" });
-    const { pool } = await import("./db");
     const rows = await pool.query(
       `SELECT id, user_id as "userId", name, type, data_url as "dataUrl", size, uploaded_at as "uploadedAt" FROM media ORDER BY uploaded_at ASC`
     );
@@ -2369,7 +2400,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
       return res.status(400).json({ error: `File too large. Max ${parsed.data.type === "image" ? "5MB" : "50MB"}.` });
     }
 
-    const { pool } = await import("./db");
 
     // If R2 is configured, upload file to R2 and store URL instead of base64
     let storedData = parsed.data.dataUrl;
@@ -2380,52 +2410,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
     console.log(`[r2-check] accountId=${!!r2AccountId} accessKey=${!!r2AccessKey} secretKey=${!!r2SecretKey} publicUrl=${r2PublicUrl?.slice(0,30)}`);
     if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
-        const { createHmac, createHash, randomUUID } = await import("crypto");
-        const matches = parsed.data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (matches) {
-          const mimeType = matches[1];
-          const buffer = Buffer.from(matches[2], "base64");
-          const ext = parsed.data.name.split(".").pop() || (parsed.data.type === "image" ? "jpg" : "mp4");
-          const key = `vault/${parsed.data.type}s/${randomUUID()}.${ext}`;
-          const endpoint = `https://${r2AccountId}.r2.cloudflarestorage.com`;
-          const bucket = "dinobane-vault";
-          const url = `${endpoint}/${bucket}/${key}`;
-
-          // AWS Signature Version 4
-          const now = new Date();
-          const date = now.toISOString().slice(0,10).replace(/-/g,'');
-          const datetime = now.toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
-          const payloadHash = createHash('sha256').update(buffer).digest('hex');
-          const canonicalHeaders = `content-type:${mimeType}\nhost:${r2AccountId}.r2.cloudflarestorage.com\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${datetime}\n`;
-          const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
-          const canonicalRequest = `PUT\n/${bucket}/${key}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-          const credentialScope = `${date}/auto/s3/aws4_request`;
-          const stringToSign = `AWS4-HMAC-SHA256\n${datetime}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
-          const sign = (key: Buffer, msg: string) => createHmac('sha256', key).update(msg).digest();
-          const signingKey = sign(sign(sign(sign(Buffer.from(`AWS4${r2SecretKey}`), date), 'auto'), 's3'), 'aws4_request');
-          const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
-          const authHeader = `AWS4-HMAC-SHA256 Credential=${r2AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-          const uploadRes = await fetch(url, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': mimeType,
-              'x-amz-content-sha256': payloadHash,
-              'x-amz-date': datetime,
-              'Authorization': authHeader,
-              'Cache-Control': 'public, max-age=31536000',
-            },
-            body: buffer,
-          });
-          if (uploadRes.ok) {
-            storedData = `${r2PublicUrl}/${key}`;
-            console.log(`[r2] uploaded via fetch: ${storedData}`);
-          } else {
-            const err = await uploadRes.text();
-            console.error(`[r2] upload failed ${uploadRes.status}: ${err.slice(0,500)}`);
-            return res.status(500).json({ error: `R2 upload failed: ${uploadRes.status} ${err.slice(0,200)}` });
-          }
-        }
+        // Delegate to the AWS SDK-based helper in server/r2.ts instead of
+        // hand-rolling SigV4 with crypto + fetch.
+        const { uploadToR2 } = await import("./r2");
+        storedData = await uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
+        console.log(`[r2] uploaded via sdk: ${storedData}`);
       } catch (e: any) {
         console.error(`[r2] upload exception: ${e.message} ${e.stack?.slice(0,300)}`);
         return res.status(500).json({ error: `R2 exception: ${e.message}` });
@@ -2448,7 +2437,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
     // Clean up R2 file if stored there
-    const { pool: p } = await import("./db");
+    const p = pool;
     const existing = await p.query(`SELECT data_url FROM media WHERE id = $1`, [id]);
     const dataUrl = existing.rows[0]?.data_url;
     if (dataUrl && dataUrl.startsWith("http")) {
