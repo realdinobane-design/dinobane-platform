@@ -270,7 +270,7 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
       <div className="relative flex-1 overflow-hidden">
         <div
           className="flex items-stretch h-full whitespace-nowrap"
-          style={{ animation: "ticker 60s linear infinite" }}
+          style={{ animation: "ticker 20s linear infinite" }}
         >
           {doubled.map((item, i) => (
             <a
