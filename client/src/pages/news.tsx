@@ -597,16 +597,16 @@ export default function NewsPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── LEFT SIDEBAR ── */}
-        <div className="w-56 shrink-0 border-r border-[#1a1a1a] flex flex-col overflow-y-auto hidden md:flex">
+        <div className="w-72 shrink-0 border-r border-[#1a1a1a] flex flex-col overflow-y-auto hidden md:flex">
 
           {/* Categories */}
           <div className="px-3 pt-4 pb-2">
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Categories</div>
+            <div className="text-[14px] font-black tracking-widest text-zinc-600 uppercase mb-3 px-1">Categories</div>
             {CATEGORY_FILTERS.map(f => (
               <button
                 key={f.id}
                 onClick={() => setCategoryFilter(f.id)}
-                className={`w-full flex items-center justify-between text-left px-2 py-1.5 rounded-sm text-xs font-semibold transition-colors mb-0.5 ${
+                className={`w-full flex items-center justify-between text-left px-2 py-2 rounded-sm text-[14px] font-semibold transition-colors mb-1 ${
                   categoryFilter === f.id
                     ? "bg-[#cc2a2a]/20 text-[#cc2a2a] border-l-2 border-[#cc2a2a]"
                     : "text-zinc-400 hover:text-white hover:bg-[#1a1a1a]"
@@ -614,7 +614,7 @@ export default function NewsPage() {
                 data-testid={`category-${f.id}`}
               >
                 <span>{f.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm ${categoryFilter === f.id ? "bg-[#cc2a2a]/30 text-[#cc2a2a]" : "bg-[#1a1a1a] text-zinc-600"}`}>
+                <span className={`text-[13px] px-1.5 py-0.5 rounded-sm ${categoryFilter === f.id ? "bg-[#cc2a2a]/30 text-[#cc2a2a]" : "bg-[#1a1a1a] text-zinc-600"}`}>
                   {categoryCounts[f.id] ?? 0}
                 </span>
               </button>
@@ -625,7 +625,7 @@ export default function NewsPage() {
 
           {/* Sources */}
           <div className="px-3 py-2">
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Sources</div>
+            <div className="text-[14px] font-black tracking-widest text-zinc-600 uppercase mb-3 px-1">Sources</div>
             {allSources.slice(0, 12).map(([src, count]) => {
               const meta = SOURCE_META[src];
               return (
@@ -633,17 +633,16 @@ export default function NewsPage() {
                   key={src}
                   onClick={() => {
                     setSearchQuery("");
-                    // filter by source via search
                     setSearchQuery(prev => prev === src ? "" : "");
                     setCategoryFilter("all");
                   }}
-                  className="w-full flex items-center justify-between text-left px-2 py-1 rounded-sm transition-colors mb-0.5 hover:bg-[#1a1a1a] group"
+                  className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-sm transition-colors mb-0.5 hover:bg-[#1a1a1a] group"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta?.color || "#cc2a2a" }} />
-                    <span className="text-[11px] text-zinc-400 group-hover:text-white transition-colors truncate max-w-[110px]">{src}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: meta?.color || "#cc2a2a" }} />
+                    <span className="text-[14px] text-zinc-400 group-hover:text-white transition-colors truncate max-w-[150px]">{src}</span>
                   </div>
-                  <span className="text-[10px] text-zinc-600">{count}</span>
+                  <span className="text-[13px] text-zinc-600">{count}</span>
                 </button>
               );
             })}
@@ -653,7 +652,7 @@ export default function NewsPage() {
 
           {/* Feed stats */}
           <div className="px-3 py-2">
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Feed Stats</div>
+            <div className="text-[14px] font-black tracking-widest text-zinc-600 uppercase mb-3 px-1">Feed Stats</div>
             <div className="grid grid-cols-2 divide-x divide-y divide-[#1a1a1a] border border-[#1a1a1a] rounded-sm overflow-hidden">
               <StatBox value={items?.length ?? 0} label="Stories" />
               <StatBox value={viralCount} label="Viral" />
@@ -661,7 +660,7 @@ export default function NewsPage() {
               <StatBox value={newsDumpCount} label="Dumps" />
             </div>
             {lastUpdated && (
-              <div className="text-[9px] text-zinc-700 mt-2 px-1 text-center">
+              <div className="text-[13px] text-zinc-700 mt-2 px-1 text-center">
                 Updated {lastUpdated}
               </div>
             )}
