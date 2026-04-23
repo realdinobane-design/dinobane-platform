@@ -181,9 +181,10 @@ const CATEGORY_FILTERS = [
 ];
 
 const SOURCE_FILTERS = [
-  { id: "all-sources",  label: "All Sources" },
-  { id: "alt-media",    label: "Alt Media" },
-  { id: "mainstream",   label: "Mainstream" },
+  { id: "all-sources",    label: "All" },
+  { id: "alt-media",      label: "Alt Media" },
+  { id: "mainstream",     label: "Mainstream" },
+  { id: "intl",           label: "International" },
 ];
 
 // Hero images for the rotating banner (map to category context)
@@ -484,7 +485,7 @@ export default function NewsPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [activeTab, setActiveTab] = useState<"feed" | "saved">("feed");
   const [sourceFilter, setSourceFilter] = useState("all-sources");
-  const [viewFilter, setViewFilter] = useState<"all" | "viral" | "suppressed" | "latest">("all");
+  const [viewFilter, setViewFilter] = useState<"all" | "viral" | "suppressed" | "latest" | "dumps">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const blockMutation = useMutation({
@@ -567,6 +568,7 @@ export default function NewsPage() {
     // View filter
     if (viewFilter === "viral" && !isViral(item)) return false;
     if (viewFilter === "suppressed" && !isSuppressed(item)) return false;
+    if (viewFilter === "dumps" && !isNewsDump(item)) return false;
     if (viewFilter === "latest") {
       const diff = Date.now() - new Date(item.pubDate || 0).getTime();
       if (diff > 12 * 60 * 60 * 1000) return false; // last 12h
@@ -673,76 +675,109 @@ export default function NewsPage() {
           {/* Top bar */}
           <div className="flex flex-col border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
             {/* Scrollable filter row */}
-            <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto scrollbar-none">
-              {/* Tabs: Feed / Saved */}
+            <div className="flex items-center gap-0 border-b border-[#1a1a1a] overflow-x-auto scrollbar-none">
+
+              {/* ── LEFT GROUP: Feed / Saved tabs ── */}
               {user && (
-                <>
+                <div className="flex items-center shrink-0 border-r border-[#1e1e1e]">
                   <button
                     onClick={() => setActiveTab("feed")}
-                    className={`shrink-0 text-[12px] font-bold px-4 py-2 rounded-sm transition-colors ${activeTab === "feed" ? "bg-[#cc2a2a] text-white" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#cc2a2a]/40 hover:text-white"}`}
+                    className={`shrink-0 text-[12px] font-bold px-4 py-3 transition-colors border-b-2 ${activeTab === "feed" ? "text-white border-[#cc2a2a]" : "text-zinc-500 border-transparent hover:text-white"}`}
                   >Feed</button>
                   <button
                     onClick={() => setActiveTab("saved")}
-                    className={`shrink-0 flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 rounded-sm transition-colors ${activeTab === "saved" ? "bg-[#f5c842] text-black" : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#f5c842]/40 hover:text-white"}`}
-                  ><BookmarkCheck size={10} />Saved {bookmarks.length > 0 && <span className="ml-0.5 bg-[#f5c842] text-black rounded-full px-1 text-[9px] font-black">{bookmarks.length}</span>}</button>
-                  <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />
-                </>
+                    className={`shrink-0 flex items-center gap-1.5 text-[12px] font-bold px-4 py-3 transition-colors border-b-2 ${activeTab === "saved" ? "text-[#f5c842] border-[#f5c842]" : "text-zinc-500 border-transparent hover:text-[#f5c842]"}`}
+                  >
+                    <BookmarkCheck size={12} />
+                    Saved
+                    {bookmarks.length > 0 && <span className="bg-[#f5c842] text-black rounded-full px-1.5 text-[10px] font-black">{bookmarks.length}</span>}
+                  </button>
+                </div>
               )}
-              {/* View filter pills — only show in feed tab */}
-              {activeTab === "feed" && (["all", "viral", "suppressed", "latest"] as const).map(v => (
+
+              {/* ── MIDDLE GROUP: Story type filters ── */}
+              {activeTab === "feed" && (
+                <div className="flex items-center shrink-0 px-2 gap-1 border-r border-[#1e1e1e]">
+                  <span className="text-[9px] font-black tracking-widest text-zinc-700 uppercase px-1">Story Type</span>
+                  {/* All */}
+                  <button
+                    onClick={() => setViewFilter("all")}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${viewFilter === "all" ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-200"}`}
+                    data-testid="view-filter-all"
+                  >All</button>
+                  {/* Viral — red */}
+                  <button
+                    onClick={() => setViewFilter("viral")}
+                    className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${viewFilter === "viral" ? "bg-[#cc2a2a] text-white" : "text-[#cc2a2a] border border-[#cc2a2a]/40 hover:bg-[#cc2a2a]/20"}`}
+                    data-testid="view-filter-viral"
+                  ><Flame size={10} />Viral</button>
+                  {/* Suppressed — purple */}
+                  <button
+                    onClick={() => setViewFilter("suppressed")}
+                    className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${viewFilter === "suppressed" ? "bg-purple-700 text-white" : "text-purple-400 border border-purple-700/40 hover:bg-purple-900/30"}`}
+                    data-testid="view-filter-suppressed"
+                  ><EyeOff size={10} />Suppressed</button>
+                  {/* News Dumps — yellow */}
+                  <button
+                    onClick={() => setViewFilter("dumps")}
+                    className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${viewFilter === "dumps" ? "bg-yellow-600 text-white" : "text-yellow-500 border border-yellow-700/40 hover:bg-yellow-900/30"}`}
+                    data-testid="view-filter-dumps"
+                  ><AlertCircle size={10} />News Dumps</button>
+                  {/* Latest — blue */}
+                  <button
+                    onClick={() => setViewFilter("latest")}
+                    className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${viewFilter === "latest" ? "bg-blue-600 text-white" : "text-blue-400 border border-blue-700/40 hover:bg-blue-900/30"}`}
+                    data-testid="view-filter-latest"
+                  ><Clock size={10} />Latest</button>
+                </div>
+              )}
+
+              {/* ── RIGHT GROUP: Source filters ── */}
+              {activeTab === "feed" && (
+                <div className="flex items-center shrink-0 px-2 gap-1 border-r border-[#1e1e1e]">
+                  <span className="text-[9px] font-black tracking-widest text-zinc-700 uppercase px-1">Source</span>
+                  <button
+                    onClick={() => setSourceFilter("all-sources")}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${sourceFilter === "all-sources" ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-200"}`}
+                  >All</button>
+                  <button
+                    onClick={() => setSourceFilter("alt-media")}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${sourceFilter === "alt-media" ? "bg-green-700 text-white" : "text-green-500 border border-green-700/40 hover:bg-green-900/30"}`}
+                  >Alt Media</button>
+                  <button
+                    onClick={() => setSourceFilter("mainstream")}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${sourceFilter === "mainstream" ? "bg-orange-700 text-white" : "text-orange-400 border border-orange-700/40 hover:bg-orange-900/30"}`}
+                  >Mainstream</button>
+                  <button
+                    onClick={() => setSourceFilter("intl")}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${sourceFilter === "intl" ? "bg-sky-700 text-white" : "text-sky-400 border border-sky-700/40 hover:bg-sky-900/30"}`}
+                  >International</button>
+                </div>
+              )}
+
+              {/* ── FAR RIGHT: Search + Refresh ── */}
+              <div className="flex items-center gap-2 ml-auto px-3 shrink-0">
+                <div className="relative">
+                  <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="bg-[#111] border border-[#222] rounded-sm pl-7 pr-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#cc2a2a]/50 w-28 sm:w-44"
+                    data-testid="news-search"
+                  />
+                </div>
                 <button
-                  key={v}
-                  onClick={() => setViewFilter(v)}
-                  className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors capitalize ${
-                    viewFilter === v
-                      ? "bg-[#cc2a2a] text-white"
-                      : "bg-[#111] text-zinc-400 border border-[#222] hover:border-[#cc2a2a]/40 hover:text-white"
-                  }`}
-                  data-testid={`view-filter-${v}`}
+                  onClick={() => { queryClient.removeQueries({ queryKey: ["/api/intel/feed"] }); queryClient.fetchQuery({ queryKey: ["/api/intel/feed"], queryFn: () => apiRequest("GET", "/api/intel/feed?t=" + Date.now()).then(r => r.json()) }); }}
+                  disabled={isLoading}
+                  className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-[#f5c842] hover:bg-[#f5c842] hover:text-black border border-[#f5c842] px-3 py-1.5 rounded-sm transition-all"
+                  data-testid="news-refresh"
                 >
-                  {v === "viral" && <Flame size={10} />}
-                  {v === "suppressed" && <EyeOff size={10} />}
-                  {v === "latest" && <Clock size={10} />}
-                  {v === "all" ? "All Stories" : v.charAt(0).toUpperCase() + v.slice(1)}
+                  <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
+                  <span className="hidden sm:inline">Refresh</span>
                 </button>
-              ))}
-              {activeTab === "feed" && <div className="w-px h-4 bg-[#222] shrink-0 mx-1" />}
-              {/* Source type pills */}
-              {activeTab === "feed" && SOURCE_FILTERS.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => setSourceFilter(f.id)}
-                  className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors ${
-                    sourceFilter === f.id
-                      ? "bg-[#1a1a1a] text-white border border-[#cc2a2a]/50"
-                      : "text-zinc-500 border border-transparent hover:text-zinc-300"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-              {/* Search */}
-              <div className="relative shrink-0 ml-auto">
-                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search..."
-                  className="bg-[#111] border border-[#222] rounded-sm pl-7 pr-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#cc2a2a]/50 w-28 sm:w-44"
-                  data-testid="news-search"
-                />
               </div>
-              {/* Refresh */}
-              <button
-                onClick={() => { queryClient.removeQueries({ queryKey: ["/api/intel/feed"] }); queryClient.fetchQuery({ queryKey: ["/api/intel/feed"], queryFn: () => apiRequest("GET", "/api/intel/feed?t=" + Date.now()).then(r => r.json()) }); }}
-                disabled={isLoading}
-                className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-[#f5c842] hover:bg-[#f5c842] hover:text-black border border-[#f5c842] px-3 py-1.5 rounded-sm transition-all"
-                data-testid="news-refresh"
-              >
-                <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin text-[#cc2a2a]" : ""}`} />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
             </div>
           </div>
 
