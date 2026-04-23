@@ -254,31 +254,38 @@ interface NewsItem {
 
 // ─── TICKER ───────────────────────────────────────────────────────────────────
 function NewsTicker({ items }: { items: NewsItem[] }) {
-  const tickerItems = items.slice(0, 12);
+  const tickerItems = items.slice(0, 20);
   if (!tickerItems.length) return null;
 
+  // Duplicate for seamless loop
+  const doubled = [...tickerItems, ...tickerItems];
+
   return (
-    <div className="bg-[#f0c800] overflow-hidden h-8 flex items-center shrink-0">
-      <div className="bg-black text-[#f0c800] text-[10px] font-black tracking-widest px-3 h-full flex items-center shrink-0 uppercase z-10">
+    <div className="overflow-hidden h-10 flex items-stretch shrink-0" style={{ background: 'repeating-linear-gradient(90deg, #f5c842 0px, #f5c842 1px, #f5c842 1px)' }}>
+      {/* BREAKING label */}
+      <div className="bg-black text-[#f5c842] text-[11px] font-black tracking-widest px-4 h-full flex items-center shrink-0 uppercase z-10 border-r-4 border-[#f5c842]">
         BREAKING
       </div>
+      {/* Hazard tape scrolling ticker */}
       <div className="relative flex-1 overflow-hidden">
         <div
-          className="flex gap-0 whitespace-nowrap"
-          style={{
-            animation: "ticker 15s linear infinite",
-          }}
+          className="flex items-stretch h-full whitespace-nowrap"
+          style={{ animation: "ticker 60s linear infinite" }}
         >
-          {[...tickerItems, ...tickerItems].map((item, i) => (
+          {doubled.map((item, i) => (
             <a
               key={i}
               href={item.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-black text-[11px] font-semibold px-6 hover:text-[#cc2a2a] transition-colors shrink-0"
+              className="flex items-center shrink-0 h-full px-6 font-black text-[12px] tracking-wide hover:opacity-80 transition-opacity"
+              style={{
+                background: i % 2 === 0 ? '#f5c842' : '#000000',
+                color: i % 2 === 0 ? '#000000' : '#f5c842',
+                borderRight: '4px solid #f5c842',
+              }}
             >
               {item.title}
-              <span className="text-black/30 mx-3">◆</span>
             </a>
           ))}
         </div>
