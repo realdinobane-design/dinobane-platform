@@ -738,7 +738,7 @@ export default function NewsPage() {
               <button
                 onClick={() => { queryClient.removeQueries({ queryKey: ["/api/intel/feed"] }); queryClient.fetchQuery({ queryKey: ["/api/intel/feed"], queryFn: () => apiRequest("GET", "/api/intel/feed?t=" + Date.now()).then(r => r.json()) }); }}
                 disabled={isLoading}
-                className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-zinc-500 hover:text-white border border-[#222] hover:border-[#cc2a2a]/40 px-3 py-1.5 rounded-sm transition-colors"
+                className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-[#f5c842] hover:bg-[#f5c842] hover:text-black border border-[#f5c842] px-3 py-1.5 rounded-sm transition-all"
                 data-testid="news-refresh"
               >
                 <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin text-[#cc2a2a]" : ""}`} />
