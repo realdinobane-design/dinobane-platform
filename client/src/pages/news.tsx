@@ -867,13 +867,13 @@ export default function NewsPage() {
 
         {/* ── RIGHT SIDEBAR ── */}
         <div className="w-[38vw] max-w-2xl shrink-0 border-l border-[#1a1a1a] flex-col overflow-y-auto hidden lg:flex">
-          <div className="p-3 text-[200%]">
+          <div className="p-4">
             {/* Hero banner */}
             <HeroBanner items={items ?? []} />
 
-            {/* Top stories by category */}
-            <div className="text-[9px] font-black tracking-widest text-zinc-600 uppercase mb-2 px-1">Top Stories</div>
-            <div className="space-y-1">
+            {/* Top stories */}
+            <div className="text-[14px] font-black tracking-widest text-zinc-600 uppercase mb-3 px-1 mt-2">Top Stories</div>
+            <div className="space-y-2">
               {(items ?? []).filter(isViral).slice(0, 10).map((item, i) => {
                 const meta = SOURCE_META[item.source];
                 return (
@@ -884,13 +884,13 @@ export default function NewsPage() {
                     rel="noopener noreferrer"
                     className="block group"
                   >
-                    <div className="flex gap-2 p-2 rounded-sm bg-[#111] hover:bg-[#1a1a1a] border border-[#1a1a1a] hover:border-[#cc2a2a]/30 transition-colors">
-                      <span className="text-[#cc2a2a] font-black text-xs shrink-0">{i + 1}</span>
+                    <div className="flex gap-3 p-3 rounded-sm bg-[#111] hover:bg-[#1a1a1a] border border-[#1a1a1a] hover:border-[#cc2a2a]/30 transition-colors">
+                      <span className="text-[#cc2a2a] font-black text-base shrink-0">{i + 1}</span>
                       <div className="min-w-0">
-                        <p className="text-[11px] text-zinc-300 font-semibold leading-snug group-hover:text-white line-clamp-2 transition-colors">
+                        <p className="text-[15px] text-zinc-300 font-semibold leading-snug group-hover:text-white line-clamp-2 transition-colors">
                           {item.title}
                         </p>
-                        <p className="text-[9px] mt-1" style={{ color: meta?.color || "#cc2a2a" }}>{item.source}</p>
+                        <p className="text-[13px] mt-1" style={{ color: meta?.color || "#cc2a2a" }}>{item.source}</p>
                       </div>
                     </div>
                   </a>
@@ -898,9 +898,43 @@ export default function NewsPage() {
               })}
             </div>
 
-            <div className="border-t border-[#1a1a1a] my-3" />
+            <div className="border-t border-[#1a1a1a] my-4" />
 
+            {/* Suppressed stories */}
+            <div className="text-[14px] font-black tracking-widest text-zinc-600 uppercase mb-3 px-1">Suppressed</div>
+            <div className="space-y-2">
+              {(items ?? []).filter(isSuppressed).slice(0, 8).map((item, i) => (
+                <a
+                  key={i}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group p-3 rounded-sm bg-purple-950/20 border border-purple-900/30 hover:border-purple-700/50 transition-colors"
+                >
+                  <p className="text-[15px] text-zinc-400 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                    {item.title}
+                  </p>
+                  <p className="text-[13px] text-zinc-600 mt-1">{item.source}</p>
+                </a>
+              ))}
+            </div>
 
+            <div className="border-t border-[#1a1a1a] my-4" />
+
+            {/* YouTube shortcut */}
+            <a
+              href="https://www.youtube.com/@Dinobane-Clips"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-sm bg-[#cc2a2a]/10 border border-[#cc2a2a]/30 hover:bg-[#cc2a2a]/20 transition-colors group"
+            >
+              <Youtube size={20} className="text-[#cc2a2a] shrink-0" />
+              <div>
+                <p className="text-[15px] font-bold text-white">@Dinobane-Clips</p>
+                <p className="text-[13px] text-zinc-500">Watch on YouTube</p>
+              </div>
+              <ExternalLink size={14} className="text-zinc-600 group-hover:text-[#cc2a2a] ml-auto transition-colors" />
+            </a>
           </div>
         </div>
       </div>
