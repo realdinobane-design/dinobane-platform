@@ -334,7 +334,7 @@ function StoryCard({ item, index, isAdmin, onBlock, isBookmarked, onBookmark }: 
 
         {/* Description — 5 lines, larger text */}
         {item.description && (
-          <p className="text-[15px] text-zinc-400 line-clamp-5 leading-relaxed">
+          <p className="text-[15px] text-zinc-400 line-clamp-[15] leading-relaxed">
             {stripHtml(item.description)}
           </p>
         )}
