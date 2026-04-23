@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home";
-import VideosPage from "@/pages/videos";
 import ArticlesPage from "@/pages/articles";
 import ArticleDetailPage from "@/pages/article-detail";
 import NewsPage from "@/pages/news";
@@ -72,6 +71,7 @@ function AppRoutes() {
       <Route path="/contact" component={ContactPage} />
       <Route path="/news" component={NewsPage} />
       <Route path="/intel" component={NewsPage} />
+      <Route path="/videos">{() => { window.location.hash = "#/articles"; return null; }}</Route>
       <Route path="/articles" component={ArticlesPage} />
       <Route path="/articles/:id" component={ArticleDetailPage} />
 
