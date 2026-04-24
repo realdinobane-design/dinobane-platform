@@ -12,6 +12,7 @@ import {
   type TimelineEntry,
 } from "@/lib/timelines";
 import { getPageStatus } from "@/lib/page-status";
+import { MembersOnlyBanner } from "@/components/members-only-banner";
 import {
   Settings,
   ArrowUpRight,
@@ -29,6 +30,9 @@ const ADMIN_EMAILS = new Set([
   "realdinobane@gmail.com",
   "yingchanzeng@gmail.com",
 ]);
+// Only the primary admin may create, copy or delete timelines. Secondary admins
+// (e.g. yingchanzeng) can still edit existing ones but can't spin up new ones.
+const TIMELINE_CREATOR = "realdinobane@gmail.com";
 
 type ViewMode = "card" | "list";
 const VIEW_STORAGE_KEY = "tl-view";
@@ -41,6 +45,7 @@ const VIEW_STORAGE_KEY = "tl-view";
 export default function TimelinesPage() {
   const { user } = useAuth();
   const isAdmin = !!user && ADMIN_EMAILS.has(user.email);
+  const canCreate = !!user && user.email === TIMELINE_CREATOR;
 
   const [view, setView] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "card";
@@ -81,13 +86,17 @@ export default function TimelinesPage() {
 
   const [newOpen, setNewOpen] = useState(false);
 
+  const stampLabel = isAdmin ? "ADMIN ONLY · ARCHIVE" : "MEMBERS ONLY · ARCHIVE";
+
   return (
+    <>
+    <MembersOnlyBanner variant="auto" />
     <div className="tl-wrap">
       <style>{CSS}</style>
 
       <div className="tl-dossier">
         <span className="tl-tag">DOSSIER // DB-TL-INDEX</span>
-        <span className="tl-stamp">EYES ONLY · ARCHIVE</span>
+        <span className="tl-stamp">{stampLabel}</span>
         <span>FILE: TIMELINES / v2.0</span>
       </div>
 
@@ -114,7 +123,7 @@ export default function TimelinesPage() {
           </span>
         </div>
         <div className="tl-control-right">
-          {isAdmin && (
+          {canCreate && (
             <button
               onClick={() => setNewOpen(true)}
               className="tl-new-btn"
@@ -149,13 +158,13 @@ export default function TimelinesPage() {
       {view === "card" ? (
         <section className="tl-grid">
           {visibleEntries.map((t, i) => (
-            <TimelineCard key={t.slug} entry={t} isAdmin={isAdmin} index={i} />
+            <TimelineCard key={t.slug} entry={t} isAdmin={isAdmin} canCreate={canCreate} index={i} />
           ))}
         </section>
       ) : (
         <section className="tl-list">
           {visibleEntries.map((t, i) => (
-            <TimelineRow key={t.slug} entry={t} isAdmin={isAdmin} index={i} />
+            <TimelineRow key={t.slug} entry={t} isAdmin={isAdmin} canCreate={canCreate} index={i} />
           ))}
         </section>
       )}
@@ -177,6 +186,7 @@ export default function TimelinesPage() {
         />
       )}
     </div>
+    </>
   );
 }
 
@@ -185,10 +195,12 @@ export default function TimelinesPage() {
 function TimelineCard({
   entry: t,
   isAdmin,
+  canCreate,
   index,
 }: {
   entry: TimelineEntry;
   isAdmin: boolean;
+  canCreate: boolean;
   index: number;
 }) {
   const { data: status = "live" } = useQuery({
@@ -256,7 +268,7 @@ function TimelineCard({
 
   return (
     <article className={classes} style={style}>
-      {isAdmin && <AdminCog entry={t} />}
+      {isAdmin && <AdminCog entry={t} canCreate={canCreate} />}
       {isPending ? (
         <div className="tl-card-link tl-card-link-pending">{cardBody}</div>
       ) : (
@@ -277,10 +289,12 @@ function TimelineCard({
 function TimelineRow({
   entry: t,
   isAdmin,
+  canCreate,
   index,
 }: {
   entry: TimelineEntry;
   isAdmin: boolean;
+  canCreate: boolean;
   index: number;
 }) {
   const { data: status = "live" } = useQuery({
@@ -341,7 +355,7 @@ function TimelineRow({
       )}
       {isAdmin && (
         <div className="tl-row-cog-wrap">
-          <AdminCog entry={t} />
+          <AdminCog entry={t} canCreate={canCreate} />
         </div>
       )}
     </article>
@@ -372,7 +386,7 @@ function StatusChip({ pending, onStandby }: { pending: boolean; onStandby: boole
 
 // ─── Admin cog with dropdown (Edit / Copy) ───────────────────────────────────
 
-function AdminCog({ entry: t }: { entry: TimelineEntry }) {
+function AdminCog({ entry: t, canCreate }: { entry: TimelineEntry; canCreate: boolean }) {
   const [open, setOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [, navigate] = useLocation();
@@ -417,16 +431,18 @@ function AdminCog({ entry: t }: { entry: TimelineEntry }) {
                 Edit
               </button>
             )}
-            <button
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                setCopyOpen(true);
-              }}
-            >
-              <Copy size={11} style={{ display: "inline", marginRight: 4 }} />
-              Copy
-            </button>
+            {canCreate && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  setCopyOpen(true);
+                }}
+              >
+                <Copy size={11} style={{ display: "inline", marginRight: 4 }} />
+                Copy
+              </button>
+            )}
           </div>
         )}
       </div>

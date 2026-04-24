@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { DmChat } from "@/components/dm-chat";
 import { ReactionBar } from "@/components/reaction-bar";
 import { ReportModal } from "@/components/report-modal";
+import { MembersOnlyBanner } from "@/components/members-only-banner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -718,6 +719,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
 
   return (
     <>
+    <MembersOnlyBanner variant="auto" />
     <div className="flex bg-[#0a0a0a]" style={{ height: "calc(100vh - 4rem)" }}>
 
       {/* ── LEFT SIDEBAR ── */}

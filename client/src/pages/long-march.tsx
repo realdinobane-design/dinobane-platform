@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { PageStatusGate } from "@/components/page-status-gate";
 import { TimelineRenderer, type TimelineData } from "@/components/timeline-renderer";
 import { getPageContent } from "@/lib/page-status";
+import { MembersOnlyBanner } from "@/components/members-only-banner";
+import { TimelineReactions } from "@/components/timeline-reactions";
 
 /* =========================================================
    LONG MARCH — EDITABLE TIMELINE DATA
@@ -171,8 +173,12 @@ export default function LongMarchPage() {
   const D = mergeData(saved);
 
   return (
-    <PageStatusGate slug="long-march" name="The Long March">
-      <TimelineRenderer data={D} />
-    </PageStatusGate>
+    <>
+      <MembersOnlyBanner variant="auto" />
+      <PageStatusGate slug="long-march" name="The Long March">
+        <TimelineRenderer data={D} />
+        <TimelineReactions slug="long-march" />
+      </PageStatusGate>
+    </>
   );
 }

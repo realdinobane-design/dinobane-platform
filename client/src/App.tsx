@@ -36,6 +36,7 @@ const TimelineViewPage = lazy(() => import("@/pages/timeline-view"));
 const AdminTimelineEditorPage = lazy(() => import("@/pages/admin-timeline-editor"));
 import { AppNav } from "@/components/app-nav";
 import { AdminPageToggle } from "@/components/admin-page-toggle";
+import { AdminBanner } from "@/components/admin-banner";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
 
@@ -92,11 +93,11 @@ function AppRoutes() {
       <Route path="/videos">{() => { window.location.hash = "#/articles"; return null; }}</Route>
       <Route path="/articles" component={ArticlesPage} />
       <Route path="/articles/:id" component={ArticleDetailPage} />
-      <Route path="/timelines" component={TimelinesPage} />
-      <Route path="/long-march" component={LongMarchPage} />
-      <Route path="/timeline/:slug" component={TimelineViewPage} />
 
       {/* Member-only routes — must have isMember=true */}
+      <Route path="/timelines">{() => <MemberRoute component={TimelinesPage} />}</Route>
+      <Route path="/long-march">{() => <MemberRoute component={LongMarchPage} />}</Route>
+      <Route path="/timeline/:slug">{() => <MemberRoute component={TimelineViewPage} />}</Route>
       <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
       <Route path="/media-vault">{() => <MemberRoute component={MediaVaultPage} />}</Route>
       <Route path="/members">{() => <AuthRoute component={MembersPage} />}</Route>
@@ -133,6 +134,7 @@ function InnerApp() {
       <AuthContext.Provider value={{ user, isLoading, refetch, setUser }}>
         <Router hook={useHashLocation}>
           <div className="min-h-screen bg-background text-foreground flex flex-col">
+            <AdminBanner />
             <AppNav />
             <main className="flex-1">
               <Suspense fallback={<PageLoader />}>

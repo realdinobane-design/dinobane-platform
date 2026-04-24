@@ -3,6 +3,8 @@ import { useParams, Link } from "wouter";
 import { PageStatusGate } from "@/components/page-status-gate";
 import { TimelineRenderer, type TimelineData } from "@/components/timeline-renderer";
 import { getPageContent } from "@/lib/page-status";
+import { MembersOnlyBanner } from "@/components/members-only-banner";
+import { TimelineReactions } from "@/components/timeline-reactions";
 import { BLANK_TIMELINE_DATA, getTimelinesRegistry, mergeRegistry } from "@/lib/timelines";
 import { LONG_MARCH_DATA } from "@/pages/long-march";
 
@@ -49,9 +51,13 @@ export default function TimelineViewPage() {
   };
 
   return (
-    <PageStatusGate slug={slug} name={displayName}>
-      <TimelineRenderer data={D} />
-    </PageStatusGate>
+    <>
+      <MembersOnlyBanner variant="auto" />
+      <PageStatusGate slug={slug} name={displayName}>
+        <TimelineRenderer data={D} />
+        <TimelineReactions slug={slug} />
+      </PageStatusGate>
+    </>
   );
 }
 

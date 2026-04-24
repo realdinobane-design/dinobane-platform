@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { MembersOnlyBanner } from "@/components/members-only-banner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface MediaItem {
@@ -462,6 +463,7 @@ export default function MediaVaultPage() {
 
   return (
     <>
+      <MembersOnlyBanner variant="auto" />
       {lightboxItem && (
         <MediaLightbox
           item={lightboxItem}

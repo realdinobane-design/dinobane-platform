@@ -870,6 +870,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Storage: app_settings row with key = "page_status:<slug>" and value = status.
   // Public read, admin write — matches the pattern used elsewhere in this file.
   const PAGE_STATUS_ADMINS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
+  // Only the primary admin may create, copy or delete timelines. Existing
+  // timelines can still be edited by any PAGE_STATUS_ADMINS member via the
+  // /api/admin/timelines/:slug PUT endpoint.
+  const TIMELINE_CREATORS = new Set(["realdinobane@gmail.com"]);
 
   function pageStatusKey(slug: string) { return `page_status:${slug}`; }
 
@@ -1055,8 +1059,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/admin/timelines", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const caller = await storage.getUserById(req.session.userId);
-    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
-      return res.status(403).json({ error: "Admin only" });
+    if (!caller || !TIMELINE_CREATORS.has(caller.email)) {
+      return res.status(403).json({ error: "Only the primary admin can create timelines" });
     }
     const body = (req.body || {}) as Partial<TimelineEntryRow>;
     const slug = String(body.slug || "").trim().toLowerCase();
@@ -1116,8 +1120,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.delete("/api/admin/timelines/:slug", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const caller = await storage.getUserById(req.session.userId);
-    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
-      return res.status(403).json({ error: "Admin only" });
+    if (!caller || !TIMELINE_CREATORS.has(caller.email)) {
+      return res.status(403).json({ error: "Only the primary admin can delete timelines" });
     }
     const slug = String(req.params.slug || "").trim().toLowerCase();
     if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
@@ -1135,8 +1139,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/admin/timelines/:slug/copy", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
     const caller = await storage.getUserById(req.session.userId);
-    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
-      return res.status(403).json({ error: "Admin only" });
+    if (!caller || !TIMELINE_CREATORS.has(caller.email)) {
+      return res.status(403).json({ error: "Only the primary admin can copy timelines" });
     }
     const fromSlug = String(req.params.slug || "").trim().toLowerCase();
     const toSlug = String(req.body?.toSlug || "").trim().toLowerCase();
@@ -1215,6 +1219,134 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
     console.log(`[timelines] ${caller.email} copied ${fromSlug} -> ${toSlug}`);
     return res.json({ entry: merged });
+  });
+
+  // ─── TIMELINE LIKES & COMMENTS ─────────────────────────────────────────────
+  // Any signed-in member can like a timeline (one-per-user toggle) and post
+  // comments underneath it. Admins can delete any comment.
+  // Storage uses two KV keys per slug (JSON blobs):
+  //   timeline_likes:<slug>    -> number[] of user IDs that have liked
+  //   timeline_comments:<slug> -> [{ id, userId, userName, text, createdAt }]
+  const TL_COMMENT_MAX = 2000;
+  const TL_COMMENTS_CAP = 500; // keep most-recent N to bound KV row size
+
+  function likesKey(slug: string) { return `timeline_likes:${slug}`; }
+  function commentsKey(slug: string) { return `timeline_comments:${slug}`; }
+
+  async function readLikes(slug: string): Promise<number[]> {
+    const raw = await storage.getSetting(likesKey(slug));
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((n) => typeof n === "number") : [];
+    } catch { return []; }
+  }
+  async function writeLikes(slug: string, ids: number[]) {
+    await storage.setSetting(likesKey(slug), JSON.stringify(ids));
+  }
+
+  type TLComment = {
+    id: string;
+    userId: number;
+    userName: string;
+    text: string;
+    createdAt: string;
+  };
+  async function readComments(slug: string): Promise<TLComment[]> {
+    const raw = await storage.getSetting(commentsKey(slug));
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  async function writeComments(slug: string, rows: TLComment[]) {
+    await storage.setSetting(commentsKey(slug), JSON.stringify(rows));
+  }
+
+  // GET current like count + whether the caller has liked it.
+  app.get("/api/timelines/:slug/like", async (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    const ids = await readLikes(slug);
+    const liked = !!req.session.userId && ids.includes(req.session.userId);
+    return res.json({ count: ids.length, liked });
+  });
+
+  // Toggle the caller's like on a timeline. Members-only.
+  app.post("/api/timelines/:slug/like", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller) return res.status(401).json({ error: "Not authenticated" });
+    if (!caller.isMember && !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Members only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    const ids = await readLikes(slug);
+    const idx = ids.indexOf(caller.id);
+    if (idx >= 0) ids.splice(idx, 1);
+    else ids.push(caller.id);
+    await writeLikes(slug, ids);
+    return res.json({ count: ids.length, liked: idx < 0 });
+  });
+
+  // GET the comment thread for a timeline. Public read (gating is at the page
+  // level) — comments sorted oldest → newest.
+  app.get("/api/timelines/:slug/comments", async (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    const rows = await readComments(slug);
+    return res.json({ comments: rows });
+  });
+
+  // Post a comment. Members-only.
+  app.post("/api/timelines/:slug/comments", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller) return res.status(401).json({ error: "Not authenticated" });
+    if (!caller.isMember && !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Members only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    const text = String(req.body?.text || "").trim();
+    if (!text) return res.status(400).json({ error: "Comment text required" });
+    if (text.length > TL_COMMENT_MAX) {
+      return res.status(413).json({ error: `Max ${TL_COMMENT_MAX} characters` });
+    }
+    const rows = await readComments(slug);
+    const entry: TLComment = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      userId: caller.id,
+      userName: (caller as any).displayName || (caller as any).username || caller.email.split("@")[0],
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    rows.push(entry);
+    // Cap length to keep KV row size bounded.
+    const capped = rows.length > TL_COMMENTS_CAP ? rows.slice(-TL_COMMENTS_CAP) : rows;
+    await writeComments(slug, capped);
+    return res.json({ comment: entry });
+  });
+
+  // Delete a comment. Admin-only.
+  app.delete("/api/timelines/:slug/comments/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    const id = String(req.params.id || "");
+    const rows = await readComments(slug);
+    const next = rows.filter((c) => c.id !== id);
+    if (next.length === rows.length) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+    await writeComments(slug, next);
+    return res.json({ ok: true });
   });
 
   // ─── CONTACT FORM ───────────────────────────────────────────────────────────
