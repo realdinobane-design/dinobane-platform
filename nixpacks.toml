@@ -2,10 +2,14 @@
 nixPkgs = ["nodejs_20", "python3", "yt-dlp", "ffmpeg"]
 
 [phases.install]
-cmds = ["npm ci --legacy-peer-deps"]
+# Force dev dependencies to install — the build script relies on tsx/vite/esbuild
+# which live in devDependencies. Railway sets NODE_ENV=production which would
+# otherwise prune them out and break `npm run build` with "tsx: not found".
+cmds = ["npm ci --legacy-peer-deps --include=dev"]
 
 [phases.build]
-cmds = ["npm run build"]
+# Ensure the build phase also sees devDeps (belt-and-braces).
+cmds = ["NODE_ENV=development npm run build"]
 
 [start]
 cmd = "npm start"
