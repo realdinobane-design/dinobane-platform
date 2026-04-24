@@ -2885,17 +2885,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
 
-    // If R2 is configured, upload file to R2 and store URL instead of base64
+    // The client usually uploads the file directly to the Cloudflare Worker
+    // first and then POSTs here with dataUrl already set to an https:// URL.
+    // Only if the client passes a base64 data URI do we forward it to R2.
     let storedData = parsed.data.dataUrl;
+    const isBase64 = storedData.startsWith("data:");
     const r2AccountId = process.env.R2_ACCOUNT_ID;
     const r2AccessKey = process.env.R2_ACCESS_KEY_ID;
     const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY;
     const r2PublicUrl = process.env.R2_PUBLIC_URL;
-    console.log(`[r2-check] accountId=${!!r2AccountId} accessKey=${!!r2AccessKey} secretKey=${!!r2SecretKey} publicUrl=${r2PublicUrl?.slice(0,30)}`);
-    if (r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
+    if (isBase64 && r2AccountId && r2AccessKey && r2SecretKey && r2PublicUrl) {
       try {
-        // Delegate to the AWS SDK-based helper in server/r2.ts instead of
-        // hand-rolling SigV4 with crypto + fetch.
         const { uploadToR2 } = await import("./r2");
         storedData = await uploadToR2(parsed.data.dataUrl, parsed.data.type, parsed.data.name);
         console.log(`[r2] uploaded via sdk: ${storedData}`);
