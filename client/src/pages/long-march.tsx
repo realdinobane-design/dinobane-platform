@@ -165,14 +165,54 @@ export const LONG_MARCH_DATA: TimelineData = {
 export type LongMarchData = TimelineData;
 
 // Deep-merge admin-edited content over the hardcoded defaults so that
-// partial overrides still yield a complete data structure.
+// partial overrides still yield a complete data structure. For the timeline
+// array, per-event fields that are missing/blank in the override (e.g. newly
+// added fields like `detail`) fall back to the matching default entry so that
+// shipping new default prose doesn't require a re-save from the admin UI.
 function mergeData(override: Partial<TimelineData> | null | undefined): TimelineData {
   if (!override || typeof override !== "object") return LONG_MARCH_DATA;
+
+  // Build a lookup of defaults keyed by year+title for resilient matching even
+  // if the admin has reordered events.
+  const defaultByKey = new Map(
+    LONG_MARCH_DATA.timeline.map((e) => [`${e.year}|${e.title}`, e]),
+  );
+  const mergedTimeline = override.timeline
+    ? override.timeline.map((e, i) => {
+        const def =
+          defaultByKey.get(`${e.year}|${e.title}`) ?? LONG_MARCH_DATA.timeline[i];
+        if (!def) return e;
+        return {
+          ...def,
+          ...e,
+          // Prefer admin-written detail when present; otherwise fall back to
+          // the default so new narrative fields ship without a re-save.
+          detail:
+            e.detail && e.detail.trim() ? e.detail : def.detail,
+          imageUrl: e.imageUrl || def.imageUrl,
+          links: e.links && e.links.length > 0 ? e.links : def.links,
+        };
+      })
+    : LONG_MARCH_DATA.timeline;
+
+  // Same idea for tactics — let admin edits override but fall back to default
+  // axis when an entry doesn't carry one.
+  const defaultTacticByName = new Map(
+    LONG_MARCH_DATA.tactics.map((t) => [t.name, t]),
+  );
+  const mergedTactics = override.tactics
+    ? override.tactics.map((t) => {
+        const def = defaultTacticByName.get(t.name);
+        if (!def) return t;
+        return { ...def, ...t, axis: t.axis ?? def.axis };
+      })
+    : LONG_MARCH_DATA.tactics;
+
   return {
     meta: { ...LONG_MARCH_DATA.meta, ...(override.meta || {}) },
     thesis: override.thesis ?? LONG_MARCH_DATA.thesis,
-    timeline: override.timeline ?? LONG_MARCH_DATA.timeline,
-    tactics: override.tactics ?? LONG_MARCH_DATA.tactics,
+    timeline: mergedTimeline,
+    tactics: mergedTactics,
     engine: override.engine ?? LONG_MARCH_DATA.engine,
     closing: override.closing ?? LONG_MARCH_DATA.closing,
   };
