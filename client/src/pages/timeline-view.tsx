@@ -48,6 +48,7 @@ export default function TimelineViewPage() {
     tactics: saved?.tactics ?? fallback.tactics,
     engine: saved?.engine ?? fallback.engine,
     closing: saved?.closing ?? fallback.closing,
+    extraSections: saved?.extraSections ?? fallback.extraSections,
   };
 
   return (

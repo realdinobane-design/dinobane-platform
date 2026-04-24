@@ -178,4 +178,16 @@ export const BLANK_TIMELINE_DATA = {
   closing: [
     "Add a closing thought that pulls the threads together.",
   ],
+  extraSections: [] as Array<{
+    kind: "prose" | "timeline" | "tactics" | "engine";
+    kicker: string;
+    title: string;
+    paragraphs?: string[];
+    events?: Array<{
+      year: string; title: string; place: string; key: boolean; body: string;
+      detail?: string; links: { label: string; url: string }[]; imageUrl?: string;
+    }>;
+    tactics?: Array<{ name: string; use: string; axis?: string }>;
+    engine?: Array<{ step: string; title: string; body: string }>;
+  }>,
 };

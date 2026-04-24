@@ -215,6 +215,7 @@ function mergeData(override: Partial<TimelineData> | null | undefined): Timeline
     tactics: mergedTactics,
     engine: override.engine ?? LONG_MARCH_DATA.engine,
     closing: override.closing ?? LONG_MARCH_DATA.closing,
+    extraSections: override.extraSections ?? LONG_MARCH_DATA.extraSections,
   };
 }
 

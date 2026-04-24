@@ -38,6 +38,29 @@ export type TacticAxis =
   | "institutional"
   | "technological";
 
+/**
+ * Extra, admin-authored sections appended after the default layout. Each
+ * section picks one of the four existing templates (prose, timeline, tactics,
+ * engine) and carries its own kicker + title so the dossier voice is kept.
+ */
+export type ExtraSectionKind = "prose" | "timeline" | "tactics" | "engine";
+
+export type ExtraSection = {
+  kind: ExtraSectionKind;
+  /** e.g. "Section V · Field Notes" */
+  kicker: string;
+  /** Large italic heading */
+  title: string;
+  /** Used when kind === "prose" */
+  paragraphs?: string[];
+  /** Used when kind === "timeline" */
+  events?: TimelineEvent[];
+  /** Used when kind === "tactics" */
+  tactics?: { name: string; use: string; axis?: TacticAxis }[];
+  /** Used when kind === "engine" */
+  engine?: { step: string; title: string; body: string }[];
+};
+
 export type TimelineData = {
   meta: {
     dossierCode: string;
@@ -53,6 +76,8 @@ export type TimelineData = {
   tactics: { name: string; use: string; axis?: TacticAxis }[];
   engine: { step: string; title: string; body: string }[];
   closing: string[];
+  /** Optional admin-added sections appended after the default closing. */
+  extraSections?: ExtraSection[];
 };
 
 export function TimelineRenderer({ data }: { data: TimelineData }) {
@@ -217,6 +242,14 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
           ))}
         </section>
 
+        {D.extraSections && D.extraSections.length > 0 && (
+          <>
+            {D.extraSections.map((s, i) => (
+              <ExtraSectionBlock key={i} section={s} />
+            ))}
+          </>
+        )}
+
         <footer className="lm-footer">
           <span>DinoBane Intel · <span className="lm-mark">//</span> {D.meta.title} Dossier</span>
           <span>{(D.meta.fileTag.match(/v[\d.]+/) || ["v1.0"])[0]}</span>
@@ -235,6 +268,131 @@ const AXIS_LABELS: Record<TacticAxis, string> = {
   institutional: "Axis · Institutional",
   technological: "Axis · Technological",
 };
+
+function ExtraSectionBlock({ section }: { section: ExtraSection }) {
+  const kicker = section.kicker?.trim() || "";
+  const title = section.title?.trim() || "";
+
+  switch (section.kind) {
+    case "prose": {
+      const paras = (section.paragraphs ?? []).filter((p) => p.trim());
+      if (!paras.length) return null;
+      return (
+        <>
+          <SectionHead kicker={kicker} title={title} />
+          <section className="lm-closing">
+            {paras.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </section>
+        </>
+      );
+    }
+    case "timeline": {
+      const events = (section.events ?? []).filter((e) => e.title || e.body);
+      if (!events.length) return null;
+      return (
+        <>
+          <SectionHead kicker={kicker} title={title} />
+          <section className="lm-timeline">
+            {events.map((e, i) => (
+              <article className={`lm-event${e.key ? " lm-key" : ""}`} key={i}>
+                <span className="lm-node" aria-hidden />
+                <div
+                  className={`lm-card${e.imageUrl ? " lm-card-has-bg" : ""}`}
+                  style={
+                    e.imageUrl
+                      ? ({ ["--lm-bg-img" as unknown as string]: `url("${e.imageUrl}")` } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  {e.imageUrl && <div className="lm-card-bg" aria-hidden />}
+                  <div className="lm-card-inner">
+                    {e.key && <span className="lm-key-tag">Key Event</span>}
+                    {e.year && <span className="lm-year">{e.year}</span>}
+                    {e.place && <div className="lm-place">{e.place}</div>}
+                    <h3>{e.title}</h3>
+                    <p>{e.body}</p>
+                    {e.links?.length > 0 && (
+                      <div className="lm-links">
+                        {e.links.map((l, j) => (
+                          <a key={j} href={l.url} target="_blank" rel="noopener noreferrer">
+                            {l.label}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {e.detail && e.detail.trim() && (
+                  <aside className="lm-detail" aria-label={`${e.title} — detail`}>
+                    <span className="lm-detail-mark" aria-hidden>—</span>
+                    {e.detail.split(/\n+/).map((para, k) => (
+                      <p key={k}>{para}</p>
+                    ))}
+                  </aside>
+                )}
+              </article>
+            ))}
+          </section>
+        </>
+      );
+    }
+    case "tactics": {
+      const list = (section.tactics ?? []).filter((t) => t.name || t.use);
+      if (!list.length) return null;
+      return (
+        <>
+          <SectionHead kicker={kicker} title={title} />
+          <div className="lm-tactics-wrap">
+            <section className="lm-tactics">
+              {list.map((t, i) => {
+                const axisKey = (t.axis ?? "").trim().toLowerCase() as TacticAxis;
+                const axisLabel = axisKey ? AXIS_LABELS[axisKey] ?? "" : "";
+                return (
+                  <div className={`lm-tactic${axisKey ? ` lm-axis-${axisKey}` : ""}`} key={i}>
+                    <span className="lm-tactic-bar" aria-hidden />
+                    <div className="lm-tactic-head">
+                      <div className="lm-num">TACTIC · {String(i + 1).padStart(2, "0")}</div>
+                      {axisLabel && <div className="lm-axis">{axisLabel}</div>}
+                    </div>
+                    <h4>{t.name}</h4>
+                    <p>{t.use}</p>
+                  </div>
+                );
+              })}
+            </section>
+          </div>
+        </>
+      );
+    }
+    case "engine": {
+      const steps = (section.engine ?? []).filter((s) => s.title || s.body);
+      if (!steps.length) return null;
+      return (
+        <>
+          <SectionHead kicker={kicker} title={title} />
+          <div className="lm-engine-wrap">
+            <section
+              className="lm-engine"
+              style={{ gridTemplateColumns: `repeat(${Math.min(steps.length, 4)}, 1fr)` }}
+            >
+              {steps.map((s, i) => (
+                <div className="lm-step" key={i}>
+                  <div className="lm-step-num">{s.step || `Step ${i + 1}`}</div>
+                  <h4>{s.title}</h4>
+                  <p>{s.body}</p>
+                </div>
+              ))}
+            </section>
+          </div>
+        </>
+      );
+    }
+    default:
+      return null;
+  }
+}
 
 function SectionHead({ kicker, title }: { kicker: string; title: string }) {
   return (
@@ -361,7 +519,7 @@ const CSS = `
 
 .lm-event{
   position:relative; width:100%; padding:18px 0;
-  display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:start;
+  display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:center;
   opacity:0; transform:translateY(18px);
   transition:opacity .7s ease, transform .7s ease;
 }
@@ -371,7 +529,7 @@ const CSS = `
 .lm-event:nth-child(odd)   .lm-detail{grid-column:2; text-align:left}
 .lm-event:nth-child(even)  .lm-card{grid-column:2; text-align:left}
 .lm-event:nth-child(even)  .lm-detail{grid-column:1; text-align:right}
-.lm-node{position:absolute; top:34px; left:50%; width:14px; height:14px; background:var(--lm-bg); border:1.5px solid var(--lm-mute); border-radius:50%; transform:translateX(-50%); z-index:2}
+.lm-node{position:absolute; top:50%; left:50%; width:14px; height:14px; background:var(--lm-bg); border:1.5px solid var(--lm-mute); border-radius:50%; transform:translate(-50%, -50%); z-index:2}
 .lm-event.lm-key .lm-node{
   border-color:var(--lm-gold); background:var(--lm-gold);
   box-shadow:0 0 0 4px rgba(212,162,74,.12), 0 0 18px rgba(212,162,74,.55);
@@ -413,9 +571,12 @@ const CSS = `
 .lm-event:nth-child(even) .lm-links{justify-content:flex-start}
 
 /* ─── DETAIL PULL-QUOTE — opposite the image card on the spine ─── */
+/* align-self:center keeps the prose centred against its card even when one
+   side is significantly taller than the other, so the detail reads as
+   belonging to the card it sits next to rather than floating above it. */
 .lm-detail{
   padding:14px 4px 4px; max-width:440px;
-  position:relative; align-self:start;
+  position:relative; align-self:center;
 }
 .lm-event:nth-child(odd)  .lm-detail{margin-left:auto}
 .lm-event:nth-child(even) .lm-detail{margin-right:auto}
@@ -584,7 +745,7 @@ const CSS = `
   .lm-event:nth-child(even)  .lm-detail{
     grid-column:1; text-align:left; margin:0; max-width:none;
   }
-  .lm-event .lm-node{left:11px; transform:none}
+  .lm-event .lm-node{top:22px; left:11px; transform:none}
   .lm-event:nth-child(odd) .lm-links,
   .lm-event:nth-child(even) .lm-links{justify-content:flex-start}
   .lm-tactics-wrap{padding:22px 16px}
