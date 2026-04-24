@@ -15,19 +15,22 @@ declare module "http" {
   }
 }
 
-// Global JSON/urlencoded body limit. All media uploads go via the Cloudflare
-// Worker directly to R2, so legitimate JSON bodies are always small. The
-// Stripe webhook route registers its own raw-body parser in routes.ts before
-// this middleware sees it, so lowering the limit here is safe.
+// Global JSON/urlencoded body limit. Vault media uploads go via the Cloudflare
+// Worker directly to R2 (no JSON body), but community chat embeds small
+// attachments as base64 dataURLs inside /api/messages JSON. Base64 adds ~37%
+// overhead on top of the client-side 2 MB image cap — 8 MB gives comfortable
+// headroom without reintroducing the original 100 MB exposure. The Stripe
+// webhook registers its own raw-body parser in routes.ts before this
+// middleware runs.
 app.use(
   express.json({
-    limit: "2mb",
+    limit: "8mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
-app.use(express.urlencoded({ extended: false, limit: "2mb" }));
+app.use(express.urlencoded({ extended: false, limit: "8mb" }));
 app.use(cookieParser());
 
 // ─── SECURITY HEADERS (defence in depth; TLS is handled by Cloudflare) ───────
