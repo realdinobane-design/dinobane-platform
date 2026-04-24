@@ -174,6 +174,7 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
         </section>
 
         <SectionHead kicker="Section II · Tactics Matrix" title="Angels' Faces" />
+        <div className="lm-tactics-wrap">
         <section className="lm-tactics">
           {D.tactics.map((t, i) => {
             const axisKey = (t.axis ?? "").trim().toLowerCase() as TacticAxis;
@@ -194,17 +195,20 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
             );
           })}
         </section>
+        </div>
 
         <SectionHead kicker="Section III · The Machiavellian Engine" title="Action · Problem · Solution" />
-        <section className="lm-engine">
-          {D.engine.map((s, i) => (
-            <div className="lm-step" key={i}>
-              <div className="lm-step-num">{s.step}</div>
-              <h4>{s.title}</h4>
-              <p>{s.body}</p>
-            </div>
-          ))}
-        </section>
+        <div className="lm-engine-wrap">
+          <section className="lm-engine">
+            {D.engine.map((s, i) => (
+              <div className="lm-step" key={i}>
+                <div className="lm-step-num">{s.step}</div>
+                <h4>{s.title}</h4>
+                <p>{s.body}</p>
+              </div>
+            ))}
+          </section>
+        </div>
 
         <SectionHead kicker="Section IV · In Closing" title="The Blueprint" />
         <section className="lm-closing">
@@ -288,8 +292,8 @@ const CSS = `
 .lm-hero-bg{
   position:absolute; inset:0; pointer-events:none; z-index:0;
   background-image:var(--lm-hero-img); background-size:cover; background-position:center;
-  filter:grayscale(.45) contrast(1.05) brightness(.45);
-  opacity:.32;
+  filter:grayscale(.35) contrast(1.08) brightness(.55);
+  opacity:.44;
 }
 .lm-hero-has-bg::after{
   content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
@@ -438,9 +442,24 @@ const CSS = `
 .lm-links a::before{content:"▸"; color:var(--lm-red); font-size:9px}
 .lm-links a:hover{color:var(--lm-ink); border-color:var(--lm-red); background:rgba(204,42,42,.18)}
 
+/* Tactics section — gold-accented wrapper so it reads distinct from engine/closing */
+.lm-tactics-wrap{
+  position:relative; margin:10px 0 40px;
+  padding:30px 24px 28px;
+  border:1px solid rgba(212,162,74,.20);
+  background:
+    radial-gradient(900px 260px at 50% -10%, rgba(212,162,74,.06), transparent 70%),
+    linear-gradient(180deg, rgba(212,162,74,.025), rgba(10,10,10,.30) 70%);
+  overflow:hidden;
+}
+.lm-tactics-wrap::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--lm-gold), transparent);
+  opacity:.55;
+}
 .lm-tactics{
-  display:grid; grid-template-columns:repeat(auto-fit, minmax(270px, 1fr));
-  gap:14px; margin:10px 0 40px;
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+  gap:14px;
 }
 .lm-tactic{
   --lm-axis-colour:var(--lm-gold-soft);
@@ -484,14 +503,40 @@ const CSS = `
 .lm-axis-institutional  {--lm-axis-colour:#8a7db0} /* deep violet-grey */
 .lm-axis-technological  {--lm-axis-colour:#7a9bc9} /* slate blue */
 
-.lm-engine{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin:10px 0 40px; position:relative}
-.lm-engine::before{
-  content:""; position:absolute; top:50%; left:8%; right:8%; height:1px;
-  background:linear-gradient(90deg, transparent, var(--lm-red-deep), transparent); z-index:0;
+/* Engine section — wrapped in a tinted panel so it reads visually distinct */
+.lm-engine-wrap{
+  position:relative; margin:10px 0 40px;
+  padding:34px 28px 32px;
+  border:1px solid rgba(204,42,42,.22);
+  background:
+    radial-gradient(900px 260px at 50% -10%, rgba(204,42,42,.08), transparent 70%),
+    linear-gradient(180deg, rgba(204,42,42,.035), rgba(10,10,10,.35) 70%);
+  overflow:hidden;
 }
+.lm-engine-wrap::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--lm-red), transparent);
+  opacity:.6;
+}
+.lm-engine-wrap::after{
+  content:""; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--lm-red-deep), transparent);
+  opacity:.45;
+}
+.lm-engine{display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; position:relative}
 .lm-step{
-  background:linear-gradient(180deg, rgba(204,42,42,.04), transparent 60%);
-  border:1px solid var(--lm-line); padding:28px 24px; position:relative; z-index:1; text-align:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.014), rgba(0,0,0,.28));
+  border:1px solid var(--lm-line); padding:30px 24px 26px; position:relative; text-align:center;
+  overflow:hidden;
+  transition:border-color .3s ease, transform .3s ease, background .3s ease;
+}
+.lm-step::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:2px;
+  background:var(--lm-red); opacity:.7;
+}
+.lm-step:hover{
+  border-color:var(--lm-red-deep); transform:translateY(-1px);
+  background:linear-gradient(180deg, rgba(204,42,42,.05), rgba(0,0,0,.32));
 }
 .lm-step-num{
   font-family:var(--lm-mono); font-size:10px; letter-spacing:.35em; text-transform:uppercase;
@@ -501,9 +546,22 @@ const CSS = `
 .lm-step h4{font-family:var(--lm-serif); font-style:italic; font-weight:600; font-size:28px; margin:0 0 12px; color:var(--lm-ink)}
 .lm-step p{margin:0; color:var(--lm-dim); font-size:15px; line-height:1.6}
 
-.lm-closing{max-width:780px; margin:30px auto 20px; text-align:center; padding:30px 20px}
+.lm-closing{
+  max-width:820px; margin:30px auto 20px; text-align:center; padding:44px 32px 40px;
+  position:relative;
+  border-top:1px solid var(--lm-line); border-bottom:1px solid var(--lm-line);
+  background:
+    radial-gradient(700px 240px at 50% 50%, rgba(212,162,74,.06), transparent 70%),
+    linear-gradient(180deg, rgba(212,162,74,.02), transparent 70%);
+}
+.lm-closing::before, .lm-closing::after{
+  content:""; position:absolute; top:50%; width:32px; height:1px;
+  background:var(--lm-gold-soft); opacity:.6;
+}
+.lm-closing::before{left:-4px}
+.lm-closing::after{right:-4px}
 .lm-closing p{font-family:var(--lm-serif); font-style:italic; font-size:22px; line-height:1.55; color:var(--lm-ink); margin:0 0 16px}
-.lm-closing p:last-child{color:var(--lm-red)}
+.lm-closing p:last-child{color:var(--lm-red); margin-bottom:0}
 
 .lm-footer{
   margin-top:60px; border-top:1px solid var(--lm-line); padding:28px 0 50px;
@@ -529,8 +587,9 @@ const CSS = `
   .lm-event .lm-node{left:11px; transform:none}
   .lm-event:nth-child(odd) .lm-links,
   .lm-event:nth-child(even) .lm-links{justify-content:flex-start}
+  .lm-tactics-wrap{padding:22px 16px}
+  .lm-engine-wrap{padding:24px 18px}
   .lm-engine{grid-template-columns:1fr; gap:14px}
-  .lm-engine::before{display:none}
   .lm-thesis{padding:28px 22px}
   .lm-thesis p{font-size:17px}
   .lm-detail{padding-top:4px}
