@@ -963,6 +963,260 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ slug, ok: true });
   });
 
+  // ─── TIMELINES REGISTRY (admin-managed list of timeline dossiers) ───────────
+  // Stored as a single JSON array under key "timeline_registry". Public GET,
+  // admin POST/PUT/DELETE. Each entry matches the TimelineEntry shape on the
+  // client: { slug, title, subtitle, dossierCode, category, viewPath, editPath,
+  // tags: string[], imageUrl?, isPlaceholder? }.
+  const TIMELINE_REGISTRY_KEY = "timeline_registry";
+  const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
+
+  type TimelineEntryRow = {
+    slug: string;
+    title: string;
+    subtitle: string;
+    dossierCode: string;
+    category: string;
+    viewPath: string;
+    editPath?: string;
+    tags: string[];
+    imageUrl?: string;
+    isPlaceholder?: boolean;
+  };
+
+  const BLANK_TIMELINE_CONTENT = {
+    meta: {
+      dossierCode: "DOSSIER // DB-XX-000",
+      eyesOnly: "EYES ONLY — ADMIN",
+      fileTag: "FILE: NEW TIMELINE / v0.1",
+      title: "New Timeline",
+      subtitle: "A fresh dossier waiting to be written",
+      byline: "Filed by DinoBane Intel · dinobane.com",
+    },
+    thesis: [
+      "This timeline is under construction. Edit the opening thesis here to frame the story.",
+    ],
+    timeline: [
+      {
+        year: "YYYY",
+        title: "First event",
+        place: "Somewhere",
+        key: false,
+        body: "Describe what happened and why it matters.",
+        links: [],
+        imageUrl: "",
+      },
+    ],
+    tactics: [{ name: "Tactic one", use: "Describe the tactic and how it's used." }],
+    engine: [
+      { step: "Action", title: "Manufacture the crisis", body: "Describe the trigger." },
+      { step: "Problem", title: "Name the villain", body: "Describe the framing." },
+      { step: "Solution", title: "Surrender power upward", body: "Describe the prescribed cure." },
+    ],
+    closing: ["Add a closing thought that pulls the threads together."],
+  };
+
+  async function readRegistry(): Promise<TimelineEntryRow[]> {
+    const raw = await storage.getSetting(TIMELINE_REGISTRY_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function writeRegistry(entries: TimelineEntryRow[]): Promise<void> {
+    await storage.setSetting(TIMELINE_REGISTRY_KEY, JSON.stringify(entries));
+  }
+
+  function sanitiseEntry(input: Partial<TimelineEntryRow>, slug: string): TimelineEntryRow {
+    const tags = Array.isArray(input.tags) ? input.tags.slice(0, 10).map(String) : [];
+    return {
+      slug,
+      title: String(input.title || "Untitled timeline").slice(0, 160),
+      subtitle: String(input.subtitle || "").slice(0, 240),
+      dossierCode: String(input.dossierCode || `DB-XX-${slug.slice(0, 3).toUpperCase()}`).slice(0, 40),
+      category: String(input.category || "General").slice(0, 60),
+      viewPath: String(input.viewPath || `/timeline/${slug}`).slice(0, 120),
+      editPath: input.editPath ? String(input.editPath).slice(0, 120) : `/admin/timeline/${slug}`,
+      tags,
+      imageUrl: input.imageUrl ? String(input.imageUrl).slice(0, 500) : undefined,
+      isPlaceholder: input.isPlaceholder ? true : undefined,
+    };
+  }
+
+  app.get("/api/timelines/registry", async (_req, res) => {
+    const registry = await readRegistry();
+    return res.json({ registry });
+  });
+
+  app.post("/api/admin/timelines", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const body = (req.body || {}) as Partial<TimelineEntryRow>;
+    const slug = String(body.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) {
+      return res.status(400).json({ error: "Invalid slug" });
+    }
+    const registry = await readRegistry();
+    if (registry.some((e) => e.slug === slug)) {
+      return res.status(409).json({ error: "A timeline with that slug already exists" });
+    }
+    const entry = sanitiseEntry(body, slug);
+    registry.push(entry);
+    await writeRegistry(registry);
+
+    // Seed content + status if not already set.
+    const existingContent = await storage.getSetting(pageContentKey(slug));
+    if (!existingContent) {
+      const seeded = {
+        ...BLANK_TIMELINE_CONTENT,
+        meta: {
+          ...BLANK_TIMELINE_CONTENT.meta,
+          title: entry.title,
+          subtitle: entry.subtitle,
+          dossierCode: `DOSSIER // ${entry.dossierCode}`,
+          fileTag: `FILE: ${slug.toUpperCase()} / v0.1`,
+        },
+      };
+      await storage.setSetting(pageContentKey(slug), JSON.stringify(seeded));
+    }
+    const existingStatus = await storage.getSetting(pageStatusKey(slug));
+    if (!existingStatus) {
+      await storage.setSetting(pageStatusKey(slug), "standby");
+    }
+    console.log(`[timelines] ${caller.email} created ${slug}`);
+    return res.json({ entry });
+  });
+
+  app.put("/api/admin/timelines/:slug", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    const body = (req.body || {}) as Partial<TimelineEntryRow>;
+    const registry = await readRegistry();
+    const idx = registry.findIndex((e) => e.slug === slug);
+    const merged = sanitiseEntry({ ...(idx >= 0 ? registry[idx] : {}), ...body, slug }, slug);
+    if (idx >= 0) registry[idx] = merged;
+    else registry.push(merged);
+    await writeRegistry(registry);
+    console.log(`[timelines] ${caller.email} updated ${slug}`);
+    return res.json({ entry: merged });
+  });
+
+  app.delete("/api/admin/timelines/:slug", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "Invalid slug" });
+    if (slug === "long-march") {
+      return res.status(400).json({ error: "Cannot delete the default Long March timeline" });
+    }
+    const registry = await readRegistry();
+    const next = registry.filter((e) => e.slug !== slug);
+    await writeRegistry(next);
+    await storage.setSetting(pageContentKey(slug), "");
+    console.log(`[timelines] ${caller.email} deleted ${slug}`);
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/admin/timelines/:slug/copy", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const fromSlug = String(req.params.slug || "").trim().toLowerCase();
+    const toSlug = String(req.body?.toSlug || "").trim().toLowerCase();
+    if (!SLUG_RE.test(fromSlug) || !SLUG_RE.test(toSlug)) {
+      return res.status(400).json({ error: "Invalid slug" });
+    }
+    if (fromSlug === toSlug) {
+      return res.status(400).json({ error: "Source and destination must differ" });
+    }
+    const registry = await readRegistry();
+    if (registry.some((e) => e.slug === toSlug)) {
+      return res.status(409).json({ error: "A timeline with that slug already exists" });
+    }
+
+    // Source entry may live in the DB or in the hardcoded seed (which only the
+    // client knows about). If not in DB registry, the caller must pass enough
+    // overrides to build a new entry.
+    const overrides = (req.body?.overrides || {}) as Partial<TimelineEntryRow>;
+    const fromEntry = registry.find((e) => e.slug === fromSlug);
+    const seedEntry: Partial<TimelineEntryRow> = fromEntry
+      ? { ...fromEntry }
+      : {
+          title: `${fromSlug} (copy)`,
+          subtitle: "",
+          dossierCode: `DB-XX-${toSlug.slice(0, 3).toUpperCase()}`,
+          category: "General",
+          viewPath: `/timeline/${toSlug}`,
+          editPath: `/admin/timeline/${toSlug}`,
+          tags: [],
+        };
+    const merged = sanitiseEntry(
+      {
+        ...seedEntry,
+        ...overrides,
+        slug: toSlug,
+        viewPath: `/timeline/${toSlug}`,
+        editPath: `/admin/timeline/${toSlug}`,
+        isPlaceholder: false,
+      },
+      toSlug,
+    );
+    registry.push(merged);
+    await writeRegistry(registry);
+
+    // Copy page content + set standby status
+    const rawContent = await storage.getSetting(pageContentKey(fromSlug));
+    if (rawContent) {
+      try {
+        const content = JSON.parse(rawContent);
+        if (content && content.meta) {
+          content.meta.title = merged.title;
+          content.meta.subtitle = merged.subtitle;
+          content.meta.dossierCode = `DOSSIER // ${merged.dossierCode}`;
+          content.meta.fileTag = `FILE: ${toSlug.toUpperCase()} / v0.1`;
+        }
+        await storage.setSetting(pageContentKey(toSlug), JSON.stringify(content));
+      } catch {
+        await storage.setSetting(pageContentKey(toSlug), JSON.stringify(BLANK_TIMELINE_CONTENT));
+      }
+    } else {
+      const seeded = {
+        ...BLANK_TIMELINE_CONTENT,
+        meta: {
+          ...BLANK_TIMELINE_CONTENT.meta,
+          title: merged.title,
+          subtitle: merged.subtitle,
+          dossierCode: `DOSSIER // ${merged.dossierCode}`,
+          fileTag: `FILE: ${toSlug.toUpperCase()} / v0.1`,
+        },
+      };
+      await storage.setSetting(pageContentKey(toSlug), JSON.stringify(seeded));
+    }
+    const existingStatus = await storage.getSetting(pageStatusKey(toSlug));
+    if (!existingStatus) {
+      await storage.setSetting(pageStatusKey(toSlug), "standby");
+    }
+    console.log(`[timelines] ${caller.email} copied ${fromSlug} -> ${toSlug}`);
+    return res.json({ entry: merged });
+  });
+
   // ─── CONTACT FORM ───────────────────────────────────────────────────────────
   app.post("/api/contact", async (req, res) => {
     const { name, email, subject, message, captchaToken } = req.body;

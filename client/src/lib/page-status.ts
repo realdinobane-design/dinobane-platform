@@ -17,6 +17,9 @@ export const PAGE_REGISTRY: Record<string, { slug: string; name: string }> = {
 /** Resolve which registered page the current route represents, if any. */
 export function resolvePageForPath(path: string): { slug: string; name: string } | null {
   const clean = (path || "/").replace(/^#/, "");
+  // Dynamic timeline pages: /timeline/:slug → treat as page-gated by slug.
+  const m = clean.match(/^\/timeline\/([a-z0-9][a-z0-9-]{0,40})$/);
+  if (m) return { slug: m[1], name: `Timeline: ${m[1]}` };
   // Exact match first, then longest-prefix match so deep sub-routes inherit.
   if (PAGE_REGISTRY[clean]) return PAGE_REGISTRY[clean];
   const keys = Object.keys(PAGE_REGISTRY).sort((a, b) => b.length - a.length);
