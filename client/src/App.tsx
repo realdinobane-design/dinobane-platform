@@ -31,6 +31,7 @@ const PrivacyPage = lazy(() => import("@/pages/privacy"));
 const ContactPage = lazy(() => import("@/pages/contact"));
 const LongMarchPage = lazy(() => import("@/pages/long-march"));
 const AdminLongMarchPage = lazy(() => import("@/pages/admin-long-march"));
+const TimelinesPage = lazy(() => import("@/pages/timelines"));
 import { AppNav } from "@/components/app-nav";
 import { AdminPageToggle } from "@/components/admin-page-toggle";
 import { getMe, type AuthUser } from "@/lib/auth";
@@ -89,6 +90,7 @@ function AppRoutes() {
       <Route path="/videos">{() => { window.location.hash = "#/articles"; return null; }}</Route>
       <Route path="/articles" component={ArticlesPage} />
       <Route path="/articles/:id" component={ArticleDetailPage} />
+      <Route path="/timelines" component={TimelinesPage} />
       <Route path="/long-march" component={LongMarchPage} />
 
       {/* Member-only routes — must have isMember=true */}

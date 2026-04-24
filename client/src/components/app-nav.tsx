@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, Radio } from "lucide-react";
+import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DmChat } from "@/components/dm-chat";
@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { href: "/", label: "Home", icon: null },
   { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
+  { href: "/timelines", label: "Timelines", icon: BookMarked },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
   { href: "/contact", label: "Contact", icon: Mail },
@@ -185,17 +186,6 @@ export function AppNav() {
                       <DropdownMenuItem asChild>
                         <Link href="/admin/content" data-testid="link-admin-content">
                           <Trash2 size={14} className="mr-2 text-orange-400" /> Content Moderation
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/long-march" data-testid="link-long-march">
-                          <Radio size={14} className="mr-2 text-[#cc2a2a]" /> Long March (preview)
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/long-march" data-testid="link-admin-long-march">
-                          <Radio size={14} className="mr-2 text-[#d4a24a]" /> Long March · Edit
                         </Link>
                       </DropdownMenuItem>
                     </>
