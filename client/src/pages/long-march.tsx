@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PageStatusGate } from "@/components/page-status-gate";
+import { getPageContent } from "@/lib/page-status";
 
 /* =========================================================
    LONG MARCH — EDITABLE TIMELINE DATA
@@ -142,9 +144,33 @@ export const LONG_MARCH_DATA = {
   ],
 };
 
-const D = LONG_MARCH_DATA;
+export type LongMarchData = typeof LONG_MARCH_DATA;
+
+// Deep-merge admin-edited content over the hardcoded defaults so that
+// partial overrides still yield a complete data structure.
+function mergeData(override: Partial<LongMarchData> | null | undefined): LongMarchData {
+  if (!override || typeof override !== "object") return LONG_MARCH_DATA;
+  return {
+    meta: { ...LONG_MARCH_DATA.meta, ...(override.meta || {}) },
+    thesis: override.thesis ?? LONG_MARCH_DATA.thesis,
+    timeline: override.timeline ?? LONG_MARCH_DATA.timeline,
+    tactics: override.tactics ?? LONG_MARCH_DATA.tactics,
+    engine: override.engine ?? LONG_MARCH_DATA.engine,
+    closing: override.closing ?? LONG_MARCH_DATA.closing,
+  } as LongMarchData;
+}
 
 export default function LongMarchPage() {
+  // Load admin-edited content from the DB (falls through to the defaults
+  // above if nothing saved yet or the request fails).
+  const { data: saved } = useQuery({
+    queryKey: ["/api/page-content/long-march"],
+    queryFn: () => getPageContent<Partial<LongMarchData>>("long-march"),
+    staleTime: 30_000,
+    retry: 1,
+  });
+  const D = mergeData(saved);
+
   // Inject Google Fonts link only when this page mounts (keeps the rest of
   // the site unaffected and avoids @import-order CSS warnings).
   useEffect(() => {
@@ -174,7 +200,8 @@ export default function LongMarchPage() {
     );
     document.querySelectorAll(".lm-event").forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, []);
+    // Re-run when the loaded data changes so newly-rendered cards get observed.
+  }, [D]);
 
   // Split title so last word is red
   const parts = D.meta.title.trim().split(/\s+/);

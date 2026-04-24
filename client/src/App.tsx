@@ -30,6 +30,7 @@ const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const PrivacyPage = lazy(() => import("@/pages/privacy"));
 const ContactPage = lazy(() => import("@/pages/contact"));
 const LongMarchPage = lazy(() => import("@/pages/long-march"));
+const AdminLongMarchPage = lazy(() => import("@/pages/admin-long-march"));
 import { AppNav } from "@/components/app-nav";
 import { AdminPageToggle } from "@/components/admin-page-toggle";
 import { getMe, type AuthUser } from "@/lib/auth";
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/admin/members">{() => <AuthRoute component={MembersPage} />}</Route>
       <Route path="/admin/emails">{() => <AuthRoute component={AdminEmailsPage} />}</Route>
       <Route path="/admin/content">{() => <AuthRoute component={AdminContentPage} />}</Route>
+      <Route path="/admin/long-march">{() => <AuthRoute component={AdminLongMarchPage} />}</Route>
 
       <Route component={NotFound} />
     </Switch>

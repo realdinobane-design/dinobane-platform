@@ -193,6 +193,11 @@ export function AppNav() {
                           <Radio size={14} className="mr-2 text-[#cc2a2a]" /> Long March (preview)
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/long-march" data-testid="link-admin-long-march">
+                          <Radio size={14} className="mr-2 text-[#d4a24a]" /> Long March · Edit
+                        </Link>
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuSeparator />

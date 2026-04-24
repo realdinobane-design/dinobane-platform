@@ -915,6 +915,54 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json({ slug, status });
   });
 
+  // ─── PAGE CONTENT (admin-editable JSON content per page) ────────────────────
+  // Pages can persist a JSON blob under key = "page_content:<slug>".
+  // Public can GET, only admins can PUT. Max body ~200KB to keep KV row small.
+  function pageContentKey(slug: string) { return `page_content:${slug}`; }
+
+  app.get("/api/page-content/:slug", async (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) {
+      return res.status(400).json({ error: "Invalid slug" });
+    }
+    const raw = await storage.getSetting(pageContentKey(slug));
+    if (!raw) return res.json({ slug, content: null });
+    try {
+      const content = JSON.parse(raw);
+      return res.json({ slug, content });
+    } catch {
+      return res.json({ slug, content: null });
+    }
+  });
+
+  app.put("/api/admin/page-content/:slug", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) {
+      return res.status(400).json({ error: "Invalid slug" });
+    }
+    const content = req.body?.content;
+    if (content === undefined || content === null) {
+      return res.status(400).json({ error: "content is required" });
+    }
+    let serialised: string;
+    try {
+      serialised = JSON.stringify(content);
+    } catch {
+      return res.status(400).json({ error: "content must be JSON-serialisable" });
+    }
+    if (serialised.length > 200_000) {
+      return res.status(413).json({ error: "content too large (max 200KB)" });
+    }
+    await storage.setSetting(pageContentKey(slug), serialised);
+    console.log(`[page-content] ${caller.email} updated ${slug} (${serialised.length} bytes)`);
+    return res.json({ slug, ok: true });
+  });
+
   // ─── CONTACT FORM ───────────────────────────────────────────────────────────
   app.post("/api/contact", async (req, res) => {
     const { name, email, subject, message, captchaToken } = req.body;

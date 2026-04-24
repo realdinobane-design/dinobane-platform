@@ -42,3 +42,20 @@ export async function getPageStatus(slug: string): Promise<PageStatus> {
 export async function setPageStatus(slug: string, status: PageStatus): Promise<void> {
   await apiRequest("PUT", `/api/admin/page-status/${encodeURIComponent(slug)}`, { status });
 }
+
+/** Public: fetch admin-edited JSON content for a page. Returns null if none saved. */
+export async function getPageContent<T = unknown>(slug: string): Promise<T | null> {
+  try {
+    const r = await fetch(`/api/page-content/${encodeURIComponent(slug)}`, { credentials: "include" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j.content ?? null) as T | null;
+  } catch {
+    return null;
+  }
+}
+
+/** Admin only: replace the JSON content for a page. */
+export async function setPageContent<T = unknown>(slug: string, content: T): Promise<void> {
+  await apiRequest("PUT", `/api/admin/page-content/${encodeURIComponent(slug)}`, { content });
+}

@@ -27,16 +27,34 @@ export function PageStatusGate({
   const { user, isLoading: authLoading } = useAuth();
   const isAdmin = !!user && ADMIN_EMAILS.has(user.email);
 
-  const { data: status = "live", isLoading } = useQuery({
+  const { data: status, isLoading, isError } = useQuery({
     queryKey: [`/api/page-status/${slug}`],
     queryFn: () => getPageStatus(slug),
     staleTime: 15_000,
     refetchOnWindowFocus: false,
+    // Hard cap — never keep retrying; if it fails, fall through to "live" below.
+    retry: 1,
   });
 
-  // While we don't know yet, show nothing (prevents flash of "unavailable").
-  if (isLoading || authLoading) {
-    return <div className="min-h-[50vh]" aria-busy="true" />;
+  // If the status check errored, fail OPEN — show the page content rather
+  // than hang on a spinner. Admins can still change status from the editor.
+  if (isError) {
+    return <>{children}</>;
+  }
+
+  // Show a visible loading state (not a blank div) so the page never
+  // looks "stuck" to the user while we're still checking.
+  if (isLoading || authLoading || status === undefined) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6 py-24 bg-[#0a0a0a]">
+        <div className="text-center">
+          <div className="w-6 h-6 border-2 border-[#cc2a2a] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="font-mono text-[11px] tracking-[0.3em] uppercase text-zinc-500">
+            Loading {name}…
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const onStandby = status === "standby";
