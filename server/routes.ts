@@ -865,6 +865,56 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(safeUser);
   });
 
+  // ─── PAGE STATUS (admin-toggleable pages) ───────────────────────────────────
+  // A page can be "live" (public) or "standby" (hidden from non-admins).
+  // Storage: app_settings row with key = "page_status:<slug>" and value = status.
+  // Public read, admin write — matches the pattern used elsewhere in this file.
+  const PAGE_STATUS_ADMINS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
+
+  function pageStatusKey(slug: string) { return `page_status:${slug}`; }
+
+  // First-run: seed pages that should ship in "standby" until admin approves.
+  // Safe to run on every boot — only sets the key if it doesn't already exist.
+  (async () => {
+    const seedStandby = ["long-march"];
+    for (const slug of seedStandby) {
+      const existing = await storage.getSetting(pageStatusKey(slug));
+      if (!existing) {
+        await storage.setSetting(pageStatusKey(slug), "standby");
+        console.log(`[page-status] seeded ${slug} -> standby (first run)`);
+      }
+    }
+  })().catch(e => console.warn("[page-status] seed failed:", e?.message));
+
+  app.get("/api/page-status/:slug", async (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) {
+      return res.status(400).json({ error: "Invalid slug" });
+    }
+    const val = await storage.getSetting(pageStatusKey(slug));
+    const status = val === "standby" ? "standby" : "live";
+    return res.json({ slug, status });
+  });
+
+  app.put("/api/admin/page-status/:slug", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) {
+      return res.status(400).json({ error: "Invalid slug" });
+    }
+    const status = req.body?.status;
+    if (status !== "live" && status !== "standby") {
+      return res.status(400).json({ error: "status must be 'live' or 'standby'" });
+    }
+    await storage.setSetting(pageStatusKey(slug), status);
+    console.log(`[page-status] ${caller.email} set ${slug} -> ${status}`);
+    return res.json({ slug, status });
+  });
+
   // ─── CONTACT FORM ───────────────────────────────────────────────────────────
   app.post("/api/contact", async (req, res) => {
     const { name, email, subject, message, captchaToken } = req.body;

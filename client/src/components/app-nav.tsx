@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare } from "lucide-react";
+import { Menu, X, Youtube, Newspaper, Users, Crown, BookOpen, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, Radio } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DmChat } from "@/components/dm-chat";
@@ -185,6 +185,12 @@ export function AppNav() {
                       <DropdownMenuItem asChild>
                         <Link href="/admin/content" data-testid="link-admin-content">
                           <Trash2 size={14} className="mr-2 text-orange-400" /> Content Moderation
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/long-march" data-testid="link-long-march">
+                          <Radio size={14} className="mr-2 text-[#cc2a2a]" /> Long March (preview)
                         </Link>
                       </DropdownMenuItem>
                     </>

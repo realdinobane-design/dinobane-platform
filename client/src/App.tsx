@@ -29,7 +29,9 @@ const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const PrivacyPage = lazy(() => import("@/pages/privacy"));
 const ContactPage = lazy(() => import("@/pages/contact"));
+const LongMarchPage = lazy(() => import("@/pages/long-march"));
 import { AppNav } from "@/components/app-nav";
+import { AdminPageToggle } from "@/components/admin-page-toggle";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
 
@@ -86,6 +88,7 @@ function AppRoutes() {
       <Route path="/videos">{() => { window.location.hash = "#/articles"; return null; }}</Route>
       <Route path="/articles" component={ArticlesPage} />
       <Route path="/articles/:id" component={ArticleDetailPage} />
+      <Route path="/long-march" component={LongMarchPage} />
 
       {/* Member-only routes — must have isMember=true */}
       <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
@@ -128,6 +131,7 @@ function InnerApp() {
                 <AppRoutes />
               </Suspense>
             </main>
+            <AdminPageToggle />
             <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground space-y-2">
               <p>© 2026 DinoBane. All rights reserved.</p>
               <p>
