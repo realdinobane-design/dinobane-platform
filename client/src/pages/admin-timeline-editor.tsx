@@ -10,7 +10,7 @@ import {
   setPageStatus,
   type PageStatus,
 } from "@/lib/page-status";
-import type { TimelineData, TacticAxis } from "@/components/timeline-renderer";
+import type { TimelineData, TacticAxis, ExtraSection, ExtraSectionKind } from "@/components/timeline-renderer";
 import { BLANK_TIMELINE_DATA, copyTimeline, deleteTimelineEntry, updateTimelineEntry } from "@/lib/timelines";
 import {
   Save,
@@ -87,6 +87,7 @@ export function AdminTimelineEditor({
       tactics: saved?.tactics ?? fallback.tactics,
       engine: saved?.engine ?? fallback.engine,
       closing: saved?.closing ?? fallback.closing,
+      extraSections: saved?.extraSections ?? fallback.extraSections ?? [],
     };
     setDraft(JSON.parse(JSON.stringify(merged)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +103,7 @@ export function AdminTimelineEditor({
       tactics: baseline.tactics ?? fallback.tactics,
       engine: baseline.engine ?? fallback.engine,
       closing: baseline.closing ?? fallback.closing,
+      extraSections: baseline.extraSections ?? fallback.extraSections ?? [],
     });
   }, [draft, saved, fallback]);
 
@@ -607,6 +609,49 @@ export function AdminTimelineEditor({
         />
       </Section>
 
+      {/* Extra custom sections */}
+      <Section title={`Extra sections (${(draft.extraSections ?? []).length})`}>
+        <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+          Add any number of additional sections to this timeline. Each section
+          picks one of the four templates and can carry its own kicker + title
+          (e.g. “Section V · Field Notes”). Extras appear below the default
+          closing in the order listed here.
+        </p>
+        <div className="space-y-4">
+          {(draft.extraSections ?? []).map((sec, i) => (
+            <ExtraSectionEditor
+              key={i}
+              section={sec}
+              index={i}
+              total={(draft.extraSections ?? []).length}
+              onMoveUp={i > 0 ? () => update((d) => {
+                const arr = d.extraSections ?? (d.extraSections = []);
+                [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+              }) : undefined}
+              onMoveDown={i < (draft.extraSections ?? []).length - 1 ? () => update((d) => {
+                const arr = d.extraSections ?? (d.extraSections = []);
+                [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]];
+              }) : undefined}
+              onDelete={() => update((d) => {
+                const arr = d.extraSections ?? (d.extraSections = []);
+                arr.splice(i, 1);
+              })}
+              onChange={(patch) => update((d) => {
+                const arr = d.extraSections ?? (d.extraSections = []);
+                arr[i] = { ...arr[i], ...patch } as ExtraSection;
+              })}
+            />
+          ))}
+        </div>
+        <AddExtraSection
+          nextIndex={(draft.extraSections ?? []).length}
+          onAdd={(sec) => update((d) => {
+            const arr = d.extraSections ?? (d.extraSections = []);
+            arr.push(sec);
+          })}
+        />
+      </Section>
+
       {/* Bottom save bar */}
       <div className="mt-10 flex justify-between items-center gap-2 flex-wrap">
         {allowDelete ? (
@@ -694,6 +739,321 @@ export function AdminTimelineEditor({
 }
 
 // ─── Small building blocks ────────────────────────────────────────────────────
+// ─── Extra sections editor ─────────────────────────────────────────────────
+
+const SECTION_TEMPLATES: Record<ExtraSectionKind, { label: string; description: string }> = {
+  prose: { label: "Prose", description: "Italic paragraphs, like the closing." },
+  timeline: { label: "Timeline events", description: "A second timeline spine with event cards." },
+  tactics: { label: "Tactics grid", description: "A second tactics matrix with axis colours." },
+  engine: { label: "Engine steps", description: "A horizontal action/problem/solution style grid." },
+};
+
+function seedSection(kind: ExtraSectionKind, nextIndex: number): ExtraSection {
+  const roman = ["V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"];
+  const number = roman[nextIndex] ?? `N${nextIndex + 5}`;
+  const base = { kicker: `Section ${number} · New`, title: "New section" };
+  switch (kind) {
+    case "prose":
+      return { kind, ...base, paragraphs: [""] };
+    case "timeline":
+      return {
+        kind,
+        ...base,
+        events: [{ year: "", title: "", place: "", key: false, body: "", detail: "", links: [], imageUrl: "" }],
+      };
+    case "tactics":
+      return { kind, ...base, tactics: [{ name: "", use: "" }] };
+    case "engine":
+      return {
+        kind,
+        ...base,
+        engine: [{ step: "Action", title: "", body: "" }],
+      };
+  }
+}
+
+function AddExtraSection({
+  nextIndex,
+  onAdd,
+}: {
+  nextIndex: number;
+  onAdd: (section: ExtraSection) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-5">
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 text-[11px] tracking-[0.22em] uppercase border border-dashed border-zinc-700 px-4 py-2 text-zinc-400 hover:border-[#cc2a2a] hover:text-white"
+        >
+          <Plus size={12} /> Add section
+        </button>
+      ) : (
+        <div className="border border-zinc-800 bg-zinc-950/60 p-4">
+          <div className="text-[10px] tracking-[0.3em] uppercase text-zinc-500 mb-3">
+            Choose a template
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {(Object.keys(SECTION_TEMPLATES) as ExtraSectionKind[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => { onAdd(seedSection(k, nextIndex)); setOpen(false); }}
+                className="text-left border border-zinc-800 bg-zinc-900/40 hover:border-[#cc2a2a] hover:bg-zinc-900/60 p-3 transition-colors"
+              >
+                <div className="text-xs font-semibold text-zinc-100 mb-1">
+                  {SECTION_TEMPLATES[k].label}
+                </div>
+                <div className="text-[10px] leading-relaxed text-zinc-500">
+                  {SECTION_TEMPLATES[k].description}
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setOpen(false)}
+            className="mt-3 text-[10px] tracking-[0.22em] uppercase text-zinc-500 hover:text-zinc-200"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExtraSectionEditor({
+  section,
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+  onChange,
+}: {
+  section: ExtraSection;
+  index: number;
+  total: number;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onDelete: () => void;
+  onChange: (patch: Partial<ExtraSection>) => void;
+}) {
+  const templateLabel = SECTION_TEMPLATES[section.kind]?.label ?? section.kind;
+  return (
+    <div className="border border-zinc-800 bg-zinc-950/40 p-4">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="text-[10px] tracking-[0.3em] uppercase text-zinc-500">
+          Extra section #{index + 1} · <span className="text-[#d4a24a]">{templateLabel}</span> · ({index + 1}/{total})
+        </div>
+        <ItemControls onUp={onMoveUp} onDown={onMoveDown} onDelete={onDelete} />
+      </div>
+      <Grid>
+        <Field label="Kicker (top label)" value={section.kicker} onChange={(v) => onChange({ kicker: v })} />
+        <Field label="Section title" value={section.title} onChange={(v) => onChange({ title: v })} />
+      </Grid>
+
+      {section.kind === "prose" && (
+        <div className="mt-3">
+          <div className="text-[10px] tracking-[0.3em] uppercase text-zinc-500 mb-2">Paragraphs</div>
+          <StringList
+            items={section.paragraphs ?? []}
+            onChange={(next) => onChange({ paragraphs: next })}
+            placeholder="Paragraph…"
+            multiline
+          />
+        </div>
+      )}
+
+      {section.kind === "timeline" && (
+        <ExtraTimelineEditor
+          events={section.events ?? []}
+          onChange={(next) => onChange({ events: next })}
+        />
+      )}
+
+      {section.kind === "tactics" && (
+        <ExtraTacticsEditor
+          tactics={section.tactics ?? []}
+          onChange={(next) => onChange({ tactics: next })}
+        />
+      )}
+
+      {section.kind === "engine" && (
+        <ExtraEngineEditor
+          steps={section.engine ?? []}
+          onChange={(next) => onChange({ engine: next })}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExtraTimelineEditor({
+  events,
+  onChange,
+}: {
+  events: NonNullable<ExtraSection["events"]>;
+  onChange: (next: NonNullable<ExtraSection["events"]>) => void;
+}) {
+  const set = (mut: (arr: NonNullable<ExtraSection["events"]>) => void) => {
+    const n = JSON.parse(JSON.stringify(events)) as NonNullable<ExtraSection["events"]>;
+    mut(n);
+    onChange(n);
+  };
+  return (
+    <div className="mt-3 space-y-3">
+      {events.map((ev, i) => (
+        <div key={i} className="border border-zinc-900 bg-zinc-950/60 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] tracking-[0.3em] uppercase text-zinc-500">Event #{i + 1}</div>
+            <ItemControls
+              onUp={i > 0 ? () => set((a) => { [a[i - 1], a[i]] = [a[i], a[i - 1]]; }) : undefined}
+              onDown={i < events.length - 1 ? () => set((a) => { [a[i + 1], a[i]] = [a[i], a[i + 1]]; }) : undefined}
+              onDelete={() => set((a) => { a.splice(i, 1); })}
+            />
+          </div>
+          <Grid>
+            <Field label="Year" value={ev.year} onChange={(v) => set((a) => { a[i].year = v; })} />
+            <Field label="Place" value={ev.place} onChange={(v) => set((a) => { a[i].place = v; })} />
+          </Grid>
+          <Field label="Title" value={ev.title} onChange={(v) => set((a) => { a[i].title = v; })} />
+          <Field label="Body" multiline value={ev.body} onChange={(v) => set((a) => { a[i].body = v; })} />
+          <Field label="Detail (opposite card)" multiline value={ev.detail ?? ""} onChange={(v) => set((a) => { a[i].detail = v; })} />
+          <label className="block mt-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.28em] uppercase text-zinc-500 mb-1">
+              <ImageIcon size={11} /> Background image URL
+            </span>
+            <input
+              value={ev.imageUrl ?? ""}
+              onChange={(e) => set((a) => { a[i].imageUrl = e.target.value; })}
+              placeholder="https://…"
+              className="w-full bg-zinc-900/70 border border-zinc-800 text-sm px-3 py-2 text-zinc-300 font-mono focus:outline-none focus:border-[#cc2a2a]"
+            />
+          </label>
+          <label className="inline-flex items-center gap-2 text-[11px] tracking-[0.22em] uppercase text-zinc-400 mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ev.key}
+              onChange={(e) => set((a) => { a[i].key = e.target.checked; })}
+              className="accent-[#d4a24a]"
+            />
+            <Star size={12} className={ev.key ? "text-[#d4a24a]" : "text-zinc-600"} />
+            Mark as key event
+          </label>
+        </div>
+      ))}
+      <button
+        onClick={() => set((a) => { a.push({ year: "", title: "", place: "", key: false, body: "", detail: "", links: [], imageUrl: "" }); })}
+        className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.22em] uppercase text-zinc-500 hover:text-zinc-200"
+      >
+        <Plus size={12} /> Add event
+      </button>
+    </div>
+  );
+}
+
+function ExtraTacticsEditor({
+  tactics,
+  onChange,
+}: {
+  tactics: NonNullable<ExtraSection["tactics"]>;
+  onChange: (next: NonNullable<ExtraSection["tactics"]>) => void;
+}) {
+  const set = (mut: (arr: NonNullable<ExtraSection["tactics"]>) => void) => {
+    const n = JSON.parse(JSON.stringify(tactics)) as NonNullable<ExtraSection["tactics"]>;
+    mut(n);
+    onChange(n);
+  };
+  return (
+    <div className="mt-3 space-y-3">
+      {tactics.map((t, i) => (
+        <div key={i} className="border border-zinc-900 bg-zinc-950/60 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] tracking-[0.3em] uppercase text-zinc-500">Tactic #{i + 1}</div>
+            <ItemControls
+              onUp={i > 0 ? () => set((a) => { [a[i - 1], a[i]] = [a[i], a[i - 1]]; }) : undefined}
+              onDown={i < tactics.length - 1 ? () => set((a) => { [a[i + 1], a[i]] = [a[i], a[i + 1]]; }) : undefined}
+              onDelete={() => set((a) => { a.splice(i, 1); })}
+            />
+          </div>
+          <Field label="Name" value={t.name} onChange={(v) => set((a) => { a[i].name = v; })} />
+          <Field label="Description" multiline value={t.use} onChange={(v) => set((a) => { a[i].use = v; })} />
+          <label className="block mt-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.28em] uppercase text-zinc-500 mb-1">
+              Axis
+            </span>
+            <select
+              value={t.axis ?? ""}
+              onChange={(e) => set((a) => {
+                const v = e.target.value;
+                if (!v) delete (a[i] as { axis?: string }).axis;
+                else a[i].axis = v as TacticAxis;
+              })}
+              className="w-full bg-zinc-900/70 border border-zinc-800 text-sm px-3 py-2 text-zinc-200 font-mono focus:outline-none focus:border-[#cc2a2a]"
+            >
+              <option value="">— no axis —</option>
+              <option value="identity">Identity</option>
+              <option value="demographic">Demographic</option>
+              <option value="cultural">Cultural</option>
+              <option value="capital">Capital</option>
+              <option value="institutional">Institutional</option>
+              <option value="technological">Technological</option>
+            </select>
+          </label>
+        </div>
+      ))}
+      <button
+        onClick={() => set((a) => { a.push({ name: "", use: "" }); })}
+        className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.22em] uppercase text-zinc-500 hover:text-zinc-200"
+      >
+        <Plus size={12} /> Add tactic
+      </button>
+    </div>
+  );
+}
+
+function ExtraEngineEditor({
+  steps,
+  onChange,
+}: {
+  steps: NonNullable<ExtraSection["engine"]>;
+  onChange: (next: NonNullable<ExtraSection["engine"]>) => void;
+}) {
+  const set = (mut: (arr: NonNullable<ExtraSection["engine"]>) => void) => {
+    const n = JSON.parse(JSON.stringify(steps)) as NonNullable<ExtraSection["engine"]>;
+    mut(n);
+    onChange(n);
+  };
+  return (
+    <div className="mt-3 space-y-3">
+      {steps.map((s, i) => (
+        <div key={i} className="border border-zinc-900 bg-zinc-950/60 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] tracking-[0.3em] uppercase text-zinc-500">Step #{i + 1}</div>
+            <ItemControls
+              onUp={i > 0 ? () => set((a) => { [a[i - 1], a[i]] = [a[i], a[i - 1]]; }) : undefined}
+              onDown={i < steps.length - 1 ? () => set((a) => { [a[i + 1], a[i]] = [a[i], a[i + 1]]; }) : undefined}
+              onDelete={() => set((a) => { a.splice(i, 1); })}
+            />
+          </div>
+          <Grid>
+            <Field label="Step label" value={s.step} onChange={(v) => set((a) => { a[i].step = v; })} />
+            <Field label="Title" value={s.title} onChange={(v) => set((a) => { a[i].title = v; })} />
+          </Grid>
+          <Field label="Body" multiline value={s.body} onChange={(v) => set((a) => { a[i].body = v; })} />
+        </div>
+      ))}
+      <button
+        onClick={() => set((a) => { a.push({ step: "", title: "", body: "" }); })}
+        className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.22em] uppercase text-zinc-500 hover:text-zinc-200"
+      >
+        <Plus size={12} /> Add step
+      </button>
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-10">
