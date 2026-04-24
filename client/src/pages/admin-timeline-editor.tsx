@@ -10,7 +10,7 @@ import {
   setPageStatus,
   type PageStatus,
 } from "@/lib/page-status";
-import type { TimelineData } from "@/components/timeline-renderer";
+import type { TimelineData, TacticAxis } from "@/components/timeline-renderer";
 import { BLANK_TIMELINE_DATA, copyTimeline, deleteTimelineEntry, updateTimelineEntry } from "@/lib/timelines";
 import {
   Save,
@@ -421,7 +421,18 @@ export function AdminTimelineEditor({
                 <Field label="Place" value={ev.place} onChange={(v) => update((d) => { d.timeline[i].place = v; })} />
               </Grid>
               <Field label="Title" value={ev.title} onChange={(v) => update((d) => { d.timeline[i].title = v; })} />
-              <Field label="Body" multiline value={ev.body} onChange={(v) => update((d) => { d.timeline[i].body = v; })} />
+              <Field
+                label="Card snippet (body)"
+                multiline
+                value={ev.body}
+                onChange={(v) => update((d) => { d.timeline[i].body = v; })}
+              />
+              <Field
+                label="Detail · longer prose opposite the card (optional)"
+                multiline
+                value={ev.detail ?? ""}
+                onChange={(v) => update((d) => { d.timeline[i].detail = v; })}
+              />
 
               <div className="mt-2">
                 <label className="block">
@@ -503,6 +514,7 @@ export function AdminTimelineEditor({
                   place: "",
                   key: false,
                   body: "",
+                  detail: "",
                   links: [],
                   imageUrl: "",
                 });
@@ -532,6 +544,30 @@ export function AdminTimelineEditor({
               </div>
               <Field label="Name" value={t.name} onChange={(v) => update((d) => { d.tactics[i].name = v; })} />
               <Field label="Description" multiline value={t.use} onChange={(v) => update((d) => { d.tactics[i].use = v; })} />
+              <label className="block mt-2">
+                <span className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.28em] uppercase text-zinc-500 mb-1">
+                  Axis (groups tactics into families)
+                </span>
+                <select
+                  value={t.axis ?? ""}
+                  onChange={(e) =>
+                    update((d) => {
+                      const v = e.target.value;
+                      if (!v) { delete (d.tactics[i] as { axis?: string }).axis; }
+                      else { d.tactics[i].axis = v as TacticAxis; }
+                    })
+                  }
+                  className="w-full bg-zinc-900/70 border border-zinc-800 text-sm px-3 py-2 text-zinc-200 font-mono focus:outline-none focus:border-[#cc2a2a]"
+                >
+                  <option value="">— no axis —</option>
+                  <option value="identity">Identity</option>
+                  <option value="demographic">Demographic</option>
+                  <option value="cultural">Cultural</option>
+                  <option value="capital">Capital</option>
+                  <option value="institutional">Institutional</option>
+                  <option value="technological">Technological</option>
+                </select>
+              </label>
             </div>
           ))}
           <button

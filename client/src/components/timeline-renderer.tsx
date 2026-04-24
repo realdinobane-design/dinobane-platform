@@ -15,9 +15,28 @@ export type TimelineEvent = {
   place: string;
   key: boolean;
   body: string;
+  /**
+   * Optional long-form prose that renders opposite the event card, running
+   * alongside the timeline spine. Leave empty to get the previous single-card
+   * layout.
+   */
+  detail?: string;
   links: TimelineLink[];
   imageUrl?: string;
 };
+
+/**
+ * Axes group tactics into families so the reader can skim by category. Each
+ * axis gets a distinct tint on the card's accent bar and kicker. Unknown or
+ * missing values fall back to neutral muted gold.
+ */
+export type TacticAxis =
+  | "identity"
+  | "demographic"
+  | "cultural"
+  | "capital"
+  | "institutional"
+  | "technological";
 
 export type TimelineData = {
   meta: {
@@ -31,7 +50,7 @@ export type TimelineData = {
   };
   thesis: string[];
   timeline: TimelineEvent[];
-  tactics: { name: string; use: string }[];
+  tactics: { name: string; use: string; axis?: TacticAxis }[];
   engine: { step: string; title: string; body: string }[];
   closing: string[];
 };
@@ -142,19 +161,38 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
                   )}
                 </div>
               </div>
+              {e.detail && e.detail.trim() && (
+                <aside className="lm-detail" aria-label={`${e.title} — detail`}>
+                  <span className="lm-detail-mark" aria-hidden>—</span>
+                  {e.detail.split(/\n+/).map((para, k) => (
+                    <p key={k}>{para}</p>
+                  ))}
+                </aside>
+              )}
             </article>
           ))}
         </section>
 
         <SectionHead kicker="Section II · Tactics Matrix" title="Angels' Faces" />
         <section className="lm-tactics">
-          {D.tactics.map((t, i) => (
-            <div className="lm-tactic" key={i}>
-              <div className="lm-num">TACTIC · {String(i + 1).padStart(2, "0")}</div>
-              <h4>{t.name}</h4>
-              <p>{t.use}</p>
-            </div>
-          ))}
+          {D.tactics.map((t, i) => {
+            const axisKey = (t.axis ?? "").trim().toLowerCase() as TacticAxis;
+            const axisLabel = axisKey ? AXIS_LABELS[axisKey] ?? "" : "";
+            return (
+              <div
+                className={`lm-tactic${axisKey ? ` lm-axis-${axisKey}` : ""}`}
+                key={i}
+              >
+                <span className="lm-tactic-bar" aria-hidden />
+                <div className="lm-tactic-head">
+                  <div className="lm-num">TACTIC · {String(i + 1).padStart(2, "0")}</div>
+                  {axisLabel && <div className="lm-axis">{axisLabel}</div>}
+                </div>
+                <h4>{t.name}</h4>
+                <p>{t.use}</p>
+              </div>
+            );
+          })}
         </section>
 
         <SectionHead kicker="Section III · The Machiavellian Engine" title="Action · Problem · Solution" />
@@ -184,6 +222,15 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
     </>
   );
 }
+
+const AXIS_LABELS: Record<TacticAxis, string> = {
+  identity: "Axis · Identity",
+  demographic: "Axis · Demographic",
+  cultural: "Axis · Cultural",
+  capital: "Axis · Capital",
+  institutional: "Axis · Institutional",
+  technological: "Axis · Technological",
+};
 
 function SectionHead({ kicker, title }: { kicker: string; title: string }) {
   return (
@@ -241,14 +288,14 @@ const CSS = `
 .lm-hero-bg{
   position:absolute; inset:0; pointer-events:none; z-index:0;
   background-image:var(--lm-hero-img); background-size:cover; background-position:center;
-  filter:grayscale(.35) contrast(1.05) brightness(.55);
-  opacity:.55;
+  filter:grayscale(.45) contrast(1.05) brightness(.45);
+  opacity:.32;
 }
 .lm-hero-has-bg::after{
   content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
   background:
-    radial-gradient(ellipse at center, rgba(10,10,10,.25) 0%, rgba(10,10,10,.75) 70%, rgba(10,10,10,.95) 100%),
-    linear-gradient(180deg, rgba(10,10,10,.55), rgba(10,10,10,.88));
+    radial-gradient(ellipse at center, rgba(10,10,10,.45) 0%, rgba(10,10,10,.85) 70%, rgba(10,10,10,.96) 100%),
+    linear-gradient(180deg, rgba(10,10,10,.70), rgba(10,10,10,.92));
 }
 .lm-hero-has-bg h1{text-shadow:0 2px 20px rgba(0,0,0,.85), 0 0 40px rgba(204,42,42,.2)}
 .lm-hero-has-bg .lm-sub{color:var(--lm-ink); text-shadow:0 1px 8px rgba(0,0,0,.85)}
@@ -309,16 +356,18 @@ const CSS = `
 @keyframes lm-scan{0%{top:-8%} 100%{top:108%}}
 
 .lm-event{
-  position:relative; width:50%; padding:18px 44px;
+  position:relative; width:100%; padding:18px 0;
+  display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:start;
   opacity:0; transform:translateY(18px);
   transition:opacity .7s ease, transform .7s ease;
 }
 .lm-event.lm-in{opacity:1; transform:none}
-.lm-event:nth-child(odd){left:0; text-align:right}
-.lm-event:nth-child(even){left:50%}
-.lm-node{position:absolute; top:34px; width:14px; height:14px; background:var(--lm-bg); border:1.5px solid var(--lm-mute); border-radius:50%}
-.lm-event:nth-child(odd) .lm-node{right:-7px}
-.lm-event:nth-child(even) .lm-node{left:-7px}
+/* Odd: card left / detail right. Even: card right / detail left. */
+.lm-event:nth-child(odd)   .lm-card{grid-column:1; text-align:right}
+.lm-event:nth-child(odd)   .lm-detail{grid-column:2; text-align:left}
+.lm-event:nth-child(even)  .lm-card{grid-column:2; text-align:left}
+.lm-event:nth-child(even)  .lm-detail{grid-column:1; text-align:right}
+.lm-node{position:absolute; top:34px; left:50%; width:14px; height:14px; background:var(--lm-bg); border:1.5px solid var(--lm-mute); border-radius:50%; transform:translateX(-50%); z-index:2}
 .lm-event.lm-key .lm-node{
   border-color:var(--lm-gold); background:var(--lm-gold);
   box-shadow:0 0 0 4px rgba(212,162,74,.12), 0 0 18px rgba(212,162,74,.55);
@@ -357,6 +406,28 @@ const CSS = `
 .lm-card p{margin:0 0 14px; color:var(--lm-ink); font-size:16px}
 .lm-links{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
 .lm-event:nth-child(odd) .lm-links{justify-content:flex-end}
+.lm-event:nth-child(even) .lm-links{justify-content:flex-start}
+
+/* ─── DETAIL PULL-QUOTE — opposite the image card on the spine ─── */
+.lm-detail{
+  padding:14px 4px 4px; max-width:440px;
+  position:relative; align-self:start;
+}
+.lm-event:nth-child(odd)  .lm-detail{margin-left:auto}
+.lm-event:nth-child(even) .lm-detail{margin-right:auto}
+.lm-detail-mark{
+  display:block; font-family:var(--lm-serif); font-style:italic;
+  font-size:34px; line-height:1; color:var(--lm-red);
+  opacity:.55; margin-bottom:10px; letter-spacing:.1em;
+}
+.lm-detail p{
+  font-family:var(--lm-serif); font-size:17px; line-height:1.72;
+  color:var(--lm-dim); margin:0 0 14px;
+}
+.lm-detail p:last-child{margin-bottom:0}
+.lm-detail p:first-of-type::first-letter{
+  color:var(--lm-ink); font-weight:600;
+}
 .lm-links a{
   font-family:var(--lm-mono); font-size:10.5px; letter-spacing:.18em;
   text-transform:uppercase; color:var(--lm-dim); border:1px solid var(--lm-line);
@@ -369,13 +440,49 @@ const CSS = `
 
 .lm-tactics{
   display:grid; grid-template-columns:repeat(auto-fit, minmax(270px, 1fr));
-  gap:1px; background:var(--lm-line); border:1px solid var(--lm-line); margin:10px 0 40px;
+  gap:14px; margin:10px 0 40px;
 }
-.lm-tactic{background:var(--lm-bg); padding:26px 24px; transition:background .3s ease}
-.lm-tactic:hover{background:#0f0c0c}
-.lm-num{font-family:var(--lm-mono); font-size:10px; letter-spacing:.28em; color:var(--lm-red); margin-bottom:10px}
-.lm-tactic h4{font-family:var(--lm-serif); font-weight:600; font-size:22px; margin:0 0 10px; color:var(--lm-ink); line-height:1.2}
-.lm-tactic p{margin:0; color:var(--lm-dim); font-size:15px; line-height:1.6}
+.lm-tactic{
+  --lm-axis-colour:var(--lm-gold-soft);
+  background:linear-gradient(180deg, rgba(255,255,255,.012), rgba(0,0,0,.22));
+  border:1px solid var(--lm-line); padding:22px 22px 24px;
+  position:relative; overflow:hidden;
+  transition:border-color .3s ease, transform .3s ease, background .3s ease;
+}
+.lm-tactic:hover{
+  border-color:var(--lm-axis-colour);
+  transform:translateY(-1px);
+  background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.30));
+}
+.lm-tactic-bar{
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background:var(--lm-axis-colour); opacity:.7;
+}
+.lm-tactic-head{
+  display:flex; justify-content:space-between; align-items:baseline;
+  gap:10px; margin-bottom:14px;
+}
+.lm-num{font-family:var(--lm-mono); font-size:10px; letter-spacing:.28em; color:var(--lm-red); margin:0}
+.lm-axis{
+  font-family:var(--lm-mono); font-size:9.5px; letter-spacing:.28em;
+  text-transform:uppercase; color:var(--lm-axis-colour);
+  opacity:.95; white-space:nowrap;
+}
+.lm-tactic h4{
+  font-family:var(--lm-serif); font-weight:600; font-size:22px;
+  margin:0 0 12px; color:var(--lm-ink); line-height:1.2;
+  letter-spacing:.005em;
+}
+.lm-tactic p{
+  margin:0; color:var(--lm-dim); font-size:14.5px; line-height:1.65;
+}
+/* Six axis colour accents. Each is muted so the grid still reads as one set. */
+.lm-axis-identity       {--lm-axis-colour:#d4a24a} /* warm gold */
+.lm-axis-demographic    {--lm-axis-colour:#cc2a2a} /* signature red */
+.lm-axis-cultural       {--lm-axis-colour:#c98a5a} /* amber-copper */
+.lm-axis-capital        {--lm-axis-colour:#6fa28b} /* dull teal */
+.lm-axis-institutional  {--lm-axis-colour:#8a7db0} /* deep violet-grey */
+.lm-axis-technological  {--lm-axis-colour:#7a9bc9} /* slate blue */
 
 .lm-engine{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin:10px 0 40px; position:relative}
 .lm-engine::before{
@@ -405,16 +512,28 @@ const CSS = `
 }
 .lm-mark{color:var(--lm-red)}
 
-@media (max-width: 780px){
+@media (max-width: 980px){
   .lm-wrap{font-size:16px}
   .lm-timeline::before{left:18px}
   .lm-timeline::after{left:18px}
-  .lm-event{width:100%; left:0 !important; padding:14px 0 14px 42px; text-align:left !important}
-  .lm-event .lm-node{left:11px !important; right:auto !important}
-  .lm-event:nth-child(odd) .lm-links{justify-content:flex-start}
+  .lm-event{
+    grid-template-columns:1fr; column-gap:0; row-gap:14px;
+    padding:14px 0 14px 42px; text-align:left;
+  }
+  .lm-event:nth-child(odd)   .lm-card,
+  .lm-event:nth-child(even)  .lm-card,
+  .lm-event:nth-child(odd)   .lm-detail,
+  .lm-event:nth-child(even)  .lm-detail{
+    grid-column:1; text-align:left; margin:0; max-width:none;
+  }
+  .lm-event .lm-node{left:11px; transform:none}
+  .lm-event:nth-child(odd) .lm-links,
+  .lm-event:nth-child(even) .lm-links{justify-content:flex-start}
   .lm-engine{grid-template-columns:1fr; gap:14px}
   .lm-engine::before{display:none}
   .lm-thesis{padding:28px 22px}
   .lm-thesis p{font-size:17px}
+  .lm-detail{padding-top:4px}
+  .lm-detail-mark{font-size:28px; margin-bottom:6px}
 }
 `;
