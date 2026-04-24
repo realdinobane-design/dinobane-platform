@@ -22,7 +22,7 @@ const NAV_LINKS = [
   { href: "/", label: "Home", icon: null },
   { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
-  { href: "/timelines", label: "Timelines", icon: BookMarked },
+  { href: "/timelines", label: "Timelines", icon: BookMarked, memberOnly: true },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
   { href: "/contact", label: "Contact", icon: Mail },

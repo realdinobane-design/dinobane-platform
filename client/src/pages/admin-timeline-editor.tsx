@@ -349,6 +349,46 @@ export function AdminTimelineEditor({
           <Field label="Eyes-only tag" value={draft.meta.eyesOnly} onChange={(v) => update((d) => { d.meta.eyesOnly = v; })} />
           <Field label="File tag" value={draft.meta.fileTag} onChange={(v) => update((d) => { d.meta.fileTag = v; })} />
         </Grid>
+
+        {/* Hero banner image — renders darkened behind the title block */}
+        <div className="mt-4">
+          <label className="block">
+            <span className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.28em] uppercase text-zinc-500 mb-1">
+              <ImageIcon size={11} /> Hero banner image URL
+            </span>
+            <input
+              value={draft.meta.heroImageUrl ?? ""}
+              onChange={(e) => update((d) => { d.meta.heroImageUrl = e.target.value; })}
+              placeholder="https://… (optional — shown darkened behind the title)"
+              className="w-full bg-zinc-900/70 border border-zinc-800 text-sm px-3 py-2 text-zinc-300 font-mono focus:outline-none focus:border-[#cc2a2a]"
+            />
+          </label>
+          {draft.meta.heroImageUrl && (
+            <div className="mt-2 relative h-32 w-full overflow-hidden border border-zinc-800">
+              <img
+                src={draft.meta.heroImageUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(10,10,10,.25) 0%, rgba(10,10,10,.75) 70%, rgba(10,10,10,.95) 100%), linear-gradient(180deg, rgba(10,10,10,.55), rgba(10,10,10,.88))",
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white font-serif italic text-2xl" style={{ textShadow: "0 2px 12px rgba(0,0,0,.9)" }}>
+                  Preview · {draft.meta.title}
+                </span>
+              </div>
+            </div>
+          )}
+          <p className="text-[10px] tracking-[0.2em] uppercase text-zinc-600 mt-1">
+            Image is auto-darkened so the title stays legible.
+          </p>
+        </div>
       </Section>
 
       {/* Thesis */}

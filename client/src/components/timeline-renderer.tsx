@@ -27,6 +27,7 @@ export type TimelineData = {
     title: string;
     subtitle: string;
     byline: string;
+    heroImageUrl?: string;
   };
   thesis: string[];
   timeline: TimelineEvent[];
@@ -83,15 +84,25 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
           <span>{D.meta.fileTag}</span>
         </div>
 
-        <header className="lm-hero">
-          <div className="lm-eyebrow">A DinoBane Intel Timeline</div>
-          <h1>
-            {titleMain}
-            {titleAccent && <> <span className="lm-amp">{titleAccent}</span></>}
-          </h1>
-          <p className="lm-sub">{D.meta.subtitle}</p>
-          <div className="lm-byline">{D.meta.byline}</div>
-          <div className="lm-rule" />
+        <header
+          className={`lm-hero${D.meta.heroImageUrl ? " lm-hero-has-bg" : ""}`}
+          style={
+            D.meta.heroImageUrl
+              ? ({ ["--lm-hero-img" as unknown as string]: `url("${D.meta.heroImageUrl}")` } as React.CSSProperties)
+              : undefined
+          }
+        >
+          {D.meta.heroImageUrl && <div className="lm-hero-bg" aria-hidden />}
+          <div className="lm-hero-inner">
+            <div className="lm-eyebrow">A DinoBane Intel Timeline</div>
+            <h1>
+              {titleMain}
+              {titleAccent && <> <span className="lm-amp">{titleAccent}</span></>}
+            </h1>
+            <p className="lm-sub">{D.meta.subtitle}</p>
+            <div className="lm-byline">{D.meta.byline}</div>
+            <div className="lm-rule" />
+          </div>
         </header>
 
         <section className="lm-thesis">
@@ -220,7 +231,27 @@ const CSS = `
   background:rgba(212,162,74,.04);
 }
 
-.lm-hero{padding:72px 0 48px; text-align:center}
+.lm-hero{padding:72px 0 48px; text-align:center; position:relative; overflow:hidden}
+.lm-hero-inner{position:relative; z-index:1}
+.lm-hero-has-bg{
+  padding:96px 0 72px;
+  border:1px solid var(--lm-line);
+  margin-top:18px;
+}
+.lm-hero-bg{
+  position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:var(--lm-hero-img); background-size:cover; background-position:center;
+  filter:grayscale(.35) contrast(1.05) brightness(.55);
+  opacity:.55;
+}
+.lm-hero-has-bg::after{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse at center, rgba(10,10,10,.25) 0%, rgba(10,10,10,.75) 70%, rgba(10,10,10,.95) 100%),
+    linear-gradient(180deg, rgba(10,10,10,.55), rgba(10,10,10,.88));
+}
+.lm-hero-has-bg h1{text-shadow:0 2px 20px rgba(0,0,0,.85), 0 0 40px rgba(204,42,42,.2)}
+.lm-hero-has-bg .lm-sub{color:var(--lm-ink); text-shadow:0 1px 8px rgba(0,0,0,.85)}
 .lm-eyebrow{
   font-family:var(--lm-mono); text-transform:uppercase; letter-spacing:.4em;
   font-size:11px; color:var(--lm-red); margin-bottom:18px;
