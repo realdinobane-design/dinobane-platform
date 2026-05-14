@@ -323,6 +323,12 @@ const ACT_THEME: Record<string, string> = {
   "strategy": "lm-act-strategy",
   "cultural-capture": "lm-act-cultural",
   "total-capture": "lm-act-total",
+  // Starmer timeline: map biographical → steel, professional → gold,
+  // partisan → red, climax → white. Reuses the same .lm-act-* CSS classes.
+  "early-life": "lm-act-theory",
+  "legal-career": "lm-act-strategy",
+  "politics": "lm-act-cultural",
+  "in-office": "lm-act-total",
 };
 
 function ActBlock({
