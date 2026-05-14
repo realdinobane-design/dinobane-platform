@@ -90,7 +90,7 @@ export function PageStatusGate({
           data-testid="page-standby-ribbon"
         >
           <ShieldAlert size={12} className="inline-block mr-2 -mt-0.5" />
-          Standby mode · only admins can see this page
+          Standby · Page is hidden from visitors
         </div>
       )}
       {children}
