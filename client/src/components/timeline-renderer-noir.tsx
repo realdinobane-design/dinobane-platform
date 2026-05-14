@@ -164,11 +164,16 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
           ))}
         </section>
 
-        <SectionHead kicker="Section II · Tactics Matrix" title="Angels' Faces" />
+        <SectionHead
+          kicker="Section II · The Tactics"
+          title="Same Engine, Different Mask"
+          lede="Every tactic on this list arrives wearing a cause almost no one wants to oppose. Underneath, each one does the same job: dissolve an existing loyalty, manufacture a new dependency, and route more authority upward. Left column: what you are told it is about. Right column: what it actually does."
+        />
         <section className="lmn-tactics lmn-reveal">
           {D.tactics.map((t, i) => {
             const axisKey = (t.axis ?? "").trim().toLowerCase() as TacticAxis;
             const axisLabel = axisKey ? AXIS_LABELS[axisKey] ?? "" : "";
+            const mask = axisKey ? AXIS_MASK[axisKey] ?? "" : "";
             return (
               <div className="lmn-tactic" key={i}>
                 <div className="lmn-tactic-head">
@@ -176,7 +181,16 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
                   {axisLabel && <div className="lmn-axis">{axisLabel}</div>}
                 </div>
                 <h4>{t.name}</h4>
-                <p>{t.use}</p>
+                <div className="lmn-tactic-split">
+                  <div className="lmn-tactic-col lmn-tactic-mask">
+                    <div className="lmn-col-label">The Mask — what you are told</div>
+                    <p>{mask || "A cause almost no one wants to oppose."}</p>
+                  </div>
+                  <div className="lmn-tactic-col lmn-tactic-function">
+                    <div className="lmn-col-label">The Function — what it actually does</div>
+                    <p>{t.use}</p>
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -313,15 +327,25 @@ function EventRow({ ev, hero }: { ev: TimelineEvent; hero?: boolean }) {
   );
 }
 
-function SectionHead({ kicker, title }: { kicker: string; title: string }) {
+function SectionHead({ kicker, title, lede }: { kicker: string; title: string; lede?: string }) {
   return (
     <div className="lmn-section-head lmn-reveal">
       <div className="lmn-kicker">{kicker}</div>
       <h2>{title}</h2>
       <div className="lmn-under" />
+      {lede && <p className="lmn-section-lede">{lede}</p>}
     </div>
   );
 }
+
+const AXIS_MASK: Record<TacticAxis, string> = {
+  identity:      "Equality. Justice. Rights.",
+  demographic:   "Compassion. Growth. Diversity.",
+  cultural:      "Inclusion. Modernisation. Progress.",
+  capital:       "Responsibility. Sustainability. Ethics.",
+  institutional: "Expertise. Reform. Care.",
+  technological: "Safety. Trust. Community standards.",
+};
 
 /* =========================================================
    SCOPED STYLES — all prefixed "lmn-" so the dossier renderer
@@ -466,6 +490,11 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
   margin:22px auto 0; transition:background .25s ease, width .25s ease;
 }
 .lmn-section-head:hover .lmn-under{ background:var(--noir-act); width:72px }
+.lmn-section-lede{
+  max-width:640px; margin:24px auto 0;
+  font-family:var(--noir-serif); font-size:17px; line-height:1.65;
+  color:var(--noir-fg-2); font-style:italic;
+}
 
 /* ──────────────── TIMELINE ──────────────── */
 .lmn-timeline-host{ position:relative; padding:0; max-width:760px; margin:0 auto }
@@ -714,27 +743,31 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
 }
 
 /* ──────────────── TACTICS ──────────────── */
+/* Each tactic is a full-width row with an internal Mask | Function split.
+   The Mask column reads as the friendly public framing; the Function
+   column reads as the operational role. The split is what makes the
+   section's point legible at a glance. */
 .lmn-tactics{
-  display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
-  gap:0;
+  display:flex; flex-direction:column; gap:0;
   border-top:1px solid var(--noir-line);
-  border-left:1px solid var(--noir-line);
+  border-bottom:1px solid var(--noir-line);
+  max-width:920px; margin:0 auto;
 }
 .lmn-tactic{
-  padding:26px 24px 28px;
-  border-right:1px solid var(--noir-line);
+  padding:28px 0 30px;
   border-bottom:1px solid var(--noir-line);
   position:relative; transition:background .25s ease;
 }
+.lmn-tactic:last-child{ border-bottom:none }
 .lmn-tactic::before{
-  content:""; position:absolute; top:0; left:0; right:0; height:1px;
-  background:transparent; transition:background .25s ease;
+  content:""; position:absolute; top:0; left:0; width:0; height:1px;
+  background:var(--noir-act); transition:width .35s ease;
 }
-.lmn-tactic:hover{ background:rgba(10,10,10,.02) }
-.lmn-tactic:hover::before{ background:var(--noir-act) }
+.lmn-tactic:hover{ background:rgba(10,10,10,.018) }
+.lmn-tactic:hover::before{ width:100% }
 .lmn-tactic-head{
   display:flex; justify-content:space-between; align-items:baseline;
-  gap:10px; margin-bottom:14px;
+  gap:10px; margin:0 0 8px; padding:0 4px;
 }
 .lmn-num{
   font-family:var(--noir-mono); font-size:10px; letter-spacing:.32em;
@@ -748,11 +781,38 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
 .lmn-tactic:hover .lmn-num,
 .lmn-tactic:hover .lmn-axis{ color:var(--noir-act) }
 .lmn-tactic h4{
-  font-family:var(--noir-serif); font-weight:500; font-size:22px;
-  margin:0 0 12px; color:var(--noir-fg); line-height:1.2;
+  font-family:var(--noir-serif); font-weight:600; font-size:26px;
+  margin:0 0 18px; padding:0 4px;
+  color:var(--noir-fg); line-height:1.18; letter-spacing:-.005em;
 }
-.lmn-tactic p{
-  margin:0; color:var(--noir-fg-2); font-size:15px; line-height:1.6;
+.lmn-tactic-split{
+  display:grid; grid-template-columns:1fr 1fr; gap:0;
+  border-top:1px solid var(--noir-line);
+}
+.lmn-tactic-col{
+  padding:18px 22px 4px;
+  border-right:1px solid var(--noir-line);
+}
+.lmn-tactic-col:last-child{ border-right:none }
+.lmn-col-label{
+  font-family:var(--noir-mono); font-size:9.5px; letter-spacing:.28em;
+  text-transform:uppercase; color:var(--noir-fg-3);
+  margin-bottom:10px;
+}
+.lmn-tactic-mask .lmn-col-label{ color:var(--noir-fg-3) }
+.lmn-tactic-function .lmn-col-label{ color:var(--noir-fg-2); font-weight:500 }
+.lmn-tactic-col p{
+  margin:0; color:var(--noir-fg-2); font-size:16px; line-height:1.6;
+  font-family:var(--noir-serif);
+}
+.lmn-tactic-mask p{
+  font-style:italic; color:var(--noir-fg-3);
+}
+.lmn-tactic-function p{
+  color:var(--noir-fg); font-weight:400;
+}
+.lmn-tactic:hover .lmn-tactic-function p{
+  color:var(--noir-fg);
 }
 
 /* ──────────────── ENGINE ──────────────── */
@@ -823,7 +883,10 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
   .lmn-card h3{ font-size:24px }
   .lmn-event.lmn-hero-card h3{ font-size:26px }
   .lmn-engine{ grid-template-columns:1fr }
-  .lmn-tactics{ grid-template-columns:1fr }
+  .lmn-tactic-split{ grid-template-columns:1fr }
+  .lmn-tactic-col{ border-right:none; border-bottom:1px solid var(--noir-line); padding:16px 18px 16px }
+  .lmn-tactic-col:last-child{ border-bottom:none }
+  .lmn-tactic h4{ font-size:22px }
   .lmn-closing{ padding:42px 0 }
   .lmn-closing p{ font-size:18px }
   .lmn-key-tag{ margin-left:0 }
