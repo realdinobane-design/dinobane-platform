@@ -147,3 +147,74 @@
   border: none;
   background: transparent;
 }
+
+/* ─── NOIR THEME (site-wide, member opt-in) ─────────────────────────────────── */
+/* Re-skins the Tailwind/shadcn HSL variables to a white-dominant minimalist
+   palette. Red is preserved as the action / accent hue. Toggled by the
+   NoirThemeToggle component setting `body.theme-noir`. */
+body.theme-noir {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 0 88% 47%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 8%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 0 88% 47%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 88%;
+  --input: 0 0% 94%;
+  --ring: 0 88% 47%;
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 0 0% 10%;
+  --sidebar-primary: 0 88% 47%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-accent-foreground: 0 0% 10%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-ring: 0 88% 47%;
+
+  background: #ffffff;
+  color: hsl(var(--foreground));
+}
+
+body.theme-noir h1,
+body.theme-noir h2,
+body.theme-noir h3,
+body.theme-noir h4 { color: hsl(var(--foreground)); }
+
+/* Soften the heavy red-glow utility against a white page */
+body.theme-noir .brand-glow { box-shadow: none; }
+
+/* Article prose: ink on paper, red links */
+body.theme-noir .article-body h2 { color: #000; }
+body.theme-noir .article-body p,
+body.theme-noir .article-body li { color: hsl(0 0% 22%); }
+body.theme-noir .article-body strong { color: #000; }
+body.theme-noir .article-body a { color: hsl(var(--primary)); }
+body.theme-noir .article-body a:hover { color: hsl(0 88% 38%); }
+
+/* Message links read on white too */
+body.theme-noir .message-content a { color: hsl(var(--primary)); }
+body.theme-noir .message-content .mention { color: hsl(var(--primary)); }
+
+/* Scrollbar: lighter on white */
+body.theme-noir ::-webkit-scrollbar-thumb { background: hsl(0 0% 80%); }
+body.theme-noir ::-webkit-scrollbar-thumb:hover { background: hsl(0 0% 65%); }
+
+/* Footer / nav link colours look harsh on white — nudge them */
+body.theme-noir footer a.text-yellow-400 { color: hsl(var(--primary)); }
+body.theme-noir footer a.text-yellow-400:hover { color: hsl(0 88% 38%); }
+body.theme-noir footer a.text-zinc-500 { color: hsl(0 0% 40%); }
+
+/* Hero gradient utility re-aimed for white */
+body.theme-noir .hero-gradient {
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.6) 50%, rgba(255,255,255,.95) 100%);
+}
