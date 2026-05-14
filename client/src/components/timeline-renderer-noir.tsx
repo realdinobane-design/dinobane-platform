@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { TimelineData, TimelineEvent, TimelineAct, TacticAxis } from "./timeline-renderer";
 
 /* =========================================================
@@ -47,6 +47,9 @@ const ACT_NUMBER: Record<string, string> = {
 
 export function TimelineRendererNoir({ data }: { data: TimelineData }) {
   const D = data;
+  const [activeActIdx, setActiveActIdx] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+  const actRefs = useRef<Array<HTMLElement | null>>([]);
 
   // Inject Google Fonts once.
   useEffect(() => {
@@ -80,6 +83,101 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
     return () => io.disconnect();
   }, [D]);
 
+  // Reading-progress bar + back-to-top visibility + scrollspy for Act rail.
+  useEffect(() => {
+    const bar = document.getElementById("lmn-progress-bar");
+    const onScroll = () => {
+      const h = document.documentElement;
+      const max = h.scrollHeight - h.clientHeight;
+      const pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
+      if (bar) bar.style.width = pct + "%";
+      setScrolled(h.scrollTop > 400);
+
+      // Determine which act is currently most visible.
+      const acts = actRefs.current.filter(Boolean) as HTMLElement[];
+      if (acts.length === 0) return;
+      const viewportMid = window.innerHeight * 0.35;
+      let best = 0;
+      let bestDist = Infinity;
+      acts.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        const dist = Math.abs(r.top - viewportMid);
+        if (r.top < window.innerHeight && r.bottom > 0 && dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      });
+      setActiveActIdx(best);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [D]);
+
+  // Keyboard nav: ↑↓ / J K step between event cards. T = top. Esc = close open detail.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const events = Array.from(document.querySelectorAll<HTMLElement>(".lmn-event"));
+      if (events.length === 0) return;
+
+      if (e.key === "t" || e.key === "T") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Escape") {
+        document.querySelectorAll<HTMLButtonElement>(".lmn-toggle.lmn-toggle-open").forEach((b) => b.click());
+        return;
+      }
+      const dir = e.key === "ArrowDown" || e.key === "j" || e.key === "J" ? 1
+        : e.key === "ArrowUp" || e.key === "k" || e.key === "K" ? -1 : 0;
+      if (!dir) return;
+      e.preventDefault();
+      const viewportMid = window.innerHeight * 0.35;
+      let idx = 0;
+      let bestDist = Infinity;
+      events.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        const dist = Math.abs(r.top - viewportMid);
+        if (dist < bestDist) { bestDist = dist; idx = i; }
+      });
+      const next = Math.max(0, Math.min(events.length - 1, idx + dir));
+      events[next].scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [D]);
+
+  // Count-up stats once they enter the viewport.
+  useEffect(() => {
+    const nums = document.querySelectorAll<HTMLElement>("[data-count-to]");
+    if (!nums.length) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target as HTMLElement;
+        io.unobserve(el);
+        const target = parseInt(el.dataset.countTo || "0", 10);
+        const suffix = el.dataset.countSuffix || "";
+        const dur = 900;
+        const start = performance.now();
+        const tick = (t: number) => {
+          const p = Math.min(1, (t - start) / dur);
+          const ease = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(target * ease).toString() + suffix;
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    }, { threshold: 0.5 });
+    nums.forEach((n) => io.observe(n));
+    return () => io.disconnect();
+  }, [D]);
+
   // Group events under acts. Same logic as the dossier renderer.
   const groupedTimeline = useMemo<Array<{ act: TimelineAct | null; events: TimelineEvent[] }>>(() => {
     if (!D.acts || D.acts.length === 0) {
@@ -110,9 +208,51 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
     return set;
   }, [D.acts, D.timeline]);
 
+  const titleWords = D.meta.title.split(" ");
+  const acts = D.acts || [];
+
+  const scrollToAct = (i: number) => {
+    const el = actRefs.current[i];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <>
       <style>{CSS}</style>
+
+      {/* Reading-progress hairline pinned to the top of the viewport. */}
+      <div className="lmn-progress" aria-hidden>
+        <div id="lmn-progress-bar" className="lmn-progress-bar" />
+      </div>
+
+      {/* Sticky Act rail (scrollspy + click-to-jump). Hidden under 1100px. */}
+      {acts.length > 0 && (
+        <nav className={`lmn-rail${scrolled ? " lmn-rail-on" : ""}`} aria-label="Acts">
+          {acts.map((a, i) => (
+            <button
+              key={a.id}
+              className={`lmn-rail-item${i === activeActIdx ? " lmn-rail-item-active" : ""}`}
+              onClick={() => scrollToAct(i)}
+              type="button"
+            >
+              <span className="lmn-rail-num">{ACT_NUMBER[a.id] ?? String(i + 1)}</span>
+              <span className="lmn-rail-label">{a.title}</span>
+              <span className="lmn-rail-tick" aria-hidden />
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* Back-to-top, only after some scroll. */}
+      <button
+        type="button"
+        aria-label="Back to top"
+        className={`lmn-totop${scrolled ? " lmn-totop-on" : ""}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >
+        ↑
+      </button>
+
       <div className="lmn-wrap">
         <div className="lmn-dossier">
           <span>{D.meta.dossierCode}</span>
@@ -122,27 +262,42 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
 
         <header className="lmn-hero">
           <div className="lmn-eyebrow">A DinoBane Intel Timeline</div>
-          <h1 className="lmn-title">{D.meta.title}</h1>
+          <h1 className="lmn-title" aria-label={D.meta.title}>
+            {titleWords.map((w, i) => (
+              <span
+                key={i}
+                className="lmn-title-word"
+                style={{ animationDelay: `${0.08 + i * 0.12}s` }}
+              >
+                {w}
+                {i < titleWords.length - 1 ? "\u00A0" : ""}
+              </span>
+            ))}
+          </h1>
           <p className="lmn-sub">{D.meta.subtitle}</p>
           <div className="lmn-byline">{D.meta.byline}</div>
           <div className="lmn-rule" />
           <div className="lmn-hero-stats" aria-hidden>
             <div className="lmn-stat">
-              <span className="lmn-stat-num">{D.timeline.length}</span>
+              <span className="lmn-stat-num" data-count-to={D.timeline.length}>0</span>
               <span className="lmn-stat-label">Events</span>
             </div>
             <div className="lmn-stat">
-              <span className="lmn-stat-num">{(D.acts || []).length || "—"}</span>
+              <span className="lmn-stat-num" data-count-to={acts.length || 0}>0</span>
               <span className="lmn-stat-label">Acts</span>
             </div>
             <div className="lmn-stat">
-              <span className="lmn-stat-num">170+</span>
+              <span className="lmn-stat-num" data-count-to={170} data-count-suffix="+">0</span>
               <span className="lmn-stat-label">Years</span>
             </div>
             <div className="lmn-stat">
-              <span className="lmn-stat-num">{D.tactics?.length || 0}</span>
+              <span className="lmn-stat-num" data-count-to={D.tactics?.length || 0}>0</span>
               <span className="lmn-stat-label">Tactics</span>
             </div>
+          </div>
+          <div className="lmn-scroll-hint" aria-hidden>
+            <span>Scroll to begin</span>
+            <span className="lmn-scroll-hint-line" />
           </div>
         </header>
 
@@ -154,14 +309,20 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
 
         <SectionHead kicker="Section I · Chronology" title="The Drift Leftward" />
         <section className="lmn-timeline-host">
-          {groupedTimeline.map((group, gi) => (
-            <ActBlock
-              key={group.act?.id ?? `orphans-${gi}`}
-              act={group.act}
-              events={group.events}
-              heroEvents={heroEvents}
-            />
-          ))}
+          {groupedTimeline.map((group, gi) => {
+            const actIdx = group.act ? acts.findIndex((a) => a.id === group.act!.id) : -1;
+            return (
+              <ActBlock
+                key={group.act?.id ?? `orphans-${gi}`}
+                act={group.act}
+                events={group.events}
+                heroEvents={heroEvents}
+                forwardRef={(el) => {
+                  if (actIdx >= 0) actRefs.current[actIdx] = el;
+                }}
+              />
+            );
+          })}
         </section>
 
         <SectionHead
@@ -216,8 +377,10 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
 
         <footer className="lmn-footer">
           <span>DinoBane Intel · // {D.meta.title} Dossier</span>
-          <span>{(D.meta.fileTag.match(/v[\d.]+/) || ["v1.0"])[0]}</span>
-          <span>// dinobane.com</span>
+          <span className="lmn-keys">
+            <kbd>↑</kbd><kbd>↓</kbd> step · <kbd>T</kbd> top · <kbd>Esc</kbd> close
+          </span>
+          <span>{(D.meta.fileTag.match(/v[\d.]+/) || ["v1.0"])[0]} · // dinobane.com</span>
         </footer>
       </div>
     </>
@@ -228,14 +391,16 @@ function ActBlock({
   act,
   events,
   heroEvents,
+  forwardRef,
 }: {
   act: TimelineAct | null;
   events: TimelineEvent[];
   heroEvents: WeakSet<TimelineEvent>;
+  forwardRef?: (el: HTMLDivElement | null) => void;
 }) {
   const num = act ? ACT_NUMBER[act.id] ?? "" : "";
   return (
-    <div className="lmn-act">
+    <div className="lmn-act" ref={forwardRef}>
       {act && (
         <div className="lmn-act-divider">
           <div className="lmn-act-rail" aria-hidden>
@@ -390,6 +555,121 @@ body.lmn-page-active #root,
 body.lmn-page-active [data-page-shell]{ background:#ffffff; }
 .lmn-reveal{opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease}
 .lmn-reveal.lmn-in{opacity:1; transform:none}
+
+/* ──────────────── READING PROGRESS ──────────────── */
+.lmn-progress{
+  position:fixed; top:0; left:0; right:0; height:2px;
+  background:transparent; z-index:80; pointer-events:none;
+}
+.lmn-progress-bar{
+  height:100%; width:0%;
+  background:linear-gradient(90deg, rgba(10,10,10,.85), #e10b0b);
+  transition:width .12s linear;
+}
+
+/* ──────────────── STICKY ACT RAIL ──────────────── */
+.lmn-rail{
+  position:fixed; top:50%; left:max(20px, calc((100vw - 1120px) / 2));
+  transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:6px;
+  z-index:70; opacity:0; pointer-events:none;
+  transition:opacity .35s ease;
+}
+.lmn-rail.lmn-rail-on{ opacity:1; pointer-events:auto }
+.lmn-rail-item{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px 8px 0;
+  background:transparent; border:none; cursor:pointer;
+  font-family:var(--noir-mono); font-size:10px; letter-spacing:.28em;
+  text-transform:uppercase; color:var(--noir-fg-3);
+  transition:color .2s ease;
+  text-align:left;
+}
+.lmn-rail-num{
+  display:inline-block; width:24px;
+  font-family:var(--noir-serif); font-weight:600;
+  font-size:13px; letter-spacing:0; color:var(--noir-fg-3);
+  transition:color .2s ease;
+}
+.lmn-rail-label{
+  max-width:0; overflow:hidden; white-space:nowrap;
+  opacity:0; transition:max-width .35s ease, opacity .25s ease;
+}
+.lmn-rail-tick{
+  display:inline-block; width:18px; height:1px;
+  background:var(--noir-fg-4);
+  transition:width .25s ease, background .25s ease;
+}
+.lmn-rail-item:hover .lmn-rail-label,
+.lmn-rail-item-active .lmn-rail-label{
+  max-width:240px; opacity:1;
+}
+.lmn-rail-item:hover .lmn-rail-tick{
+  background:var(--noir-act); width:28px;
+}
+.lmn-rail-item:hover{ color:var(--noir-act) }
+.lmn-rail-item:hover .lmn-rail-num{ color:var(--noir-act) }
+.lmn-rail-item-active .lmn-rail-num{ color:var(--noir-fg) }
+.lmn-rail-item-active .lmn-rail-tick{ background:var(--noir-fg); width:28px }
+.lmn-rail-item-active{ color:var(--noir-fg) }
+@media (max-width: 1100px){ .lmn-rail{ display:none } }
+
+/* ──────────────── BACK TO TOP ──────────────── */
+.lmn-totop{
+  position:fixed; right:24px; bottom:24px;
+  width:44px; height:44px; border-radius:50%;
+  border:1px solid var(--noir-line-2);
+  background:rgba(255,255,255,.95); backdrop-filter:blur(4px);
+  color:var(--noir-fg); cursor:pointer;
+  font-size:18px; font-weight:600;
+  opacity:0; transform:translateY(8px) scale(.92);
+  pointer-events:none; z-index:75;
+  transition:opacity .3s ease, transform .3s ease, border-color .2s ease, color .2s ease, background .2s ease;
+}
+.lmn-totop.lmn-totop-on{
+  opacity:1; transform:none; pointer-events:auto;
+}
+.lmn-totop:hover{
+  border-color:var(--noir-act); color:var(--noir-act);
+}
+.lmn-totop:active{
+  background:var(--noir-act); border-color:var(--noir-act); color:#fff;
+}
+
+/* ──────────────── TITLE WORD STAGGER ──────────────── */
+.lmn-title-word{
+  display:inline-block;
+  opacity:0; transform:translateY(28px);
+  animation:lmn-word-in .9s cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes lmn-word-in{
+  to{ opacity:1; transform:none }
+}
+
+/* ──────────────── SCROLL HINT ──────────────── */
+.lmn-scroll-hint{
+  margin:64px auto 0; display:flex; flex-direction:column; align-items:center; gap:14px;
+  font-family:var(--noir-mono); font-size:10px; letter-spacing:.42em;
+  text-transform:uppercase; color:var(--noir-fg-3);
+  opacity:0; animation:lmn-fade-up 1s .9s ease forwards;
+}
+.lmn-scroll-hint-line{
+  width:1px; height:40px; background:var(--noir-fg-4); position:relative; overflow:hidden;
+}
+.lmn-scroll-hint-line::after{
+  content:""; position:absolute; left:0; top:-12px; width:1px; height:12px;
+  background:var(--noir-fg);
+  animation:lmn-trickle 1.8s ease-in-out infinite;
+}
+@keyframes lmn-trickle{
+  0%{ transform:translateY(0) }
+  60%{ transform:translateY(52px) }
+  100%{ transform:translateY(52px) }
+}
+@keyframes lmn-fade-up{
+  from{ opacity:0; transform:translateY(8px) }
+  to{ opacity:1; transform:none }
+}
 
 /* ──────────────── DOSSIER STRIP ──────────────── */
 .lmn-dossier{
@@ -865,6 +1145,22 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
   margin-top:80px; border-top:1px solid var(--noir-line); padding:28px 0 56px;
   font-family:var(--noir-mono); font-size:11px; letter-spacing:.24em; text-transform:uppercase;
   color:var(--noir-fg-4); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  align-items:center;
+}
+.lmn-keys{ display:inline-flex; gap:6px; align-items:center; letter-spacing:.18em }
+.lmn-keys kbd{
+  font-family:var(--noir-mono); font-size:10px;
+  padding:2px 6px; border:1px solid var(--noir-line-2);
+  background:transparent; color:var(--noir-fg-3);
+  margin-right:2px;
+}
+
+/* Honour the user's reduced-motion preference. */
+@media (prefers-reduced-motion: reduce){
+  .lmn-title-word, .lmn-scroll-hint, .lmn-scroll-hint-line::after{ animation:none !important }
+  .lmn-title-word{ opacity:1; transform:none }
+  .lmn-scroll-hint{ opacity:.7 }
+  .lmn-reveal{ transition:none }
 }
 
 /* ──────────────── RESPONSIVE ──────────────── */
