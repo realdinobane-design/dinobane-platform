@@ -525,10 +525,13 @@ const CSS = `
 }
 .lm-event.lm-in{opacity:1; transform:none}
 /* Odd: card left / detail right. Even: card right / detail left. */
-.lm-event:nth-child(odd)   .lm-card{grid-column:1; text-align:right}
-.lm-event:nth-child(odd)   .lm-detail{grid-column:2; text-align:left}
-.lm-event:nth-child(even)  .lm-card{grid-column:2; text-align:left}
-.lm-event:nth-child(even)  .lm-detail{grid-column:1; text-align:right}
+/* grid-row:1 is load-bearing: for even events the card is placed in
+   column 2 first and the detail in column 1 second, which would
+   otherwise push the detail onto row 2 under default grid-auto-flow. */
+.lm-event:nth-child(odd)   .lm-card{grid-column:1; grid-row:1; text-align:right}
+.lm-event:nth-child(odd)   .lm-detail{grid-column:2; grid-row:1; text-align:left}
+.lm-event:nth-child(even)  .lm-card{grid-column:2; grid-row:1; text-align:left}
+.lm-event:nth-child(even)  .lm-detail{grid-column:1; grid-row:1; text-align:right}
 .lm-node{position:absolute; top:50%; left:50%; width:14px; height:14px; background:var(--lm-bg); border:1.5px solid var(--lm-mute); border-radius:50%; transform:translate(-50%, -50%); z-index:2}
 .lm-event.lm-key .lm-node{
   border-color:var(--lm-gold); background:var(--lm-gold);
