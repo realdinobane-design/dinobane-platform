@@ -38,7 +38,6 @@ const AdminTimelineEditorPage = lazy(() => import("@/pages/admin-timeline-editor
 import { AppNav } from "@/components/app-nav";
 import { AdminPageToggle } from "@/components/admin-page-toggle";
 import { AdminBanner } from "@/components/admin-banner";
-import { NoirThemeToggle, getNoirEnabled, applyNoir } from "@/components/noir-theme-toggle";
 import { getMe, type AuthUser } from "@/lib/auth";
 import { createContext, useContext, useCallback } from "react";
 
@@ -145,7 +144,6 @@ function InnerApp() {
               </Suspense>
             </main>
             <AdminPageToggle />
-            <NoirThemeToggle />
             <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground space-y-2">
               <p>© 2026 DinoBane. All rights reserved.</p>
               <p>
@@ -170,10 +168,11 @@ function InnerApp() {
   );
 }
 
-// Apply persisted noir class on first script execution — prevents a default-theme
-// flash on reload for members who chose noir.
+// Defensive cleanup: if a previous build set the noir class, strip it so the
+// default theme is always applied.
 if (typeof document !== "undefined") {
-  applyNoir(getNoirEnabled());
+  document.body.classList.remove("theme-noir");
+  try { window.localStorage.removeItem("dinobane.theme.noir"); } catch { /* ignore */ }
 }
 
 export default function App() {
