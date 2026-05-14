@@ -126,6 +126,24 @@ export function TimelineRendererNoir({ data }: { data: TimelineData }) {
           <p className="lmn-sub">{D.meta.subtitle}</p>
           <div className="lmn-byline">{D.meta.byline}</div>
           <div className="lmn-rule" />
+          <div className="lmn-hero-stats" aria-hidden>
+            <div className="lmn-stat">
+              <span className="lmn-stat-num">{D.timeline.length}</span>
+              <span className="lmn-stat-label">Events</span>
+            </div>
+            <div className="lmn-stat">
+              <span className="lmn-stat-num">{(D.acts || []).length || "—"}</span>
+              <span className="lmn-stat-label">Acts</span>
+            </div>
+            <div className="lmn-stat">
+              <span className="lmn-stat-num">170+</span>
+              <span className="lmn-stat-label">Years</span>
+            </div>
+            <div className="lmn-stat">
+              <span className="lmn-stat-num">{D.tactics?.length || 0}</span>
+              <span className="lmn-stat-label">Tactics</span>
+            </div>
+          </div>
         </header>
 
         <section className="lmn-thesis lmn-reveal">
@@ -236,9 +254,15 @@ function EventRow({ ev, hero }: { ev: TimelineEvent; hero?: boolean }) {
   const hasQuote = !!(ev.pullQuote && ev.pullQuote.text);
 
   return (
-    <article className={`lmn-event${hero ? " lmn-hero-card" : ""}${ev.key ? " lmn-key" : ""}`}>
+    <article className={`lmn-event${hero ? " lmn-hero-card" : ""}${ev.key ? " lmn-key" : ""}${ev.imageUrl ? " lmn-has-img" : ""}`}>
       <span className="lmn-node" aria-hidden />
       <div className="lmn-card">
+        {ev.imageUrl && (
+          <div className="lmn-card-img" aria-hidden>
+            <img src={ev.imageUrl} alt="" loading="lazy" />
+            <div className="lmn-card-img-tint" />
+          </div>
+        )}
         <div className="lmn-card-meta">
           <span className="lmn-year">{ev.year}</span>
           {ev.place && <span className="lmn-place">{ev.place}</span>}
@@ -360,21 +384,46 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
 
 /* ──────────────── HERO ──────────────── */
 .lmn-hero{
-  padding:96px 0 64px; text-align:center; position:relative;
+  padding:120px 0 72px; text-align:center; position:relative;
 }
 .lmn-eyebrow{
   font-family:var(--noir-mono); text-transform:uppercase; letter-spacing:.42em;
-  font-size:11px; color:var(--noir-fg-3); margin-bottom:24px;
+  font-size:11px; color:var(--noir-fg-3); margin-bottom:32px;
 }
 .lmn-title{
-  font-family:var(--noir-serif); font-weight:500;
-  font-size:clamp(58px, 9vw, 112px); line-height:1; margin:0 0 18px;
-  letter-spacing:-.01em; color:var(--noir-fg);
+  font-family:var(--noir-serif); font-weight:700;
+  font-size:clamp(72px, 12vw, 168px); line-height:.92; margin:0 0 22px;
+  letter-spacing:-.025em; color:var(--noir-fg);
 }
 .lmn-sub{
-  font-family:var(--noir-serif); font-weight:400;
-  font-size:clamp(18px, 2.2vw, 22px); color:var(--noir-fg-2);
-  max-width:620px; margin:0 auto 26px; line-height:1.5;
+  font-family:var(--noir-serif); font-weight:400; font-style:italic;
+  font-size:clamp(20px, 2.6vw, 28px); color:var(--noir-fg-2);
+  max-width:680px; margin:0 auto 30px; line-height:1.4;
+}
+.lmn-hero-stats{
+  display:flex; justify-content:center; gap:0; flex-wrap:wrap;
+  margin:48px auto 0; max-width:720px;
+  border-top:1px solid var(--noir-line);
+  border-bottom:1px solid var(--noir-line);
+}
+.lmn-stat{
+  flex:1; min-width:120px; padding:22px 12px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  border-right:1px solid var(--noir-line);
+  transition:background .2s ease;
+}
+.lmn-stat:last-child{ border-right:none }
+.lmn-stat:hover{ background:rgba(10,10,10,.025) }
+.lmn-stat:hover .lmn-stat-num{ color:var(--noir-act) }
+.lmn-stat-num{
+  font-family:var(--noir-serif); font-weight:600;
+  font-size:36px; line-height:1; color:var(--noir-fg);
+  letter-spacing:-.01em;
+  transition:color .2s ease;
+}
+.lmn-stat-label{
+  font-family:var(--noir-mono); font-size:10px; letter-spacing:.32em;
+  text-transform:uppercase; color:var(--noir-fg-3);
 }
 .lmn-byline{
   font-family:var(--noir-mono); font-size:11px; letter-spacing:.32em;
@@ -498,10 +547,37 @@ body.lmn-page-active [data-page-shell]{ background:#ffffff; }
 .lmn-card{
   position:relative; padding:24px 28px 26px;
   border:1px solid var(--noir-line);
-  background:transparent;
+  background:var(--noir-bg);
   transition:border-color .25s ease;
+  overflow:hidden;
+  isolation:isolate;
 }
 .lmn-card:hover{ border-color:var(--noir-act) }
+
+/* ─── Card imagery: desaturated + faded at rest, red duotone on hover ─── */
+.lmn-card-img{
+  position:absolute; inset:0; z-index:-1;
+  pointer-events:none; overflow:hidden;
+}
+.lmn-card-img img{
+  width:100%; height:100%; object-fit:cover;
+  filter:grayscale(1) contrast(1.05);
+  opacity:.18;
+  transition:opacity .35s ease, filter .35s ease;
+}
+.lmn-card-img-tint{
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.82) 60%, rgba(255,255,255,.96) 100%);
+  transition:background .35s ease, opacity .35s ease;
+}
+.lmn-event.lmn-has-img:hover .lmn-card-img img{
+  opacity:.55;
+  /* Map grayscale tones to a red hue */
+  filter:grayscale(1) contrast(1.1) sepia(1) hue-rotate(-50deg) saturate(6);
+}
+.lmn-event.lmn-has-img:hover .lmn-card-img-tint{
+  background:linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.55) 65%, rgba(255,255,255,.88) 100%);
+}
 
 .lmn-card-meta{
   display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
