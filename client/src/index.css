@@ -226,10 +226,12 @@ body.theme-noir .hero-gradient {
    dominant palette while preserving the red accent. !important is used because
    many of these collide with `:hover` utilities (higher native specificity). */
 
-/* Page chrome / app shell */
+/* Page chrome / app shell — paint the whole window white. */
+html:has(body.theme-noir),
 body.theme-noir,
 body.theme-noir #root,
-body.theme-noir > div { background: #ffffff; }
+body.theme-noir #root > *,
+body.theme-noir main { background-color: #ffffff !important; }
 
 /* ── BACKGROUNDS — neutral dark → white surfaces ── */
 body.theme-noir .bg-black,
