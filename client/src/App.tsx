@@ -30,6 +30,7 @@ const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const PrivacyPage = lazy(() => import("@/pages/privacy"));
 const ContactPage = lazy(() => import("@/pages/contact"));
 const LongMarchPage = lazy(() => import("@/pages/long-march"));
+const StarmerPage = lazy(() => import("@/pages/starmer"));
 const LongMarchNoirPage = lazy(() => import("@/pages/long-march-noir"));
 const AdminLongMarchPage = lazy(() => import("@/pages/admin-long-march"));
 const TimelinesPage = lazy(() => import("@/pages/timelines"));
@@ -98,6 +99,7 @@ function AppRoutes() {
       {/* Member-only routes — must have isMember=true */}
       <Route path="/timelines">{() => <MemberRoute component={TimelinesPage} />}</Route>
       <Route path="/long-march">{() => <MemberRoute component={LongMarchPage} />}</Route>
+      <Route path="/starmer">{() => <MemberRoute component={StarmerPage} />}</Route>
       <Route path="/long-march-noir">{() => <MemberRoute component={LongMarchNoirPage} />}</Route>
       <Route path="/timeline/:slug">{() => <MemberRoute component={TimelineViewPage} />}</Route>
       <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
