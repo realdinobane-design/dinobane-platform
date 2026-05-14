@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageStatusGate } from "@/components/page-status-gate";
 import { TimelineRendererNoir } from "@/components/timeline-renderer-noir";
@@ -54,6 +55,15 @@ export default function LongMarchNoirPage() {
     new URLSearchParams(window.location.search).get("defaults") === "1";
 
   const D = useDefaults ? LONG_MARCH_DATA : mergeNoirData(saved);
+
+  // While the noir page is mounted, paint the page chrome white so the
+  // 920px white column doesn't sit on top of the site's dark background.
+  useEffect(() => {
+    document.body.classList.add("lmn-page-active");
+    return () => {
+      document.body.classList.remove("lmn-page-active");
+    };
+  }, []);
 
   return (
     <>

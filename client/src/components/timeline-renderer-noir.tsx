@@ -304,26 +304,26 @@ function SectionHead({ kicker, title }: { kicker: string; title: string }) {
    styling is completely untouched.
 
    Palette is exactly three tokens:
-     --noir-bg    : pure black background
-     --noir-fg    : pure white text
+     --noir-bg    : pure white background (dominant)
+     --noir-fg    : near-black text / lines
      --noir-line  : thin neutral hairline (only neutral grey allowed)
      --noir-act   : red — used ONLY for hover / focus / active
 
-   Rule: at rest, nothing is red. The page is black + white
+   Rule: at rest, nothing is red. The page is white + black
    with a couple of hairline greys. Every red rule below is
    gated by :hover, :focus-visible, :active, or .lmn-*-open.
    ========================================================= */
 const CSS = `
 .lmn-wrap{
-  --noir-bg:#000000;
-  --noir-fg:#ffffff;
-  --noir-fg-2:rgba(255,255,255,.78);
-  --noir-fg-3:rgba(255,255,255,.55);
-  --noir-fg-4:rgba(255,255,255,.32);
-  --noir-line:rgba(255,255,255,.14);
-  --noir-line-2:rgba(255,255,255,.22);
+  --noir-bg:#ffffff;
+  --noir-fg:#0a0a0a;
+  --noir-fg-2:rgba(10,10,10,.78);
+  --noir-fg-3:rgba(10,10,10,.55);
+  --noir-fg-4:rgba(10,10,10,.32);
+  --noir-line:rgba(10,10,10,.14);
+  --noir-line-2:rgba(10,10,10,.22);
   --noir-act:#e10b0b;
-  --noir-act-soft:rgba(225,11,11,.18);
+  --noir-act-soft:rgba(225,11,11,.10);
   --noir-serif:"Cormorant Garamond", Georgia, serif;
   --noir-mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   max-width:920px; margin:0 auto; padding:0 32px;
@@ -333,6 +333,13 @@ const CSS = `
   position:relative;
 }
 .lmn-wrap *{box-sizing:border-box}
+
+/* Full-bleed white background outside the 920px column — only while
+   the noir page is mounted. Scoped via a body class added by the page. */
+body.lmn-page-active{ background:#ffffff !important; }
+body.lmn-page-active main,
+body.lmn-page-active #root,
+body.lmn-page-active [data-page-shell]{ background:#ffffff; }
 .lmn-reveal{opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease}
 .lmn-reveal.lmn-in{opacity:1; transform:none}
 
@@ -647,7 +654,7 @@ const CSS = `
   content:""; position:absolute; top:0; left:0; right:0; height:1px;
   background:transparent; transition:background .25s ease;
 }
-.lmn-tactic:hover{ background:rgba(255,255,255,.02) }
+.lmn-tactic:hover{ background:rgba(10,10,10,.02) }
 .lmn-tactic:hover::before{ background:var(--noir-act) }
 .lmn-tactic-head{
   display:flex; justify-content:space-between; align-items:baseline;
@@ -688,7 +695,7 @@ const CSS = `
   content:""; position:absolute; top:0; left:0; right:0; height:1px;
   background:transparent; transition:background .25s ease;
 }
-.lmn-step:hover{ background:rgba(255,255,255,.02) }
+.lmn-step:hover{ background:rgba(10,10,10,.02) }
 .lmn-step:hover::before{ background:var(--noir-act) }
 .lmn-step-num{
   font-family:var(--noir-mono); font-size:10px; letter-spacing:.36em;
