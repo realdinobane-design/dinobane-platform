@@ -45,6 +45,16 @@ export const TIMELINES: TimelineEntry[] = [
     tags: ["1848 – now", "15 events", "Marx · Gramsci · BlackRock"],
   },
   {
+    slug: "starmer",
+    title: "Sir Keir Starmer",
+    subtitle: "A sceptical political-intelligence timeline of the 58th Prime Minister",
+    dossierCode: "DB-KS-005",
+    category: "Politics",
+    viewPath: "/starmer",
+    tags: ["1962 – now", "20 scandals", "Labour · DPP · No.10"],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/2/2d/Keir_Starmer_official_portrait.jpg",
+  },
+  {
     slug: "overton-shift",
     title: "The Overton Shift",
     subtitle: "Forty years of dragging the window leftward, one outrage at a time",
