@@ -270,6 +270,101 @@ async function ensurePerformanceIndexes() {
 }
 ensurePerformanceIndexes();
 
+// ─── ONE-SHOT MIGRATION: Long March v2 reseed ─────────────────────────
+// The 'long-march' page was rewritten in PR #11 — twelve fact-checked
+// events grouped into four Acts. The previously-saved DB override holds
+// fifteen events including the dropped #13/#14/#15 and a factual error
+// on Crenshaw's place (was U Chicago, is UCLA). On first boot after this
+// deploy we clear the stale override so the client falls back to the new
+// hardcoded defaults from client/src/pages/long-march.tsx.
+//
+// Idempotent. Once the saved override is either absent or already at
+// contentVersion >= 2 the migration is a no-op. Safe to remove in a
+// follow-up PR once this has run on prod (the page_content key is
+// admin-writable; the next admin save will write contentVersion:2 itself).
+async function ensureLongMarchV2(): Promise<void> {
+  try {
+    const key = "page_content:long-march";
+    const raw = await storage.getSetting(key);
+    if (!raw) {
+      console.log("[migrate:long-march] no saved override — using defaults");
+      return;
+    }
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.warn("[migrate:long-march] saved override is not valid JSON — leaving alone");
+      return;
+    }
+    const savedVersion = Number(parsed?.contentVersion) || 0;
+    if (savedVersion >= 2) {
+      console.log(`[migrate:long-march] override already at v${savedVersion} — no migration needed`);
+      return;
+    }
+    // Salvage any admin-set imageUrl per (year|title) for events that still
+    // exist in the new default set. Everything else is dropped — the new
+    // defaults supersede the body/detail/links wholesale.
+    const survivingTitles = new Set<string>([
+      "1848|The Communist Manifesto",
+      "1917|Bolshevik Revolution",
+      "1923|The Frankfurt School is founded",
+      "1929–1935|Gramsci writes the Prison Notebooks",
+      "1929-1935|Gramsci writes the Prison Notebooks", // v1 used ASCII hyphen
+      "1964|Marcuse publishes One-Dimensional Man",
+      "1967|\"The long march through the institutions\"",
+      "1969|Stonewall — the sexual vanguard opens",
+      "1989|Crenshaw coins \"intersectionality\"",
+      "1989|The Berlin Wall falls",
+      "1990|Judith Butler — Gender Trouble",
+      "2011|Occupy Wall Street",
+      "2018|BlackRock declares \"purpose\"",
+    ]);
+    const salvagedImages: Array<{ year: string; title: string; imageUrl: string }> = [];
+    if (Array.isArray(parsed?.timeline)) {
+      for (const ev of parsed.timeline) {
+        if (!ev || typeof ev !== "object") continue;
+        const k = `${ev.year}|${ev.title}`;
+        if (survivingTitles.has(k) && typeof ev.imageUrl === "string" && ev.imageUrl.trim()) {
+          // Normalise Gramsci year hyphen → en-dash so per-event merge matches v2 defaults.
+          const normalisedYear =
+            ev.year === "1929-1935" ? "1929–1935" : ev.year;
+          salvagedImages.push({ year: normalisedYear, title: ev.title, imageUrl: ev.imageUrl });
+        }
+      }
+    }
+    const heroImageUrl =
+      parsed?.meta && typeof parsed.meta.heroImageUrl === "string" && parsed.meta.heroImageUrl.trim()
+        ? parsed.meta.heroImageUrl
+        : null;
+    if (salvagedImages.length === 0 && !heroImageUrl) {
+      // Nothing worth keeping — drop the row entirely so client falls
+      // straight through to defaults.
+      await pool.query(`DELETE FROM app_settings WHERE key = $1`, [key]);
+      console.log("[migrate:long-march] cleared stale v1 override (no admin images to salvage)");
+      return;
+    }
+    // Build a minimal override carrying only the salvaged image URLs and
+    // bump it to v2 so this migration won't run again.
+    const minimal: any = {
+      contentVersion: 2,
+      timeline: salvagedImages.map((s) => ({
+        year: s.year,
+        title: s.title,
+        imageUrl: s.imageUrl,
+      })),
+    };
+    if (heroImageUrl) minimal.meta = { heroImageUrl };
+    await storage.setSetting(key, JSON.stringify(minimal));
+    console.log(
+      `[migrate:long-march] reseeded v1 → v2 (preserved ${salvagedImages.length} image${salvagedImages.length === 1 ? "" : "s"}${heroImageUrl ? " + hero" : ""})`,
+    );
+  } catch (e: any) {
+    console.warn("[migrate:long-march] failed:", e?.message);
+  }
+}
+ensureLongMarchV2();
+
 // ─── MENTION EMAIL RATE LIMITER ────────────────────────────────────────
 // ─── WELCOME EMAIL ──────────────────────────────────────────────────────────
 async function sendWelcomeEmail(email: string, displayName: string) {
