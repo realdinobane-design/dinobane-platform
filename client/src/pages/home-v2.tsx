@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/App";
 import { format, formatDistanceToNow } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ────────────────────────────────────────────────────────────────────────────
    HOME v2 — HIDDEN DRAFT  (rev 2)
@@ -135,6 +135,33 @@ export default function HomeV2Page() {
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Scroll-triggered finale: when the section enters the viewport, add
+  // the `.is-revealed` class which fires the staggered CSS animations.
+  const finaleRef = useRef<HTMLDivElement | null>(null);
+  const [finaleSeen, setFinaleSeen] = useState(false);
+  useEffect(() => {
+    const el = finaleRef.current;
+    if (!el) return;
+    // Older browsers or SSR: just reveal immediately.
+    if (typeof IntersectionObserver === "undefined") {
+      setFinaleSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setFinaleSeen(true);
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.25 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
   return (
@@ -260,6 +287,90 @@ export default function HomeV2Page() {
                       0 18px 30px -15px rgba(245,200,66,0.25);
         }
 
+        /* ─── FINALE: scroll-triggered convergence animation ───────────── */
+        /* All finale elements start in a hidden "pre" state. The .is-revealed
+           class is added by IntersectionObserver when the section enters
+           the viewport, which fires staggered keyframes. */
+        .home-v2-root .hv2-finale {
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
+        }
+        /* Golden glow that infuses upward from the bottom. */
+        .home-v2-root .hv2-finale-glow {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(ellipse 80% 60% at 50% 110%,
+              rgba(245,200,66,0.55) 0%,
+              rgba(245,200,66,0.18) 35%,
+              rgba(192,33,43,0.10) 60%,
+              transparent 80%);
+          clip-path: inset(100% 0 0 0);
+          opacity: 0;
+          transition: clip-path 1.6s cubic-bezier(.2,.8,.2,1) .15s,
+                      opacity 1.6s ease .15s;
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-glow {
+          clip-path: inset(0 0 0 0);
+          opacity: 1;
+        }
+        /* Soft animated specks once revealed. */
+        @keyframes hv2-spark {
+          0%   { transform: translate3d(0,0,0) scale(1);   opacity: .25; }
+          50%  { transform: translate3d(8px,-26px,0) scale(1.35); opacity: .85; }
+          100% { transform: translate3d(0,0,0) scale(1);   opacity: .25; }
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-spark {
+          animation: hv2-spark 6s ease-in-out infinite;
+        }
+        /* Three boxes converge from outside in. */
+        .home-v2-root .hv2-finale-box {
+          opacity: 0;
+          transform: translate3d(var(--hv2-dx, 0), 30px, 0) scale(.85) rotate(var(--hv2-rot, 0deg));
+          filter: blur(8px);
+          transition: opacity 1.2s ease, transform 1.4s cubic-bezier(.2,.8,.2,1),
+                      filter 1.4s ease;
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-box {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+          filter: blur(0);
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-box-1 { transition-delay: .15s; }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-box-2 { transition-delay: .35s; }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-box-3 { transition-delay: .55s; }
+
+        /* Brand mark in the middle: scales + glow ramps up last. */
+        .home-v2-root .hv2-finale-mark {
+          opacity: 0;
+          transform: scale(.6);
+          transition: opacity .9s ease 1s, transform 1.1s cubic-bezier(.2,.8,.2,1) 1s;
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-mark {
+          opacity: 1;
+          transform: scale(1);
+        }
+        @keyframes hv2-finale-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(245,200,66,0.55),
+                                 0 0 60px 0 rgba(245,200,66,0.35); }
+          50%      { box-shadow: 0 0 0 16px rgba(245,200,66,0),
+                                 0 0 90px 0 rgba(245,200,66,0.55); }
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-pulse {
+          animation: hv2-finale-pulse 2.6s ease-in-out infinite 1.4s;
+        }
+        /* Bottom rule that draws in from centre. */
+        .home-v2-root .hv2-finale-rule {
+          transform: scaleX(0);
+          transform-origin: 50% 50%;
+          transition: transform 1.4s cubic-bezier(.2,.8,.2,1) .7s;
+        }
+        .home-v2-root .hv2-finale.is-revealed .hv2-finale-rule {
+          transform: scaleX(1);
+        }
+
         /* Reduced-motion: respect the user. */
         @media (prefers-reduced-motion: reduce) {
           .home-v2-root .hv2-goldwash,
@@ -269,7 +380,17 @@ export default function HomeV2Page() {
           .home-v2-root .hv2-pan,
           .home-v2-root .hv2-float,
           .home-v2-root .hv2-pulse,
-          .home-v2-root .hv2-marq { animation: none !important; }
+          .home-v2-root .hv2-marq,
+          .home-v2-root .hv2-spark { animation: none !important; }
+          .home-v2-root .hv2-finale-glow,
+          .home-v2-root .hv2-finale-box,
+          .home-v2-root .hv2-finale-mark,
+          .home-v2-root .hv2-finale-rule {
+            opacity: 1 !important;
+            transform: none !important;
+            clip-path: none !important;
+            filter: none !important;
+          }
         }
       `}</style>
 
@@ -366,13 +487,15 @@ export default function HomeV2Page() {
             )}
           </div>
 
-          {/* Headline with animated shimmer */}
-          <h1 className="display text-5xl sm:text-7xl lg:text-[7.2rem] leading-[0.95] mb-7 max-w-5xl text-white">
-            The stories Westminster
+          {/* Headline. The middle line carries the golden animated shimmer
+              so the eye lands there first; the framing lines sit in white
+              for legibility against the reel. */}
+          <h1 className="display text-4xl sm:text-6xl lg:text-[6rem] leading-[1.0] mb-7 max-w-5xl text-white">
+            Allow me to explain
             <br />
-            <span className="hv2-shimmer-text">would rather you</span>
+            <span className="hv2-shimmer-text">my country's identity</span>
             <br />
-            <span className="text-white">never finish reading.</span>
+            <span className="text-white">to you — and how it doesn't include you.</span>
           </h1>
 
           <p className="text-zinc-200 text-base sm:text-lg max-w-xl mb-10 leading-relaxed">
@@ -656,6 +779,32 @@ export default function HomeV2Page() {
               </Link>
             ))}
           </div>
+
+          {/* Members-only CTA under the Timelines grid. Coloured text
+              + lock icon signals "paid section" without being preachy. */}
+          {!user?.isMember && (
+            <div className="mt-12 flex flex-col items-center text-center">
+              <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.35em] text-yellow-300/90 mb-3">
+                <Lock size={11} className="text-yellow-400" />
+                Members only
+              </div>
+              <Link
+                href="/membership"
+                data-testid="link-v2-timelines-cta"
+                className="group inline-flex items-center gap-3 rounded-full px-7 py-3.5 bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 text-black font-extrabold tracking-tight shadow-[0_10px_40px_-10px_rgba(245,200,66,0.6)] hover:shadow-[0_18px_55px_-10px_rgba(245,200,66,0.85)] hover:scale-[1.03] transition-all"
+              >
+                <Crown size={18} className="text-black/80" />
+                <span>Subscribe now to read the files</span>
+                <ArrowRight
+                  size={16}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </Link>
+              <p className="text-[11px] text-zinc-500 uppercase tracking-widest mt-3">
+                £5 / month · Cancel any time
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -801,28 +950,143 @@ export default function HomeV2Page() {
         </section>
       )}
 
-      {/* ─── FOOT KICKER ─────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-sm text-zinc-500">
-          <p className="flex items-center gap-2">
-            <Eye size={14} className="text-yellow-400/70" />
-            British politics, documented in receipts.
-          </p>
-          <div className="flex items-center gap-5">
-            <a
-              href="https://x.com/realdinobane"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hv2-link-anim hover:text-white transition-colors"
+      {/* ANIMATED FINALE — scroll-triggered.
+          Golden glow infuses upward, three boxes converge to centre,
+          brand mark pulses, rule draws in. */}
+      <section
+        ref={finaleRef}
+        className={`hv2-finale relative border-t border-yellow-500/15 bg-gradient-to-b from-[#0a0a0a] via-[#100806] to-[#0a0a0a] ${finaleSeen ? "is-revealed" : ""}`}
+        data-testid="finale-section"
+      >
+        <div className="hv2-finale-glow" aria-hidden="true" />
+
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {[...Array(14)].map((_, i) => (
+            <span
+              key={i}
+              className="hv2-spark absolute w-1.5 h-1.5 rounded-full bg-yellow-300/70"
+              style={{
+                left: `${(i * 73) % 100}%`,
+                bottom: `${5 + ((i * 41) % 70)}%`,
+                animationDelay: `${(i * 0.31) % 6}s`,
+                filter: "blur(1px)",
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-24 sm:py-32">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 mb-14">
+            <div
+              className="hv2-finale-box hv2-finale-box-1 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6 text-left"
+              style={{ ["--hv2-dx" as any]: "-80px", ["--hv2-rot" as any]: "-4deg" } as React.CSSProperties}
             >
-              Follow @realdinobane
-            </a>
-            <Link
-              href="/contact"
-              className="hv2-link-anim hover:text-white transition-colors"
+              <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-red-400 mb-2">
+                The wire
+              </div>
+              <div className="display text-3xl text-white leading-none mb-2">
+                Daily
+              </div>
+              <p className="text-sm text-zinc-400 leading-snug">
+                Quick news, sourced and dated. No noise.
+              </p>
+            </div>
+
+            <div
+              className="hv2-finale-box hv2-finale-box-2 rounded-2xl border border-yellow-500/30 bg-gradient-to-b from-yellow-500/[0.08] to-transparent p-6 text-left"
+              style={{ ["--hv2-dx" as any]: "0px", ["--hv2-rot" as any]: "0deg" } as React.CSSProperties}
             >
-              Send a tip
-            </Link>
+              <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-yellow-300 mb-2">
+                The files
+              </div>
+              <div className="display text-3xl text-white leading-none mb-2">
+                Timelines
+              </div>
+              <p className="text-sm text-zinc-400 leading-snug">
+                Decade-long playbooks, mapped to receipts.
+              </p>
+            </div>
+
+            <div
+              className="hv2-finale-box hv2-finale-box-3 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-6 text-left"
+              style={{ ["--hv2-dx" as any]: "80px", ["--hv2-rot" as any]: "4deg" } as React.CSSProperties}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-yellow-300 mb-2">
+                The reel
+              </div>
+              <div className="display text-3xl text-white leading-none mb-2">
+                Videos
+              </div>
+              <p className="text-sm text-zinc-400 leading-snug">
+                Long-form on YouTube. Cuts straight to the point.
+              </p>
+            </div>
+          </div>
+
+          <div className="hv2-finale-mark flex flex-col items-center text-center">
+            <div className="hv2-finale-pulse mb-5 inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-600 text-black">
+              <Crown size={28} />
+            </div>
+            <h2 className="display text-4xl sm:text-6xl leading-[0.95] mb-4">
+              <span className="text-white">British politics,</span>{" "}
+              <span className="hv2-shimmer-text">documented in receipts.</span>
+            </h2>
+            <p className="text-sm text-zinc-400 max-w-xl mb-7">
+              One subscription. Every timeline. Every file. Cancel any time — no contract, no upsell.
+            </p>
+
+            {!user?.isMember ? (
+              <Link
+                href="/membership"
+                data-testid="link-v2-finale-cta"
+                className="group inline-flex items-center gap-3 rounded-full px-8 py-4 bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 text-black font-extrabold tracking-tight shadow-[0_18px_55px_-10px_rgba(245,200,66,0.65)] hover:scale-[1.03] transition-all"
+              >
+                <Crown size={20} />
+                Subscribe — £5 / month
+                <ArrowRight
+                  size={18}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </Link>
+            ) : (
+              <Link
+                href="/members"
+                data-testid="link-v2-finale-members"
+                className="group inline-flex items-center gap-3 rounded-full px-8 py-4 bg-white text-black font-extrabold tracking-tight hover:scale-[1.03] transition-all"
+              >
+                <Crown size={20} />
+                Open the members’ area
+                <ArrowRight
+                  size={18}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </Link>
+            )}
+          </div>
+
+          <div className="hv2-finale-rule mt-16 h-px bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent" />
+
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
+            <p className="flex items-center gap-2">
+              <Eye size={12} className="text-yellow-400/70" />
+              British politics, documented in receipts.
+            </p>
+            <div className="flex items-center gap-5">
+              <a
+                href="https://x.com/realdinobane"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hv2-link-anim hover:text-white transition-colors"
+              >
+                Follow @realdinobane
+              </a>
+              <Link
+                href="/contact"
+                className="hv2-link-anim hover:text-white transition-colors"
+              >
+                Send a tip
+              </Link>
+            </div>
           </div>
         </div>
       </section>
