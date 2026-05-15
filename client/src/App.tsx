@@ -29,6 +29,8 @@ const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const PrivacyPage = lazy(() => import("@/pages/privacy"));
 const ContactPage = lazy(() => import("@/pages/contact"));
+// Hidden draft homepage v2 — not linked from anywhere, accessible only via direct URL.
+const HomeV2Page = lazy(() => import("@/pages/home-v2"));
 const LongMarchPage = lazy(() => import("@/pages/long-march"));
 const StarmerPage = lazy(() => import("@/pages/starmer"));
 const LongMarchNoirPage = lazy(() => import("@/pages/long-march-noir"));
@@ -83,6 +85,8 @@ function AppRoutes() {
     <Switch>
       {/* Public routes — no login required */}
       <Route path="/" component={HomePage} />
+      {/* Hidden draft. Not in nav, not linked. View at /#/home-v2 to preview. */}
+      <Route path="/home-v2" component={HomeV2Page} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/membership" component={MembershipPage} />
