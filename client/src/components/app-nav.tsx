@@ -73,7 +73,14 @@ export function AppNav() {
         <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
           {/* Red X SVG logo inline */}
           <img src="/brand/logo-x.jpg" alt="DinoBane" width="36" height="36" className="rounded" />
-          <span className="hidden sm:block font-bold text-base tracking-wide text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <span
+            className="hidden sm:block font-extrabold text-base text-white"
+            style={{
+              fontFamily:
+                "'Satoshi', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
+              letterSpacing: "-0.025em",
+            }}
+          >
             DINOBANE
           </span>
         </Link>
@@ -107,15 +114,19 @@ export function AppNav() {
             <>
               {!user.isMember && (
                 <Link href="/membership">
-                  <Button size="sm" className="hidden sm:flex gap-1.5 bg-red-700 hover:bg-red-600 text-white text-xs" data-testid="button-join-member">
+                  <Button
+                    size="sm"
+                    className="hidden sm:flex gap-1.5 bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 hover:from-yellow-300 hover:via-amber-200 hover:to-yellow-400 text-black font-extrabold text-xs shadow-[0_8px_24px_-8px_rgba(245,200,66,0.6)]"
+                    data-testid="button-subscribe-member"
+                  >
                     <Crown size={12} />
-                    Join £5/mo
+                    Subscribe — £5/mo
                   </Button>
                 </Link>
               )}
               {user.isMember && (
-                <span className="hidden sm:flex items-center gap-1.5 text-xs text-yellow-500 font-semibold">
-                  <Crown size={12} /> Member
+                <span className="hidden sm:flex items-center gap-1.5 text-xs text-yellow-400 font-bold">
+                  <Crown size={12} /> Subscribed
                 </span>
               )}
               {/* DM inbox button with unread badge — opens inbox panel */}
@@ -163,7 +174,7 @@ export function AppNav() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/membership" data-testid="link-membership">
-                      <Crown size={14} className="mr-2 text-yellow-500" /> Membership
+                      <Crown size={14} className="mr-2 text-yellow-500" /> Subscription
                     </Link>
                   </DropdownMenuItem>
                   {ADMIN_EMAILS.has(user.email) && (
@@ -203,7 +214,13 @@ export function AppNav() {
                 <Button variant="ghost" size="sm" className="text-sm" data-testid="link-login">Sign in</Button>
               </Link>
               <Link href="/register">
-                <Button size="sm" className="bg-red-700 hover:bg-red-600 text-white text-sm" data-testid="link-register">Join</Button>
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 hover:from-yellow-300 hover:via-amber-200 hover:to-yellow-400 text-black font-extrabold text-sm shadow-[0_8px_24px_-8px_rgba(245,200,66,0.6)]"
+                  data-testid="link-register"
+                >
+                  Subscribe
+                </Button>
               </Link>
             </div>
           )}
@@ -241,9 +258,12 @@ export function AppNav() {
             </Link>
           ))}
           {!user && (
-            <Link href="/membership" onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-semibold text-red-400 mt-1">
-              <Crown size={15} /> Join — £5/month
+            <Link
+              href="/membership"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-bold text-yellow-400 mt-1"
+            >
+              <Crown size={15} /> Subscribe — £5/month
             </Link>
           )}
         </div>
