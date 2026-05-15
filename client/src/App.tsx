@@ -6,7 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // HomePage is the landing page — eagerly loaded so first paint is instant.
-import HomePage from "@/pages/home";
+// home-v2 is the live design; legacy /home is kept around at /home-legacy.
+import HomePage from "@/pages/home-v2";
+import LegacyHomePage from "@/pages/home";
 
 // All other pages are split into their own chunk and loaded on demand.
 // Visitors who only hit the landing page never download these.
@@ -30,7 +32,7 @@ const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const PrivacyPage = lazy(() => import("@/pages/privacy"));
 const ContactPage = lazy(() => import("@/pages/contact"));
 // Hidden draft homepage v2 — not linked from anywhere, accessible only via direct URL.
-const HomeV2Page = lazy(() => import("@/pages/home-v2"));
+
 const LongMarchPage = lazy(() => import("@/pages/long-march"));
 const StarmerPage = lazy(() => import("@/pages/starmer"));
 const LongMarchNoirPage = lazy(() => import("@/pages/long-march-noir"));
@@ -85,8 +87,10 @@ function AppRoutes() {
     <Switch>
       {/* Public routes — no login required */}
       <Route path="/" component={HomePage} />
-      {/* Hidden draft. Not in nav, not linked. View at /#/home-v2 to preview. */}
-      <Route path="/home-v2" component={HomeV2Page} />
+      {/* Old homepage kept reachable for reference. Not linked in nav. */}
+      <Route path="/home-legacy" component={LegacyHomePage} />
+      {/* /home-v2 still resolves so old shared links don't 404. */}
+      <Route path="/home-v2" component={HomePage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/membership" component={MembershipPage} />

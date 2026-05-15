@@ -394,10 +394,6 @@ export default function HomeV2Page() {
         }
       `}</style>
 
-      {/* Draft ribbon */}
-      <div className="bg-yellow-500 text-black text-[11px] font-bold tracking-wider uppercase text-center py-1.5 px-4">
-        Draft homepage v2 · hidden route · live homepage unchanged
-      </div>
 
       {/* ─── HERO ───────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden min-h-[92vh] flex items-center">
