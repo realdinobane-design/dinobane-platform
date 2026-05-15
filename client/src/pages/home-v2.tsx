@@ -280,21 +280,32 @@ export default function HomeV2Page() {
 
       {/* ─── HERO ───────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden min-h-[92vh] flex items-center">
-        {/* Layered, warmer background */}
-        <div
-          className="absolute inset-0 bg-cover bg-center hv2-pan"
-          style={{
-            backgroundImage: "url(/brand/hero1.jpg)",
-            transform: `translateY(${scrollY * 0.25}px)`,
-          }}
+        {/* Auto-looping reel as the hero backdrop. Muted + playsInline so
+            mobile browsers will autoplay. Poster gives an instant first
+            frame while the video downloads. */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ transform: `translateY(${scrollY * 0.18}px)` }}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          poster="/brand/reel/hero-reel-poster.jpg"
           aria-hidden="true"
-        />
-        {/* Crimson → black tilt */}
+          data-testid="hero-reel"
+        >
+          <source src="/brand/reel/hero-reel.webm" type="video/webm" />
+          <source src="/brand/reel/hero-reel.mp4" type="video/mp4" />
+        </video>
+        {/* Reel darkening — softer than v1 so the video reads through.
+            A crimson wash on the left holds the headline legibility while
+            keeping the right two-thirds of the reel visible. */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(135deg, rgba(192,33,43,0.45) 0%, rgba(20,8,8,0.85) 45%, rgba(0,0,0,0.95) 100%)",
+              "linear-gradient(100deg, rgba(0,0,0,0.85) 0%, rgba(20,8,8,0.65) 35%, rgba(0,0,0,0.35) 65%, rgba(0,0,0,0.55) 100%)",
           }}
           aria-hidden="true"
         />
