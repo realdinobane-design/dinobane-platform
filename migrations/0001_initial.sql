@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url        text,
   is_member         boolean NOT NULL DEFAULT false,
   member_since      timestamp,
+  membership_expiry timestamptz,
+  last_seen         timestamptz,
   stripe_customer_id text,
   created_at        timestamp NOT NULL DEFAULT now()
 );

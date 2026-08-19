@@ -74,11 +74,21 @@ export interface IStorage {
 class DrizzleStorage implements IStorage {
 
   async createUser(data: InsertUser): Promise<User> {
+    // Never let callers accidentally drop membership/stripe fields (register pre-grant,
+    // admin test account), and never forward unknown keys like `isVerified` to Drizzle.
+    const isMember = data.isMember ?? false;
     const [user] = await db.insert(users).values({
-      ...data,
-      isMember: false,
-      memberSince: null,
-      stripeCustomerId: null,
+      email: data.email,
+      username: data.username,
+      displayName: data.displayName,
+      password: data.password,
+      avatarInitials: data.avatarInitials,
+      avatarColor: data.avatarColor ?? "#cc2a2a",
+      avatarUrl: data.avatarUrl ?? null,
+      isMember,
+      memberSince: isMember ? new Date() : null,
+      membershipExpiry: data.membershipExpiry ?? null,
+      stripeCustomerId: data.stripeCustomerId ?? null,
     }).returning();
     return user;
   }
@@ -543,6 +553,8 @@ export async function runMigrationsAndSeed() {
       avatar_url        text,
       is_member         boolean NOT NULL DEFAULT false,
       member_since      timestamp,
+      membership_expiry timestamptz,
+      last_seen         timestamptz,
       stripe_customer_id text,
       created_at        timestamp NOT NULL DEFAULT now()
     );
@@ -589,9 +601,11 @@ export async function runMigrationsAndSeed() {
     );
   `);
 
-  // Add parent_id column to messages if it doesn't exist yet (idempotent)
+  // Add columns that later code paths expect (idempotent for existing DBs)
   await pool.query(`
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_id integer;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_expiry timestamptz;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen timestamptz;
   `);
 
 

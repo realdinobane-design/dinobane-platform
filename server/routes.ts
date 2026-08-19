@@ -2494,7 +2494,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         {
           id: "password-reset",
           name: "Password Reset",
-          description: "Sent when a user requests a password reset. Contains a secure one-time link valid for 1 hour.",
+          description: "Sent when a user requests a password reset. Contains a secure one-time link valid for 24 hours.",
           trigger: "Automatic — on password reset request",
           schedule: null,
           nextSend: null,
@@ -2592,7 +2592,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               <tr>
                 <td style="padding:28px 28px 12px;">
                   <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;">Reset your password</h2>
-                  <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
+                  <p style="color:#aaa;font-size:14px;line-height:1.7;margin:0 0 24px;">Click the button below to reset your password. This link expires in 24 hours.</p>
                   <a href="${appUrl}/#/forgot-password" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:14px 32px;text-decoration:none;border-radius:2px;">Reset Password →</a>
                 </td>
               </tr>

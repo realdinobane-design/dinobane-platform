@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   avatarInitials: text("avatar_initials").notNull(),
   avatarColor: text("avatar_color").notNull().default("#cc2a2a"),
   avatarUrl: text("avatar_url"),
+  lastSeen: timestamp("last_seen", { withTimezone: true }),
   isMember: boolean("is_member").notNull().default(false),
   memberSince: timestamp("member_since"),
   membershipExpiry: timestamp("membership_expiry", { withTimezone: true }),

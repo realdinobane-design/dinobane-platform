@@ -1,0 +1,17 @@
+DinoBane fixed files
+
+These are replacement files for the fixes already prepared.
+
+Simple install with GitHub Desktop:
+1. Open GitHub Desktop and clone/open the dinobane-platform repository.
+2. Open the repository folder on your computer.
+3. Copy everything from this folder into that repository folder.
+4. Choose Replace when your computer asks.
+5. If client/src/components/PerplexityAttribution.tsx still exists in the repository folder, delete that one file.
+6. Go back to GitHub Desktop.
+7. Enter: Fix signup, login and membership setup
+8. Click Commit to main.
+9. Click Push origin.
+10. Wait for Railway to redeploy.
+
+Do not change Stripe settings, Stripe keys, webhook settings, products, or prices.

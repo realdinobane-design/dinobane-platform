@@ -21,9 +21,9 @@ export async function login(email: string, password: string): Promise<AuthUser> 
 export async function register(data: {
   email: string;
   username: string;
-  displayName: string;
+  displayName?: string;
   password: string;
-}): Promise<AuthUser> {
+}): Promise<{ ok: true; message: string }> {
   const res = await apiRequest("POST", "/api/auth/register", data);
   return res.json();
 }

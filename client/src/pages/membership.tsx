@@ -4,15 +4,15 @@ import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Lock, Users, MessageSquare, Newspaper, Zap, Shield, CreditCard, Settings } from "lucide-react";
+import { CheckCircle, Lock, Users, MessageSquare, Newspaper, Shield, CreditCard, Settings } from "lucide-react";
 import { useEffect } from "react";
 import { useHashLocation } from "wouter/use-hash-location";
 
 const FEATURES = [
-  { icon: MessageSquare, text: "Access all community channels (#general, #news-links, #video-discussion, #off-topic)" },
+  { icon: Newspaper, text: "Timelines and dossiers — the sourced files behind the stories" },
+  { icon: Lock, text: "Media Vault and members-only drops that do not go on YouTube" },
+  { icon: MessageSquare, text: "Community channels for news links, video discussion and off-topic" },
   { icon: Users, text: "@mention other members and build your network" },
-  { icon: Newspaper, text: "Share links and discuss stories from the Intel feed" },
-  { icon: Zap, text: "Early access to new features and video drops" },
   { icon: Shield, text: "Direct line to DinoBane — members-only Q&A" },
 ];
 
@@ -106,9 +106,25 @@ export default function MembershipPage() {
           <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-foreground font-display mb-4">
             Join the <span className="text-primary">DinoBane</span> Community
           </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Private channels, @mentions, news discussion, and direct contact with the team. Cancel any time — no questions asked.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            One £5/month membership unlocks the sourced files, the Vault and the private community. Create an account, verify your email, pay securely with Stripe — access switches on when you return.
           </p>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 pt-12">
+        <div className="grid md:grid-cols-3 gap-3 text-center">
+          {[
+            ["1", "Create your account", "Register and verify your email so membership can be attached to the right login."],
+            ["2", "Pay securely with Stripe", "Checkout, card details, invoices and cancellation are handled by Stripe — not stored here."],
+            ["3", "Access switches on", "Stripe returns you to this page and your member areas unlock automatically."],
+          ].map(([step, title, body]) => (
+            <div key={step} className="bg-card/60 border border-border rounded-sm p-4">
+              <p className="text-primary font-black text-sm mb-2">{step}</p>
+              <p className="text-sm font-bold text-foreground uppercase tracking-wider mb-1">{title}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -221,10 +237,10 @@ export default function MembershipPage() {
             <div className="bg-card border border-border rounded-sm p-4 mt-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">Billing & Cancellation</p>
               <ul className="space-y-2 text-xs text-muted-foreground">
-                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Cancel any time — no lock-in, no questions</li>
-                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Manage everything from your Stripe billing portal</li>
-                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Secure checkout — card details handled by Stripe, never us</li>
-                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Billed monthly in GBP · Renews automatically</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> £5 GBP per month, renewing monthly until you cancel</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Stripe handles checkout, card details, invoices and cancellation</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> After payment, Stripe brings you back here and access turns on automatically</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Use “Manage / Cancel Subscription” for card changes, invoices or cancellation</li>
               </ul>
             </div>
 
