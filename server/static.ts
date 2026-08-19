@@ -29,6 +29,10 @@ export function serveStatic(app: Express) {
     }),
   );
 
+  // The Rings Of Power map (static standalone page in client/public/rings-of-power)
+  app.get("/rings-of-power", (_req, res) => res.redirect(301, "/rings-of-power/index.html"));
+  app.get("/rings-of-power/", (_req, res) => res.redirect(301, "/rings-of-power/index.html"));
+
   // Redirect bare paths to hash-router equivalents
   app.get("/privacy", (_req, res) => res.redirect(301, "/#/privacy"));
   app.get("/terms", (_req, res) => res.redirect(301, "/#/privacy"));

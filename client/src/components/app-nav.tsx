@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked } from "lucide-react";
+import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked, Network } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DmChat } from "@/components/dm-chat";
@@ -18,10 +18,11 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 
-const NAV_LINKS = [
+const NAV_LINKS: { href: string; label: string; icon: any; memberOnly?: boolean; external?: boolean }[] = [
   { href: "/", label: "Home", icon: null },
   { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
+  { href: "/rings-of-power/index.html", label: "Rings Of Power", icon: Network, external: true },
   { href: "/timelines", label: "Timelines", icon: BookMarked, memberOnly: true },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
@@ -87,7 +88,17 @@ export function AppNav() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-          {NAV_LINKS.map(link => (
+          {NAV_LINKS.map(link => link.external ? (
+            <a
+              key={link.href}
+              href={link.href}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
+              data-testid={`link-nav-${link.label.toLowerCase()}`}
+            >
+              {link.icon && <link.icon size={14} />}
+              {link.label}
+            </a>
+          ) : (
             <Link
               key={link.href}
               href={link.href}
@@ -240,7 +251,17 @@ export function AppNav() {
       {/* Mobile nav dropdown */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border bg-background px-4 py-3 flex flex-col gap-1">
-          {NAV_LINKS.map(link => (
+          {NAV_LINKS.map(link => link.external ? (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
+            >
+              {link.icon && <link.icon size={15} />}
+              {link.label}
+            </a>
+          ) : (
             <Link
               key={link.href}
               href={link.href}
