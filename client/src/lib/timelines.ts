@@ -55,6 +55,16 @@ export const TIMELINES: TimelineEntry[] = [
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/2/2d/Keir_Starmer_official_portrait.jpg",
   },
   {
+    slug: "farage",
+    title: "Nigel Farage",
+    subtitle: "The man who has burned three parties to keep one career warm",
+    dossierCode: "DB-NF-006",
+    category: "Politics",
+    viewPath: "/farage",
+    tags: ["1964 – now", "3 parties · 5 resignations", "UKIP · Brexit Party · Reform"],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Official_portrait_of_Nigel_Farage_MP.jpg",
+  },
+  {
     slug: "overton-shift",
     title: "The Overton Shift",
     subtitle: "Forty years of dragging the window leftward, one outrage at a time",

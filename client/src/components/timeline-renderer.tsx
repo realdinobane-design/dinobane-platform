@@ -196,6 +196,25 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
     return set;
   }, [D.acts, D.timeline]);
 
+  // Strict left/right alternation, computed in JS rather than :nth-child so
+  // that full-width "hero" cards and Act boundaries can't silently shift the
+  // pattern (the old :nth-child approach counted hero cards as children and
+  // restarted every Act, which is why the sides looked random).
+  // Side cards alternate left → right → left → right across the ENTIRE
+  // timeline; hero cards are full-width and do not consume a side slot.
+  const eventSides = useMemo(() => {
+    const map = new Map<TimelineEvent, "left" | "right">();
+    let next: "left" | "right" = "left";
+    groupedTimeline.forEach((g) => {
+      g.events.forEach((e) => {
+        if (heroEvents.has(e)) return; // hero spans both columns
+        map.set(e, next);
+        next = next === "left" ? "right" : "left";
+      });
+    });
+    return map;
+  }, [groupedTimeline, heroEvents]);
+
   return (
     <>
       <style>{CSS}</style>
@@ -241,6 +260,7 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
               act={group.act}
               events={group.events}
               heroEvents={heroEvents}
+              eventSides={eventSides}
             />
           ))}
         </section>
@@ -329,16 +349,24 @@ const ACT_THEME: Record<string, string> = {
   "legal-career": "lm-act-strategy",
   "politics": "lm-act-cultural",
   "in-office": "lm-act-total",
+  // Farage timeline: origins → steel, UKIP machine → gold,
+  // the succession → red, Reform era → white.
+  "city-origins": "lm-act-theory",
+  "ukip-machine": "lm-act-strategy",
+  "the-succession": "lm-act-cultural",
+  "reform": "lm-act-total",
 };
 
 function ActBlock({
   act,
   events,
   heroEvents,
+  eventSides,
 }: {
   act: TimelineAct | null;
   events: TimelineEvent[];
   heroEvents: WeakSet<TimelineEvent>;
+  eventSides: Map<TimelineEvent, "left" | "right">;
 }) {
   const theme = act ? ACT_THEME[act.id] ?? "" : "";
   return (
@@ -364,6 +392,7 @@ function ActBlock({
             key={`${e.year}-${e.title}-${i}`}
             ev={e}
             hero={heroEvents.has(e)}
+            side={eventSides.get(e)}
           />
         ))}
       </section>
@@ -371,7 +400,16 @@ function ActBlock({
   );
 }
 
-function EventRow({ ev, hero }: { ev: TimelineEvent; hero?: boolean }) {
+function EventRow({
+  ev,
+  hero,
+  side,
+}: {
+  ev: TimelineEvent;
+  hero?: boolean;
+  /** Explicit spine side. Hero cards omit it (they span both columns). */
+  side?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   const hasDetail = !!(ev.detail && ev.detail.trim());
   const hasQuote = !!(ev.pullQuote && ev.pullQuote.text);
@@ -382,6 +420,8 @@ function EventRow({ ev, hero }: { ev: TimelineEvent; hero?: boolean }) {
         "lm-event",
         ev.key ? "lm-key" : "",
         hero ? "lm-hero-card" : "",
+        !hero && side === "left" ? "lm-side-left" : "",
+        !hero && side === "right" ? "lm-side-right" : "",
         hasQuote ? "lm-has-quote" : "",
       ]
         .filter(Boolean)
@@ -470,7 +510,7 @@ function ExtraSectionBlock({ section }: { section: ExtraSection }) {
           <SectionHead kicker={kicker} title={title} />
           <section className="lm-timeline">
             {events.map((e, i) => (
-              <EventRow key={i} ev={e} />
+              <EventRow key={i} ev={e} side={i % 2 === 0 ? "left" : "right"} />
             ))}
           </section>
         </>
@@ -740,8 +780,11 @@ const CSS = `
   transition:opacity .7s ease, transform .7s ease;
 }
 .lm-event.lm-in{opacity:1; transform:none}
-.lm-event:nth-child(odd)  .lm-card{grid-column:1; grid-row:1; text-align:right}
-.lm-event:nth-child(even) .lm-card{grid-column:2; grid-row:1; text-align:left}
+/* Explicit spine sides — assigned in JS (lm-side-left / lm-side-right) so
+   the left → right → left → right pattern is guaranteed regardless of
+   hero cards or Act boundaries. */
+.lm-event.lm-side-left  .lm-card{grid-column:1; grid-row:1; text-align:right}
+.lm-event.lm-side-right .lm-card{grid-column:2; grid-row:1; text-align:left}
 
 /* Hero cards span both columns so they read as section beats inside an Act */
 .lm-event.lm-hero-card{grid-template-columns:1fr; column-gap:0}
@@ -817,7 +860,7 @@ const CSS = `
   border-left:2px solid var(--lm-act);
   background:linear-gradient(90deg, var(--lm-act-tint, rgba(204,42,42,.06)), transparent 80%);
 }
-.lm-event:nth-child(odd) .lm-quote{
+.lm-event.lm-side-left .lm-quote{
   border-left:none; border-right:2px solid var(--lm-act);
   padding:14px 22px 12px 16px;
   background:linear-gradient(270deg, var(--lm-act-tint, rgba(204,42,42,.06)), transparent 80%);
@@ -828,7 +871,7 @@ const CSS = `
   font-family:var(--lm-serif); font-style:italic; font-size:48px;
   line-height:1; color:var(--lm-act); opacity:.65;
 }
-.lm-event:nth-child(odd) .lm-quote-mark{left:auto; right:8px}
+.lm-event.lm-side-left .lm-quote-mark{left:auto; right:8px}
 .lm-quote p{
   font-family:var(--lm-serif); font-style:italic; font-size:17px;
   line-height:1.55; color:var(--lm-ink); margin:0 0 6px;
@@ -1010,8 +1053,8 @@ const CSS = `
     grid-template-columns:1fr; column-gap:0; row-gap:14px;
     padding:14px 0 14px 42px; text-align:left;
   }
-  .lm-event:nth-child(odd)  .lm-card,
-  .lm-event:nth-child(even) .lm-card{
+  .lm-event.lm-side-left  .lm-card,
+  .lm-event.lm-side-right .lm-card{
     grid-column:1; text-align:left; margin:0; max-width:none;
   }
   .lm-event.lm-hero-card{padding-left:42px}
