@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><circle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%232f9bff%22/></svg>">
+<title>UK Power & Influence — Map</title>
+<style>
+:root{--bg:#000;--panel:rgba(15,19,27,.92);--line:#232b38;--tx:#e9edf3;--mut:#98a2b3;--c-scandal:#ffb020;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;overflow:hidden}
+#root{position:relative;width:100%;height:100%;overflow:hidden;background:var(--bg)}
+#cv{position:absolute;inset:0;display:block;cursor:grab;touch-action:none}
+#cv.drag{cursor:grabbing}
+#cv.hover{cursor:pointer}
+#boot{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:#000;color:#98a2b3;font-size:14px;letter-spacing:.4px}
+#intro{position:absolute;inset:0;z-index:35;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity 1.1s ease}
+#intro.show{opacity:1}
+#introT{font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:clamp(46px,8vw,104px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#f5f7fa;text-shadow:0 0 34px rgba(140,180,255,.5),0 0 110px rgba(140,180,255,.22);transform:scale(.97);transition:transform 4.4s cubic-bezier(.2,.6,.3,1)}
+#intro.show #introT{transform:scale(1.03)}
+#errbox{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:50;max-width:520px;background:#2a1014;border:1px solid #ff4757;color:#ffd7dc;padding:16px 20px;border-radius:10px;font-size:13px;display:none}
+header{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(180deg,rgba(0,0,0,.92),rgba(0,0,0,.55) 70%,transparent);pointer-events:none}
+header>*{pointer-events:auto}
+h1{font-size:15px;font-weight:650;margin:0;letter-spacing:.2px;white-space:nowrap}
+h1 span{color:var(--mut);font-weight:450}
+#stats{color:var(--mut);font-size:11.5px;margin-left:auto;white-space:nowrap}
+#dock{position:absolute;left:14px;top:64px;z-index:5;width:198px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;backdrop-filter:blur(8px);max-height:calc(100vh - 140px);overflow-y:auto}
+#dock h2{font-size:10.5px;text-transform:uppercase;letter-spacing:1.1px;color:var(--mut);margin:0 0 8px;font-weight:600}
+#dock h2:not(:first-child){margin-top:14px}
+.lg{display:flex;align-items:center;gap:8px;font-size:12px;color:#c7cfdb;padding:3px 0;cursor:default}
+.lg i{width:9px;height:9px;border-radius:50%;flex:none}
+.lg em{width:16px;height:0;border-top:3px solid;border-radius:2px;flex:none;margin-left:-3px}
+.lg.f{cursor:pointer;user-select:none}
+.lg.f.off{opacity:.32}
+.lg .cnt{margin-left:auto;color:var(--mut);font-size:10.5px}
+#hud{position:absolute;right:14px;bottom:14px;z-index:5;display:flex;gap:8px;align-items:center;background:rgba(13,17,26,.55);border:1px solid var(--line);border-radius:12px;padding:6px 8px;backdrop-filter:blur(10px)}
+#hudlogo{display:flex;align-items:center;padding:0 2px}
+#hudlogo img{width:28px;height:28px;border-radius:7px;display:block;opacity:.92;transition:opacity .2s}
+#hudlogo:hover img{opacity:1}
+button.chip.sq{width:32px;padding:7px 0;text-align:center;font-size:15px;line-height:1}
+button.chip{background:var(--panel);border:1px solid var(--line);color:var(--tx);padding:7px 13px;border-radius:9px;cursor:pointer;font-size:12.5px;backdrop-filter:blur(8px)}
+button.chip:hover{border-color:var(--mut)}
+#help{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(3px)}
+#help.show{display:flex}
+#helpcard{position:relative;max-width:520px;width:calc(100% - 48px);background:rgba(13,17,26,.92);border:1px solid var(--line);border-radius:16px;padding:26px 28px 22px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#helpcard h2{margin:0 0 16px;font-size:15px;letter-spacing:3px;color:var(--tx)}
+.hrow{display:flex;gap:14px;margin:12px 0;font-size:13.5px;line-height:1.5;color:#aeb6c6}
+.hrow b{flex:0 0 86px;color:#2ee6cf;font-size:11px;letter-spacing:1.6px;padding-top:2px}
+.hrow em{font-style:normal;color:var(--tx);font-weight:600}
+#helpx{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer}
+#helpx:hover{color:var(--tx)}
+#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:4;color:#9aa3b5;font-size:12.5px;letter-spacing:.2px;background:rgba(13,17,26,.55);border:1px solid var(--line);padding:7px 16px;border-radius:20px;backdrop-filter:blur(8px);white-space:nowrap}
+@media (max-width:820px){#hint{display:none}}
+#tip{position:absolute;z-index:9;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;display:none;backdrop-filter:blur(8px);max-width:280px}
+#tip small{color:var(--mut);display:block;font-size:10.5px}
+#ecard{position:absolute;left:50%;bottom:44px;transform:translateX(-50%) translateY(20px);z-index:8;width:460px;max-width:92vw;background:#0e131c;border:1px solid var(--line);border-radius:12px;padding:14px 16px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#ecard.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+#ecard .eh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:650;flex-wrap:wrap}
+#ecard .eh .arrow{color:var(--mut)}
+#ecard .et{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin-top:6px}
+#ecard .et em{width:14px;height:0;border-top:3px solid;border-radius:2px}
+#ecard .el2{font-size:13px;color:#c7cfdb;margin-top:8px}
+#ecard .ebtns{display:flex;gap:8px;margin-top:12px}
+#ecard .ebtns button{flex:1;background:#0b0f16;border:1px solid var(--line);color:var(--tx);padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px}
+#ecard .ebtns button:hover{border-color:var(--mut)}
+#eclose{position:absolute;top:8px;right:8px;background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:4px}
+#panel{position:absolute;top:0;right:0;height:100%;width:400px;max-width:94vw;z-index:6;background:#0e131c;border-left:1px solid var(--line);transform:translateX(105%);transition:transform .38s cubic-bezier(.22,.9,.3,1);display:flex;flex-direction:column}
+#panel.open{transform:none}
+#phead{display:flex;align-items:center;gap:12px;padding:18px 18px 0}
+#pimg{width:64px;height:64px;border-radius:50%;background:#1b2330 center/cover;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:var(--mut);flex:none;border:1px solid var(--line)}
+#pname{font-size:17px;font-weight:650}
+#pcat{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--mut);margin-top:3px}
+#pclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--mut);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex:none}
+#pclose:hover{color:var(--tx);border-color:var(--mut)}
+#pbody{padding:14px 18px 18px;overflow-y:auto}
+#pdetail{font-size:13.5px;color:#c7cfdb}
+h3.sec{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--mut);margin:18px 0 8px}
+.citem{margin:8px 0 0;padding:10px 12px;background:#0b0f16;border:1px solid var(--line);border-left:3px solid var(--c-scandal);border-radius:8px;font-size:12.5px;color:#c7cfdb}
+.citem b{color:var(--c-scandal);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;font-weight:650}
+.conn{display:flex;gap:8px;align-items:baseline;padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer;background:#0b0f16}
+.conn:hover{border-color:var(--mut)}
+.conn b{font-size:13px}
+.conn .el{color:var(--mut);font-size:11.5px}
+.conn .edot{width:14px;height:0;border-top:3px solid;border-radius:2px;flex:none;align-self:center}
+.conn .arr{margin-left:auto;color:var(--mut);font-size:11px;flex:none}
+#psrc{color:#6b7686;font-size:11px;margin-top:16px}
+.dockcta{font-size:10.5px;letter-spacing:.3px;color:#9ff0e4;background:rgba(46,230,207,.08);border:1px solid rgba(46,230,207,.35);border-radius:8px;padding:6px 9px;margin-bottom:10px;line-height:1.45}
+.grp{display:flex;align-items:center;gap:6px;font-size:12px;color:#c7cfdb;padding:5px 0 3px;cursor:pointer;user-select:none;font-weight:600}
+.grp .tri{color:var(--mut);font-size:9px;width:10px;flex:none}
+.grp .cnt,.sub .cnt{margin-left:auto;color:var(--mut);font-size:10.5px}
+.sub{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#aab4c4;padding:3px 4px 3px 16px;cursor:pointer;user-select:none;border-radius:6px}
+.sub:hover{background:#151b26}
+.sub.on{color:#fff;background:#1a2433}
+.sub i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.45;flex:none}
+.sub.on i{opacity:1;background:#ffd166}
+#ptags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+#ptags .tg{font-size:10.5px;padding:2px 8px;border:1px solid var(--line);border-radius:20px;color:var(--mut);white-space:nowrap}
+#ptags .tg.z{border-color:#b16bff;color:#c9a5ff}
+#ptags .tg.f{border-color:#2ee6cf;color:#9ff0e4}
+#ptags .tg.k{border-color:#e0b73c;color:#f0d67a}
+#ptags .kissnote{flex-basis:100%;font-size:11.5px;line-height:1.45;color:var(--mut);margin:6px 0 2px;white-space:normal}
+@media (max-width:900px){#dock{display:none}}
+</style>
+</head>
+<body>
+<div id="root">
+<div id="boot">building the web&hellip;</div>
+<div id="intro"><div id="introT">The Rings Of Power</div></div>
+<div id="errbox"></div>
+<canvas id="cv"></canvas>
+<header><h1>UK Power &amp; Influence <span>— money, media, parties, lobbies, people, scandals · 2024–26</span></h1><div id="stats"></div></header>
+<div id="dock"></div>
+<div id="hud"><a id="hudlogo" href="https://dinobane.com" target="_blank" rel="noopener" title="DINOBANE — dinobane.com"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAKMWlDQ1BJQ0MgUHJvZmlsZQAAeJydlndUU9kWh8+9N71QkhCKlNBraFICSA29SJEuKjEJEErAkAAiNkRUcERRkaYIMijggKNDkbEiioUBUbHrBBlE1HFwFBuWSWStGd+8ee/Nm98f935rn73P3Wfvfda6AJD8gwXCTFgJgAyhWBTh58WIjYtnYAcBDPAAA2wA4HCzs0IW+EYCmQJ82IxsmRP4F726DiD5+yrTP4zBAP+flLlZIjEAUJiM5/L42VwZF8k4PVecJbdPyZi2NE3OMErOIlmCMlaTc/IsW3z2mWUPOfMyhDwZy3PO4mXw5Nwn4405Er6MkWAZF+cI+LkyviZjg3RJhkDGb+SxGXxONgAoktwu5nNTZGwtY5IoMoIt43kA4EjJX/DSL1jMzxPLD8XOzFouEiSniBkmXFOGjZMTi+HPz03ni8XMMA43jSPiMdiZGVkc4XIAZs/8WRR5bRmyIjvYODk4MG0tbb4o1H9d/JuS93aWXoR/7hlEH/jD9ld+mQ0AsKZltdn6h21pFQBd6wFQu/2HzWAvAIqyvnUOfXEeunxeUsTiLGcrq9zcXEsBn2spL+jv+p8Of0NffM9Svt3v5WF485M4knQxQ143bmZ6pkTEyM7icPkM5p+H+B8H/nUeFhH8JL6IL5RFRMumTCBMlrVbyBOIBZlChkD4n5r4D8P+pNm5lona+BHQllgCpSEaQH4eACgqESAJe2Qr0O99C8ZHA/nNi9GZmJ37z4L+fVe4TP7IFiR/jmNHRDK4ElHO7Jr8WgI0IABFQAPqQBvoAxPABLbAEbgAD+ADAkEoiARxYDHgghSQAUQgFxSAtaAYlIKtYCeoBnWgETSDNnAYdIFj4DQ4By6By2AE3AFSMA6egCnwCsxAEISFyBAVUod0IEPIHLKFWJAb5AMFQxFQHJQIJUNCSAIVQOugUqgcqobqoWboW+godBq6AA1Dt6BRaBL6FXoHIzAJpsFasBFsBbNgTzgIjoQXwcnwMjgfLoK3wJVwA3wQ7oRPw5fgEVgKP4GnEYAQETqiizARFsJGQpF4JAkRIauQEqQCaUDakB6kH7mKSJGnyFsUBkVFMVBMlAvKHxWF4qKWoVahNqOqUQdQnag+1FXUKGoK9RFNRmuizdHO6AB0LDoZnYsuRlegm9Ad6LPoEfQ4+hUGg6FjjDGOGH9MHCYVswKzGbMb0445hRnGjGGmsVisOtYc64oNxXKwYmwxtgp7EHsSewU7jn2DI+J0cLY4X1w8TogrxFXgWnAncFdwE7gZvBLeEO+MD8Xz8MvxZfhGfA9+CD+OnyEoE4wJroRIQiphLaGS0EY4S7hLeEEkEvWITsRwooC4hlhJPEQ8TxwlviVRSGYkNimBJCFtIe0nnSLdIr0gk8lGZA9yPFlM3kJuJp8h3ye/UaAqWCoEKPAUVivUKHQqXFF4pohXNFT0VFysmK9YoXhEcUjxqRJeyUiJrcRRWqVUo3RU6YbStDJV2UY5VDlDebNyi/IF5UcULMWI4kPhUYoo+yhnKGNUhKpPZVO51HXURupZ6jgNQzOmBdBSaaW0b2iDtCkVioqdSrRKnkqNynEVKR2hG9ED6On0Mvph+nX6O1UtVU9Vvuom1TbVK6qv1eaoeajx1UrU2tVG1N6pM9R91NPUt6l3qd/TQGmYaYRr5Grs0Tir8XQObY7LHO6ckjmH59zWhDXNNCM0V2ju0xzQnNbS1vLTytKq0jqj9VSbru2hnaq9Q/uE9qQOVcdNR6CzQ+ekzmOGCsOTkc6oZPQxpnQ1df11Jbr1uoO6M3rGelF6hXrtevf0Cfos/ST9Hfq9+lMGOgYhBgUGrQa3DfGGLMMUw12G/YavjYyNYow2GHUZPTJWMw4wzjduNb5rQjZxN1lm0mByzRRjyjJNM91tetkMNrM3SzGrMRsyh80dzAXmu82HLdAWThZCiwaLG0wS05OZw2xljlrSLYMtCy27LJ9ZGVjFW22z6rf6aG1vnW7daH3HhmITaFNo02Pzq62ZLde2xvbaXPJc37mr53bPfW5nbse322N3055qH2K/wb7X/oODo4PIoc1h0tHAMdGx1vEGi8YKY21mnXdCO3k5rXY65vTW2cFZ7HzY+RcXpkuaS4vLo3nG8/jzGueNueq5clzrXaVuDLdEt71uUnddd457g/sDD30PnkeTx4SnqWeq50HPZ17WXiKvDq/XbGf2SvYpb8Tbz7vEe9CH4hPlU+1z31fPN9m31XfKz95vhd8pf7R/kP82/xsBWgHcgOaAqUDHwJWBfUGkoAVB1UEPgs2CRcE9IXBIYMj2kLvzDecL53eFgtCA0O2h98KMw5aFfR+OCQ8Lrwl/GGETURDRv4C6YMmClgWvIr0iyyLvRJlESaJ6oxWjE6Kbo1/HeMeUx0hjrWJXxl6K04gTxHXHY+Oj45vipxf6LNy5cDzBPqE44foi40V5iy4s1licvvj4EsUlnCVHEtGJMYktie85oZwGzvTSgKW1S6e4bO4u7hOeB28Hb5Lvyi/nTyS5JpUnPUp2Td6ePJninlKR8lTAFlQLnqf6p9alvk4LTduf9ik9Jr09A5eRmHFUSBGmCfsytTPzMoezzLOKs6TLnJftXDYlChI1ZUPZi7K7xTTZz9SAxESyXjKa45ZTk/MmNzr3SJ5ynjBvYLnZ8k3LJ/J9879egVrBXdFboFuwtmB0pefK+lXQqqWrelfrry5aPb7Gb82BtYS1aWt/KLQuLC98uS5mXU+RVtGaorH1futbixWKRcU3NrhsqNuI2ijYOLhp7qaqTR9LeCUXS61LK0rfb+ZuvviVzVeVX33akrRlsMyhbM9WzFbh1uvb3LcdKFcuzy8f2x6yvXMHY0fJjpc7l+y8UGFXUbeLsEuyS1oZXNldZVC1tep9dUr1SI1XTXutZu2m2te7ebuv7PHY01anVVda926vYO/Ner/6zgajhop9mH05+x42Rjf2f836urlJo6m06cN+4X7pgYgDfc2Ozc0tmi1lrXCrpHXyYMLBy994f9Pdxmyrb6e3lx4ChySHHn+b+O31w0GHe4+wjrR9Z/hdbQe1o6QT6lzeOdWV0iXtjusePhp4tLfHpafje8vv9x/TPVZzXOV42QnCiaITn07mn5w+lXXq6enk02O9S3rvnIk9c60vvG/wbNDZ8+d8z53p9+w/ed71/LELzheOXmRd7LrkcKlzwH6g4wf7HzoGHQY7hxyHui87Xe4Znjd84or7ldNXva+euxZw7dLI/JHh61HXb95IuCG9ybv56Fb6ree3c27P3FlzF3235J7SvYr7mvcbfjT9sV3qID0+6j068GDBgztj3LEnP2X/9H686CH5YcWEzkTzI9tHxyZ9Jy8/Xvh4/EnWk5mnxT8r/1z7zOTZd794/DIwFTs1/lz0/NOvm1+ov9j/0u5l73TY9P1XGa9mXpe8UX9z4C3rbf+7mHcTM7nvse8rP5h+6PkY9PHup4xPn34D94Tz+6TMXDkAAADAUExURQAAAPExNv////4AAP///+wmJ/8+Pv9VVewoKu8uMu4tMP///////////////+0rLewiIr8/P+0ZFOwqK/////9/f////+oeHdsFBcwzM60AAOgjHf8A/+oeIn8AAO4iFNsVE/QjI9QqKv8AVX9/f6pVVf8Af9cnAOkfH/+RkcxmZuYeJP8/APIwMv9VAP+qqgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMwf3IoAAABAdFJOUwD9+wIGUAQDbvHPLs+xjq40BBGRdQJOJgoFAysBQQIXDhEGAwIDAgZABwUqBN4DAwAAAAAAAAAAAAAAAAAAAAAxWR+1AAAGT0lEQVR42u0ZB3LjOIw2qUL1arltnOxms7tX//+7A0BSoixKshPfzM1cMGOrkEQnBICMfcInfML/Cjg/BiVAcOT84cifAr+1n89++UAiT+UrXqqu8AiKrlJEHkODB/B38epoY0FUex28bj9Ogp8Be5hvHBCFHRrmY+hB8Z4Tu4Lc+5gU5Ri9lBGBtMXwaNo73ZKdBvR56HUVMcurkxfmPZW8YOd3CQG2DQ3rtVcZnb1qZNyrDY3w+B4hfNblxpiIvfUDriwKF7UrqlB7VlTA9Lvxewb9HqQJ+NR7QUQeKimkd68MvlFPDejnNi0HpFWt1cQC/g78IDtbiglIwlN6qu+hYPDnz2wtHHCf7XNNwb8Xfwjr12d/Y6zW02+k8Je2LyzwSwUuOZ76wVIz5KFr37K/XjT+g/12Mm0qsuxukZgHPFL4v4Kjexou10s5q7xh8KuiEO1vMHSg5tbswNuXPlJE1ZgCP1d9+K5/vPGDskO9riTOi54XQDlQ2NtRE8TsR3IMWkbuYlVJAeGUv9NELgY+c9tjfe04G2koc9bhpo5Yu4bfsz0ONN1HTcvPD2afy0F32tBrntSSABE3xvrGTj2F3s/7OCUtx9FKWhGBs+KKjR4Zvfb1K0NU/hyCXKlmLltBWWDExcGiUCA6bgnl2Zu3JRHyJR1plY9jb69wYPiEHvMcDUo7TCK8rNjTykcguoxThd5laDsE+2gjN67wxjmxtxSSlIauw6Lt9BFn1ga4iuQlcZLPmxmkly4z0bYFjwHY5DVdpbzaesQf1zqaN/PXoii66fATey4UQPao74pnB54/cKCawy4Ahlumn+jC3QILe45ZYONxG8KhQr0gKHvz/3aVMwoj6ywItmsQdnSb7eDXwJ1o4BYvaZrRUJPhrBjfiRhukN2dntMI0ShwEki3BCmsSLYJy7ZboCC224yxnT1EABhpRaqvMWMx/As1unUSAIxZCusTXJHiIywQCRCIEXmWIAWk3eAQWglRCcVaAvIoAmkGMEMggWuDjCeaAPCHBFLkmOGbHcNnnCTwP0lQSpI9MxLEszbIkA1ByI0EsBx+QmuC1AXD8S5BbQHthtYo5RJy+DVxHAsmZiSAZSlcFIEEdZsQgQbxE21lA0SLHMfEMUwHzVk2aOYICGKnJ4CsTwkkWUrWoPmksXSbAfZUE0iSZDcrAUOlGxUlynsyUhHrVaS8SuMiM/caxZe7ZRvEZFAjgTYfeizgJ28EAuDtcKddF6bDQIqyaAIzO5nclDgimVNtEnrGxWbI3KIqwYtjIzD5shErcVhZKCHBy5kYCKAyAGusNmHWb7QkVjuQfFdk6GXou/1GcxIQcaw8DG/pEd9qn4t3zU6oZ5qEw4IAr2oV3cVmwuxH4RefBjHxN11++b7+Fh3auU/KAli2uQ7XziDZisnUCaJr8i8hwPSLdGRFOIETVgZXUOHAZVYOk1Tw8vr9ZSiX+0+ynHxa1z+Z5qs9zmzGGSqLhhTjqgAPaPlShh0wBwvjpKK18vacj8oBZ1bl1NE4s7HSIsxEj5jYyT7jdiVefKn8Q2TRsXVUzKT1b6jHQjpTu5a0Vy+W5H3yWy4nvxtHchqY5Pe4Xn9E/Ds3z6fNhF0rW1X5sJW+5yv1AeeUOpvs8ajqFp2JHtxmOdqqPK3VUMrVdPr4dB4y6doqoaC8z42ho/1ZlVAXeYMAMPGNHAn8cVwEjl0SVGjlwDCRSKILva3WsdpWWPO1P6wyVozLWL6PTBmVv7RGaTfV+qViG81QecUXhJ/es6sQp7EvhVdBIa65uqVrxL9X0bS3sdJK8JSYt3UgTREWsuDADbgcTsNRl3HyxG7sGAVqu4GWblEpP9/XbLH3al6ttrGwIVVPK85bKfzpseWeF/B8iu7HjxR0RKurhaYgiLcPTdvxzsamzzrFmcSuaRtMvsr8iEW57ghG3f2N08DodiPrAp5f+8Ys+o+P9qw0+k2+f0/rl/cdS+yym9LxbFydF6a1LEO2HKIXTiaea/tIolDNcVZ1XpgPUbB6f4cf9FDUozOJSXs/L9jt7u8+XunGhysjQOsEHzwDwRa4l8spcpmTfz3gFKckhwGty+EoJFcnCsGjzqFIy/xSqHOu4oXwto88StOeP6QofvD400AMzcG/ddT4CZ/wCf9p+AcSWlFxSqdU0AAAAABJRU5ErkJggg==" alt="DINOBANE"></a><button class="chip sq" id="zout" title="Zoom out">−</button><button class="chip sq" id="zin" title="Zoom in">+</button><button class="chip" id="fitb">Reset view</button><button class="chip sq" id="helpb" title="How to read the map">?</button></div>
+<div id="help"><div id="helpcard">
+  <button id="helpx" title="Close">✕</button>
+  <h2>HOW TO READ THE MAP</h2>
+  <div class="hrow"><b>NAVIGATE</b><span>Drag to pan · scroll or pinch to zoom · + / − buttons, bottom right</span></div>
+  <div class="hrow"><b>EXPLORE</b><span>Click any <em>pin</em> for its full profile and controversies · click a <em>beam</em> for that connection · <em>grey dots</em> are the people around a subject — click them too</span></div>
+  <div class="hrow"><b>FILTER</b><span>The key on the left filters the web: click any subject, connection or people row — party, religion, Zionist, WEF, Fabian, Hope Not Hate, heritage</span></div>
+  <div class="hrow"><b>THE RINGS</b><span>The closer to the centre, the more raw power. Every ring works the next ring out as its proxies. Dashed circles on the rings are <b>local groups</b> — people and groups that work closely together.</span></div>
+</div></div>
+<div id="hint">drag to pan · scroll to zoom · click a pin, a beam or a grey dot · <b>?</b> for the guide</div>
+<div id="tip"></div>
+<div id="ecard"><button id="eclose">✕</button><div class="eh"></div><div class="et"></div><div class="el2"></div><div class="ebtns"><button id="eviewa"></button><button id="eviewb"></button></div></div>
+<aside id="panel" aria-hidden="true">
+  <div id="phead"><div id="pimg">?</div><div><div id="pname"></div><div id="pcat"></div><div id="ptags"></div></div><button id="pclose" title="Close">✕</button></div>
+  <div id="pbody">
+    <div id="pdetail"></div>
+    <div id="controSec"></div>
+    <h3 class="sec">Connections</h3><div id="pconns"></div>
+    <div id="psrc"></div>
+  </div>
+</aside>
+</div>
+<script>
+window.addEventListener('error',function(e){
+  var b=document.getElementById('errbox');if(!b)return;
+  b.style.display='block';
+  b.textContent='Something failed to load: '+(e.message||e.type)+'. Try a hard refresh (Ctrl+Shift+R).';
+});
+</script>
+<script>
+// data: nodes, edges (with type), controversies
+const N=[
+["hester","Frank Hester","money",0,"Tech billionaire — founder of TPP (The Phoenix Partnership), which holds NHS patient-data contracts worth hundreds of millions — and the biggest single donor in British politics: over £15m to the Conservatives, including £10m in a single year (2023–24). In 2024 it emerged he had said MP Diane Abbott made you 'want to hate all black women' and 'should be shot'. PM Sunak called the remarks racist — and kept the money. Why it matters: one man funds the governing party while holding state contracts, and the price of that money is paid in silence about what he says.","Electoral Commission PEF; Guardian; BBC","Frank Hester"],
+["marshall","Paul Marshall","money",0,"Hedge-fund billionaire (co-founded Marshall Wace, ~$60bn) who has built a right-wing media empire: co-owner of GB News, owner of UnHerd and The Spectator, and a past bidder for the Telegraph. Gave ~£600k to the Conservatives and £200k to Reform. During the 2024 riots he personally boosted far-right figures on X (including Tommy Robinson and an account calling for 'mass deportations'), then quietly deleted the posts. Why it matters: one ultra-wealthy owner now controls a whole stack of 'anti-establishment' media reaching millions — the rebellion is funded from the top.","Guardian; FT; Electoral Commission","Paul Marshall (investor)"],
+["murdoch","Rupert Murdoch","media",0,"For 50 years the most powerful unelected man in Britain: his papers (Sun, Times) have claimed to decide elections ('It's The Sun Wot Won It', 1992) and every PM since Thatcher has courted him. His outlets swung behind Brexit and Boris Johnson. Phone hacking by his tabloids — including a murdered schoolgirl's voicemail — forced the closure of the News of the World and the Leveson Inquiry, yet no senior executive was jailed. Why it matters: he is the template for billionaire media power over democracy, and the phone-hacking scandal shows how long that power operated outside the law.","Leveson Inquiry; Guardian","Rupert Murdoch"],
+["harborne","Christopher Harborne","money",0,"A reclusive Thailand-based British billionaire (aviation, defence and crypto — a large shareholder in Tether/Bitfinex) who gave around £20m to the Brexit Party/Reform in 2019–23, then ~$12m (£9m) in 2025 — the largest donation by a living person in UK history. He sued to keep his name off Reform's register and lost. Reform remains a company effectively controlled by Farage rather than a member-owned party. Why it matters: one offshore crypto billionaire is the financial foundation of the UK's fastest-growing party, and fought in court to stay anonymous while doing it.","Electoral Commission; Guardian; openDemocracy","Christopher Harborne"],
+["gibb","RedBird IMI / Sheikh Mansour","money",0,"The vehicle — fronted by former CNN chief Jeff Zucker, funded by International Media Investments, ultimately Sheikh Mansour bin Zayed Al Nahyan, UAE vice-president and owner of Manchester City — that agreed in November 2023 to buy the Telegraph and Spectator for £1.2bn by repaying the Barclay family's debts. Parliament responded by banning foreign-state ownership of British newspapers (2024), killing the deal; the Telegraph later went to RedBird Capital, the Spectator to Paul Marshall. Why it matters: an absolute monarchy came within weeks of owning the Conservative party's newspaper — and only legislation, not the market or the regulators, stopped it.","Guardian; FT; DCMS","Telegraph Media Group"],
+["tabor","Sir Michael Tabor","money",0,"Billionaire bookmaker (Arthur Prince betting shops, sold for £27m in 1995) and racehorse owner. He is the owner of LBC — the station that gave Nigel Farage his nightly radio platform for years — and put $60m into launching GB News. Why it matters: the two loudest broadcast platforms of the populist right both trace back to one gambling billionaire's chequebook.","Guardian; Companies House","Michael Tabor"],
+["reform","Reform UK","party",1,"Britain's fastest-growing party (polling first through 2025–26, five MPs) — and legally not a normal party at all: it is a private company, Reform 2025 Ltd, whose only directors are Nigel Farage and Zia Yusuf. Farage held over 75% control ('person of significant control') until February 2025. Its money: ~£20m from crypto billionaire Christopher Harborne plus a stream of six-figure gifts; the Israeli Ministry of Foreign Affairs paid £50,000 in March 2025 to fly a Reform delegation (Richard Tice) to Israel, and the party launched a 'Jewish Alliance' affiliate in February 2026. In January 2026 it absorbed Nadhim Zahawi, Robert Jenrick and Suella Braverman from the Conservatives. Why it matters: an insurgent 'anti-establishment' party that is owned by its leader, financed by offshore billionaires, courted by a foreign government, and increasingly staffed by the establishment it attacks.","Companies House; Electoral Commission; Guardian; Israeli MFA register","Reform UK"],
+["tories","Conservative Party","party",1,"The party of government for 14 years (2010–24), now in opposition and losing MPs to Reform. Its funding model: mega-donors. Frank Hester has given £15m+; Lord Ashcroft ~£10m historically; the 'cash for honours' pattern is documented — 15 of the party's last 16 treasurers (each giving £3m+) were offered peerages. Russian-born donor Alexander Temerko and Lubov Chernukhin (wife of a former Putin minister, £2m+) were welcomed through the Boris Johnson era. Why it matters: a small circle of billionaires and foreign-linked donors has had structural purchase on the party that governed Britain for most of a generation.","Electoral Commission; Guardian; Sunday Times","Conservative Party (UK)"],
+["labour","Labour Party","party",1,"In government since 2024 \u2014 Starmer, ground down by the Mandelson and Rayner scandals and catastrophic May 2026 local-election losses to Reform, was forced out and replaced in July 2026 by Andy Burnham, whose route back ran through a Makerfield by-election vacated for him by Josh Simons. Funded by trade unions (Unite etc. give millions and expect policy in return) and increasingly by business: Lord Sainsbury (~£8m historically), Quadrature Capital (£4m in 2024). Blair-era Labour took £1m from Formula 1's Bernie Ecclestone then exempted F1 from the tobacco advertising ban; the 2006 cash-for-honours scandal saw police arrest Blair's fundraiser Lord Levy. Starmer's government has already lost Angela Rayner (stamp duty) and seen Lord Mandelson arrested (Feb 2026) over Epstein-linked leaks. Why it matters: the 'change' government runs on the same donor machinery as its predecessors.","Electoral Commission; BBC; Guardian","Labour Party (UK)"],
+["unions","Trade unions","lobby",2,"Labour's founders and still its largest institutional funders — Unite alone has given over £20m since 2010, and union votes decided Labour leadership elections. The relationship is openly transactional: funding follows policy alignment (repeal of anti-union laws, employment rights bill 2024–25). Union barons (McCluskey era Unite) also spent members' money on a Birmingham hotel and conference complex whose costs ballooned past £100m, triggering criminal and civil inquiries. Why it matters: union money buys Labour's direction, and union leadership has its own accountability problems.","Electoral Commission; Guardian; BBC","Unite the Union"],
+["lubner","Lord Levy","money",2,"Tony Blair's personal tennis partner and chief fundraiser, ennobled in 1997. Arrested twice in the 2006–07 cash-for-honours police investigation (secret loans to Labour in exchange for peerage nominations) — never charged. His 'blind trust' model let Labour take huge sums without naming donors. Why it matters: he built the template for buying access to a Labour government, and the scandal nearly toppled Blair.","BBC; Guardian","Lord Levy"],
+["vince","Sir Vince Cable","money",2,"Liberal Democrat leader (2017–19) whose party ran on a fraction of the big parties' money — their largest donor was Lord Sainsbury (£8m+). The Lib Dems were fined £20,000 in 2016 for election-expenses breaches. Why it matters: even the 'clean' centrist party depended on one billionaire, and still broke funding rules.","Electoral Commission","Vince Cable"],
+["sainsbury","Lord Sainsbury","money",2,"Supermarket heir who has given over £40m to British politics — Labour under Blair (£10m+, made Science Minister), then the Lib Dems (£8m+), plus millions to pro-EU campaigns. One of the few donors to operate across party lines, always pro-EU and pro-science funding. Why it matters: shows how a single fortune can steer multiple parties on a single issue (Europe) for 30 years.","Electoral Commission; Guardian","David Sainsbury, Baron Sainsbury of Turville"],
+["quadrature","Quadrature Capital","money",2,"A secretive Mayfair quant hedge fund that gave Labour £4m just before the 2024 election — one of the biggest gifts of the campaign — while operating from tax-haven structures and facing litigation from a co-founder over billions in allegedly unpaid share value. Why it matters: Labour's 'change' government was part-financed by offshore quant money with its own legal questions.","Guardian; Electoral Commission","Quadrature Capital"],
+["mansour","Sir Mohamed Mansour","money",2,"Egyptian-British billionaire, former transport minister under Mubarak, who gave the Conservatives £5m in 2023 (their biggest gift that year) and was knighted months later. Senior party treasurer. Why it matters: a foreign former regime minister buying a top role inside the Tory party — and an honour — with money.","Electoral Commission; Guardian","Mohamed Mansour (businessman)"],
+["cottrell","George Cottrell","person",2,"Farage's 2016 fundraiser-in-chief, a young aristocrat convicted in the US for wire fraud (a money-laundering sting) and later recorded making racist and Holocaust-trivialising remarks — expelled from UKIP in 2019. Remained in Farage's orbit. Why it matters: the money pipeline into the Brexit campaign ran through a convicted fraudster with extremist baggage.","Guardian; BBC","George Cottrell"],
+["chandler","Christopher Chandler","money",1,"New Zealand-born billionaire, founder of the Legatum Group (Dubai-based), which funds the Legatum Institute — the think tank credited with shaping the hard-Brexit agenda from inside Whitehall's networks. In 2018 MPs cited MI6-sourced claims about his past business ties to Russia; he sued for libel and won apologies. Legatum's money is offshore and its influence (trade policy 'Legatum model') was vast 2016–19. Why it matters: offshore billionaire money built the intellectual case for Brexit while its source was, for a time, a security question in Parliament.","Guardian; BBC; High Court records","Christopher Chandler"],
+["israel_lobby","Pro-Israel lobby","lobby",1,"A network of groups embedded in every major party: Conservative Friends of Israel (CFI — once claimed 80% of Tory MPs as members), Labour Friends of Israel, the Board of Deputies, BICOM, and affiliated 'friends' groups inside Reform (Jewish Alliance, 2026) and UKIP historically. Al Jazeera's undercover film 'The Lobby' (2017) recorded an Israeli embassy officer discussing 'taking down' a minister (Alan Duncan) and funding MPs' groups; Priti Patel resigned in 2017 after undeclared meetings with Israeli officials. In March 2025 Israel's Foreign Ministry paid £50,000 to bring a Reform delegation to Israel. Why it matters: this is the most institutionalised foreign-interest lobby in British politics, operating openly inside all parties — the question is never existence, but degree of influence.","Al Jazeera 'The Lobby' (2017); Israeli MFA donor register; Guardian","Lobbying in the United Kingdom"],
+["bbc","BBC","media",1,"The state broadcaster, funded by the licence fee and governed by a board whose chairman and several members are effectively government appointees. Board member Robbie Gibb (ex-Theresa May spin chief, GB News co-founder) is accused by staff of steering coverage; the BBC refuses to call Hamas 'terrorists' in its own voice while platforming government framing on Gaza. Why it matters: whoever controls Downing Street has structural leverage over the country's most trusted news source.","BBC; Guardian; Spectator","BBC"],
+["gbnews","GB News","media",1,"A right-wing opinion channel launched June 2021 with $60m+ from Sir Michael Tabor, Paul Marshall and (initially) Legatum-linked money. It pays Nigel Farage a reported £400k–£1m a year to present while he is an MP and party leader, and has employed multiple serving MPs as presenters. Ruled in breach of Ofcom impartiality rules repeatedly (14+ investigations). Why it matters: it is a political party's media arm operating as a licensed news channel — with the party's leader on the payroll.","Ofcom; Guardian; Electoral Commission","GB News"],
+["telegraph","The Telegraph","media",1,"The Conservatives' house newspaper for 170 years, whose £1.2bn takeover by UAE-backed RedBird IMI in 2023 was blocked by a new law banning foreign-state newspaper ownership. Long the pipeline between Tory donors, think tanks and front pages. Its 2024–25 election coverage was openly aligned with the party its owner was funding. Why it matters: 'broadsheet respectability' and party apparatus have never been separate here — and the attempted owner was the Abu Dhabi vice-president himself.","Guardian; FT","The Daily Telegraph"],
+["restore","Restore Britain","party",2,"Rupert Lowe's political vehicle after his March 2025 expulsion from Reform: he and aide Charlie Downs were smeared as 'nazis and antisemites' (Downs over an old tweet; Lowe over his rhetoric) at the moment they broke with Farage. Restore is the only significant right-wing party without a 'Friends of Israel'-style affiliate. Why it matters: the pattern is consistent — right-wing figures who split from the Farage/Zionist-aligned structure are instantly branded beyond the pale.","Guardian; BBC","Rupert Lowe"],
+["farage","Nigel Farage","person",1,"Leader of Reform UK and the most consequential British politician never to hold ministerial office: drove Brexit through UKIP and the Brexit Party, now leads the polls. Simultaneously: party leader, MP for Clacton, and a reported £400k–£1m-a-year presenter on GB News. Controlled Reform as a company (75%+ 'person of significant control' until Feb 2025; still one of two directors). Was debanked by Coutts in 2023 in a scandal that cost the NatWest CEO her job. In January 2026 he executed a reverse takeover of the Tory right — Zahawi, Jenrick, Braverman all defected to him within weeks. Why it matters: he sits at the junction of billionaire money (Harborne, Tabor, Marshall), media (GB News) and now the ex-Tory establishment — while selling himself as the outsider.","BBC; Guardian; Companies House","Nigel Farage"],
+["robinson","Tommy Robinson","person",1,"Street-movement leader (real name Stephen Yaxley-Lennon, EDL founder) who built Britain's largest far-right street movement, UTK, which drew 100,000+ to central London in 2024–25. Convicted multiple times (mortgage fraud, contempt of court, passport offences); lost a 2021 libel case to a Syrian schoolboy and was bankrupted; funded in part by US think tanks (Middle East Forum) and boosted by Elon Musk. Why it matters: the street muscle of the radical right — amplified by billionaires, arrested by the state, and treated as radioactive by the party (Reform) that fishes in the same pond.","BBC; Guardian; court records","Tommy Robinson"],
+["musk","Elon Musk","person",1,"The world's richest man used X in 2024–25 as a weapon in British politics: promoted Robinson and UTK during the Southport riots, posted that 'civil war is inevitable' in the UK, demanded Starmer's removal, amplified 'grooming gang' pressure that forced inquiries, then turned on Farage ('Reform needs a new leader') and briefly courted Lowe. Why it matters: a foreign billionaire with a state-adjacent US role tried to choose Britain's government and opposition in real time.","Guardian; BBC","Elon Musk"],
+["lbc","LBC","media",2,"Britain's biggest commercial talk station, owned by Sir Michael Tabor. Gave Farage a nightly show for years (2017–2020) and still platform his allies; also home to James O'Brien — it sells both sides of the culture war from one building. Why it matters: the 'national conversation' on talk radio is a product owned by one billionaire.","Guardian","LBC"],
+["jc","The Jewish Chronicle","media",2,"The world's oldest Jewish newspaper (founded 1841), which from 2015–20 published a stream of pieces — some later ruled inaccurate by IPSO — that shaped the Labour antisemitism crisis narrative; editor-at-large Stephen Pollard had earlier hired George Cottrell (later convicted fraudster). In 2024 it published fabricated Gaza stories by a fake journalist and had to retract them; ownership passed in 2020 to a consortium including figures linked to the establishment right. Why it matters: a community paper whose editorial line has repeatedly fed national political crises, with accuracy rulings against it in both directions.","IPSO rulings; Guardian; JC itself","The Jewish Chronicle"],
+["singer","Paul Singer","money",1,"American billionaire (Elliott Management), the archetypal 'vulture fund' operator — bought distressed Argentine debt for cents and sued for full value, winning a decade-long battle; EU courts ruled against his tactics. A major funder of US Republican and pro-Israel causes (AIPAC-aligned networks, the Foundation for Defense of Democracies) and a donor to British right-wing causes via allied networks. Why it matters: the transatlantic pipeline — US pro-Israel/Republican billionaire money — connects to British politics through the same donor ecosystem.","Guardian; OpenSecrets; ECJ ruling","Paul Singer (businessman)"],
+["talk","Talk (TalkTV)","media",2,"Murdoch's TV/radio talk brand (TalkTV folded back to radio/digital in 2024): employed Farage, Richard Tice and Julia Hartley-Brewer; part of News UK alongside the Sun and Times. Why it matters: even the 'insurgent' right's second broadcast home is inside the Murdoch empire.","Guardian","Talk (streaming service)"],
+["sky","Sky UK","media",2,"Britain's biggest pay-TV broadcaster, built by Murdoch; his 2016–18 bid for full control was blocked after regulators ruled the deal would give his family too much influence over news (and over Sky News' independence). Now owned by Comcast. Why it matters: the one time the state formally said no to Murdoch — on raw media-power grounds.","CMA report 2018; BBC","Sky UK"],
+["spectator","The Spectator","media",2,"The world's oldest weekly magazine, bought in 2024 by Paul Marshall for £100m after being caught in the Telegraph sale. The Tory party's intellectual salon — Johnson, Gove and Farage allies all pass through its pages and its garden parties. Why it matters: the same billionaire who owns GB News now owns the right's ideas factory.","Guardian; FT","The Spectator"],
+["uae","United Arab Emirates","lobby",0,"A Gulf absolute monarchy with deep purchase in Britain: owner (via state funds) of Manchester City, major investor in UK infrastructure (SDP, ports), and — through Sheikh Mansour's RedBird IMI vehicle — came within weeks of owning the Telegraph. Used Pegasus spyware to hack the phones of Princess Haya and her British lawyers during her London divorce case, per the High Court (2021). Hired armies of London PR and lobbying firms; funds 'counter-extremism' narratives that align with pro-Israel, anti-Muslim Brotherhood framing. Why it matters: an authoritarian foreign state buying British football, infrastructure, media and influence — with spyware deployed on UK soil.","High Court (2021); Guardian; FT","United Arab Emirates"],
+["israel_state","State of Israel","lobby",0,"A foreign state whose official bodies spend directly inside British politics: the Foreign Ministry paid £50,000 for Reform UK figures to visit (2025) and runs open 'hasbara' programmes; its embassy was caught by Al Jazeera (2017) discussing operations against UK ministers. Israeli intelligence alumni (Unit 8200) founded major UK tech/security firms; NSO Group's Pegasus spyware was sold to allies including the UAE. Why it matters: unlike lobby groups, this is a state machine with budget lines, diplomats and intelligence ties operating in London — and no other foreign state is comparably embedded.","Israeli MFA register; Al Jazeera; Guardian","Israel"],
+["ashcroft","Lord Ashcroft","money",1,"Belize-based billionaire who bankrolled the Conservatives for decades (~£10m+) and as deputy chairman effectively ran their 2010 marginal-seats campaign — while refusing to confirm his tax status, causing a scandal when his non-dom status emerged. Later reinvented himself as the pollster of record whose surveys shape election coverage. Why it matters: offshore money ran a governing party's election machine, then the same man bought the role of national political umpire.","Guardian; BBC","Michael Ashcroft"],
+["chernukhin","Lubov Chernukhin","money",2,"Wife of a former Putin finance minister; the biggest female donor in British history (£2m+ to the Conservatives), paying £160,000 for a tennis match with Boris Johnson and £135,000 for dinner with Theresa May. The party refused to return the money even after the Ukraine invasion, citing her British citizenship. Why it matters: Kremlin-adjacent money bought literal face-time with prime ministers, and the party defended keeping it.","Electoral Commission; Guardian","Lubov Chernukhin"],
+["utk","UTK (Unite the Kingdom)","party",2,"Tommy Robinson's street coalition — football-lad networks, far-right activists and disaffected voters — which pulled 100,000–150,000 onto London's streets in 2024–25, the largest far-right mobilisations in British history. Rallies featured arrests, clashes with police and rape-chant signage documented by journalists; Robinson himself was jailed (contempt) mid-movement. Why it matters: the physical force of the radical right — courted by Musk, condemned by Reform, and impossible for the establishment to police away.","BBC; Guardian; court records","English Defence League"],
+["tice","Richard Tice","person",1,"Reform's deputy leader (former leader 2019–21, then chairman): a property millionaire who co-founded Leave.EU-adjacent Brexit networks and ran the Brexit Party company (struck off in 2022 with Tice as director). In May 2025 Parliament's standards commissioner opened an investigation after Tice registered shareholdings without formally declaring the interests in debate. Led the Israeli-government-funded Reform delegation to Israel (March 2025). Why it matters: Reform's number two embodies the pattern — personal property wealth, opaque company structures, foreign-government-funded travel, and a standards file.","Parliamentary Commissioner; Israeli MFA register; Companies House","Richard Tice"],
+["yusuf","Zia Yusuf","person",1,"Reform's chairman (2024–25) and now head of its 'Doge' unit: a Muslim-born tech millionaire (sold Velocity Black for £233m) who donated £200k and became the party's administrator-in-chief. In March 2025 he made the police complaint that triggered the purge of Rupert Lowe (armed officers seized Lowe's guns; the CPS brought no charges). A BBC investigation (June 2025) reported staff describing his behaviour as 'unpredictable', with frequent dismissals and fear, and alleged he had approved inflated financial figures to his old company's investors (he denied wrongdoing). Quit in June 2025 after a burqa-ban row — and returned within 48 hours. As a Reform 2025 Ltd director he co-controls the party with Farage. Why it matters: the gatekeeper of Britain's insurgent party is a recent Tory donor with a conduct file, total corporate control, and the power to have MPs' doors kicked in.","BBC (June 2025); Companies House; CPS","Zia Yusuf"],
+["lowe","Rupert Lowe","person",1,"Southampton FC's former chairman, Reform MP for Great Yarmouth — and the man the machine destroyed. After criticising Farage's 'messianic' leadership (March 2025) he was reported to police by chairman Zia Yusuf over alleged threats; armed officers raided his home and seized his legally held guns; he was suspended from the party and later stripped of the whip. The CPS found no case (June 2025). He then faced a parliamentary standards probe (bullying allegations he calls a stitch-up) and was smeared across GB News and the Telegraph. His answer: Restore Britain, the only right-wing party with no Zionist affiliate. Why it matters: the full playbook — police complaint, guns seized, media pile-on, standards probe — deployed against a dissident within weeks, by his own party.","BBC; CPS statement; Guardian","Rupert Lowe"],
+["johnson","Boris Johnson","person",1,"Prime Minister 2019–22: delivered Brexit with Dominic Cummings, then was consumed by his own scandals — Partygate (fined by police for lockdown parties while the country buried relatives alone), the unlawful prorogation of Parliament (Supreme Court, 2019), the attempt to save lobbying MP Owen Paterson that forced his own U-turn, the secret funding of his flat refurbishment, and elevating Evgeny Lebedev to the Lords against security advice. The privileges committee found he deliberately misled Parliament; he resigned rather than face a recall petition. Why it matters: the clearest modern case of power, donors, media (his old Telegraph employers) and impunity converging on one man.","Privileges Committee; Supreme Court; BBC","Boris Johnson"],
+["urbanscoop","Urban Scoop","media",2,"A 'citizen journalism' outfit launched 2024 by Brian Rose — the London Real founder expelled from Reform in 2022 over an 'offensive' hand gesture — which became the semi-official media wing of Robinson's UTK rallies, livestreaming to hundreds of thousands and monetising the street movement. Why it matters: the radical right no longer needs broadcasters; it has built its own.","Guardian; Urban Scoop","Brian Rose (podcaster)"],
+["zahawi","Nadhim Zahawi","person",1,"Iraqi-born former Chancellor, Education Secretary and — during the pandemic — Vaccines Minister (2020–21), the man who ran Britain's COVID jab rollout. In January 2023 he was sacked as Tory chairman after it emerged he had paid HMRC a settlement reported at ~£5m — including a penalty — over his taxes, negotiated while he was Chancellor, and had lied about it publicly. His YouGov fortune sits in an offshore Gibraltar family trust. On 12 January 2026, reportedly after being denied a peerage, he defected to Reform — the first former Chancellor in their ranks. Why it matters: the man in charge of the COVID response was simultaneously settling a seven-figure tax penalty and denying it — and was recycled into the 'anti-establishment' party the moment it suited him.","BBC; Guardian; HMRC reporting","Nadhim Zahawi"],
+["jenrick","Robert Jenrick","person",1,"Former Immigration Minister and Tory leadership runner-up (2024), sacked from the shadow cabinet and defected to Reform on 15 January 2026. As Housing Secretary he unlawfully approved Richard Desmond's £1bn Westferry development in 2020 — rushing it past a planning deadline that saved the Tory donor ~£45m, having sat with him at a fundraiser; the High Court quashed it. As Immigration Minister he oversaw the Afghan relocation scheme during the 2022 data breach that exposed ~19,000 Afghans' details; he says he learned of the breach only after the government gagged it with a superinjunction, then 'strongly opposed' bringing 24,000 affected Afghans to Britain at a cost of £850m — and resigned (Dec 2023) over the Rwanda scheme's weakness. Why it matters: donor favours, secret courts, mass data failure and a secret £850m relocation programme — all under one minister, now Reform's recruit.","High Court; BBC; Guardian (Afghan leak)","Robert Jenrick"],
+["braverman","Suella Braverman","person",1,"Twice Home Secretary, twice removed: first (Oct 2022) for emailing classified material from her personal account, then sacked by Sunak (Nov 2023) after accusing the police of pro-Palestinian bias in an unauthorised op-ed. Sacked from Badenoch's shadow cabinet (April 2025), defected to Reform (late January 2026). Campaigned on leaving the ECHR and called pro-Gaza marches 'hate marches'. Why it matters: the hard-right's legal standard-bearer moved from the heart of government to Reform — carrying the 'invasion' framing of immigration with her.","BBC; Guardian","Suella Braverman"],
+["expenses","MPs' expenses scandal","scandal",3,"The 2009 Telegraph leak that revealed systematic abuse: moat cleaning, duck houses, flipped second homes and mortgage fraud across all parties. Several MPs jailed; hundreds forced to repay. It shattered public trust and fuelled the anti-politics wave that UKIP and later Reform rode. Why it matters: the original proof that Westminster's rules were honoured mainly in the breach — the seedbed of today's 'they're all at it' politics.","Telegraph (2009); IPSA records",null],
+["cashhonours","Cash for honours","scandal",3,"The recurring sale of seats in the legislature: 2006–07 police probe into secret Labour loans (Lord Levy arrested; Blair questioned); the documented Tory pattern — 15 of the last 16 party treasurers who gave £3m+ received peerages; Boris Johnson's 2020 elevation of Evgeny Lebedev against MI5 advice. Why it matters: membership of Britain's upper house has a going rate, and everyone in Westminster knows it.","BBC; Guardian; Sunday Times",null],
+["partygate","Partygate","scandal",3,"While COVID rules banned funerals and family visits, Downing Street held at least 16 gatherings — including the night before Prince Philip's isolated funeral. 126 police fines, including to the PM and Chancellor; Johnson found to have deliberately misled Parliament. Why it matters: the moment millions concluded the rules were for them, not for the rulers — the single biggest trust-destroyer of the era.","Met Police; Privileges Committee; Sue Gray report",null],
+["covidcontracts","COVID PPE contracts","scandal",3,"£15bn+ in pandemic contracts awarded through a 'VIP lane' fast-tracking companies referred by ministers, MPs, peers and donors: PPE Medpro (£200m, linked to peer Michelle Mone — now under NCA investigation, £75m assets restrained), Randox (Owen Paterson lobbying), Ayanda (£155m, adviser Andrew Mills). The High Court ruled the VIP lane unlawful (2022). Much of the PPE was unusable. Why it matters: the biggest documented transfer of public money to the politically connected in modern British history.","High Court (2022); NAO; Good Law Project",null],
+["zahawitax","Zahawi tax affair","scandal",3,"The Chancellor of the Exchequer — the man in charge of HMRC — secretly settled his own tax bill with a penalty (reported total ~£5m) over YouGov shares held in a Gibraltar trust, denied the story as 'smears' while threatening journalists with libel action, and was sacked when the ministerial code breach became undeniable (Jan 2023). Why it matters: the taxman's boss was paying tax penalties and lying about it — and the system would never have known without the press.","BBC; Guardian; Dan Neidle investigation",null],
+["robinsonlibel","Robinson libel & bankruptcy","scandal",3,"Robinson's 2018 claims that Syrian refugee schoolboy Jamal Hijazi had attacked girls were proven fabricated; he lost the 2021 libel trial (representing himself), was ordered to pay £100k plus ~£1.5m costs, declared bankruptcy — and was later found by the court to have hidden assets and broken court orders, leading to contempt jail time. Why it matters: the legal paper trail behind the 'they tried to silence him' narrative — what the courts actually found.","High Court (2021); BBC",null],
+["gaza_doc","Gaza documentary row","scandal",3,"In 2025 the BBC pulled its documentary 'Gaza: How to Survive a War Zone' after revelations that its child narrator was the son of a Hamas minister and that production payments reached the family — sparking an internal review and Ofcom scrutiny, and feeding the long war over BBC Gaza coverage from both sides. Why it matters: a case study in how the most contested conflict on earth distorts Britain's state broadcaster in both directions at once.","BBC; Ofcom; Guardian",null],
+["phonehack","Phone hacking","scandal",3,"News of the World journalists hacked thousands of phones — celebrities, politicians, murdered schoolgirl Milly Dowler, 7/7 victims' families. The paper was closed (2011), Andy Coulson jailed, Rebekah Brooks acquitted; civil settlements have cost News Group over £1bn and continue (Prince Harry settlement 2025). The Leveson Inquiry's second part — into corruption between press, police and politicians — was cancelled by the government. Why it matters: Britain's biggest media company ran a criminal intelligence operation for years, and the inquiry into who protected it was shut down.","Leveson Inquiry; Guardian; court records",null],
+["ofcom","Ofcom vs GB News","scandal",3,"Ofcom has ruled GB News in breach of impartiality rules repeatedly — including for letting serving politicians act as news presenters — yet imposed no licence sanction, as fines and 'special measures' stalled. GB News calls the regulator censorious; critics call it toothless. Why it matters: a live test of whether Britain's broadcast rules can survive a channel owned by the very people the rules are meant to constrain.","Ofcom rulings 2023–25; Guardian",null],
+["jc_fab","The JC's fabricated Gaza stories","scandal",3,"In 2024 the Jewish Chronicle published nine articles by 'Elon Perry' — a journalist who did not exist — containing invented claims about Hamas and the IDF, sourced from what turned out to be a fabricated biography. Israeli media exposed the fraud; the JC retracted the stories, which by then had been cited internationally. Earlier, in the 2019 election, the paper took the unprecedented step of a front-page appeal to non-Jewish readers to vote against Corbyn over antisemitism. Why it matters: a community paper twice broke its own rules of evidence — once into the heart of a general election, once into a war — and the retractions never travelled as far as the stories.","IPSO; Guardian; JC retractions",null],
+["lebedev","Lebedev peerage","scandal",3,"Boris Johnson nominated Evgeny Lebedev — son of ex-KGB officer Alexander Lebedev, owner of the Evening Standard and Independent — to the House of Lords in 2020 despite security services' advice, reportedly intervening personally to override it. The Lebedevs had hosted Johnson at their Italian villa while he was Foreign Secretary. Why it matters: a peerage for a KGB-linked media owner, forced through against intelligence advice, by a PM who partied at his villa.","Guardian; BBC; Intelligence & Security Committee",null],
+["grooming","Grooming gangs inquiries","scandal",3,"Decades of organised child sexual exploitation in Rotherham, Rochdale, Telford and elsewhere — overwhelmingly by British-Pakistani men (Jay, Casey reports) — went unprosecuted as police and councils feared 'community tensions' accusations. Musk's January 2025 intervention forced it back to the top of politics: Labour whipped MPs to kill the Tories' inquiry amendment 364–111, then U-turned and ordered one after the Casey audit (June 2025). The £65m statutory inquiry has since stumbled — its chair gone, survivors resigned — Farage demands Parliament seize it, and Rupert Lowe's own crowdfunded inquiry published a 219-page first report across 149 districts (2026). In London the Met is reviewing 9,000 cases, with 4,000+ flagged for possible reinvestigation. Why it matters: the state's admitted failure to protect thousands of children to avoid being called racist — and the proof that a foreign billionaire's posts now set Britain's political agenda.","Jay Report (2014); Casey audit (2025); ITV; Evening Standard",null],
+["blair","Tony Blair","person",1,"Prime Minister 1997\u20132007, architect of New Labour \u2014 and out of office more structurally powerful than ever. His Tony Blair Institute for Global Change (TBI) is by far Britain's largest think tank (~1,000 staff, 45 countries, $145m turnover), bankrolled since 2021 by Oracle founder Larry Ellison's foundation (\u00a3257m+ donated or pledged) while it lobbies ministers on AI and national data policy that mirrors Oracle's commercial interests. His people sat at the heart of Starmer's government \u2014 his former chief of staff Jonathan Powell was appointed National Security Adviser in 2024 \u2014 and No 10 was staffed by Blair-machine veterans. Why it matters: the foundations he poured \u2014 donor-funded Labour, media management, technocratic centrism \u2014 still define what is politically possible, and his institute is helping write the current government's AI playbook.","New Statesman / Democracy for Sale TBI investigation (2025); gov.uk; The Independent","Tony Blair"],
+["fabian","Fabian Society","lobby",2,"Founded 1884, the intellectual engine of the British left: it co-founded the Labour Representation Committee that became the Labour Party and remains constitutionally affiliated to Labour as a socialist society. Every Labour prime minister has been a Fabian. Today: 140+ Fabian MPs elected in 2024, around half the Cabinet, with Starmer and Reeves both former executive-committee members and Wes Streeting a vice chair; its policy work (National Care Service, workers' rights) feeds directly into the government's programme. Why it matters: a 140-year-old members' society most voters have never heard of sits inside the governing party's bloodstream \u2014 gradualism as a strategy, power through permeation rather than election.","Fabian Society (fabians.org.uk); Britannica","Fabian Society"],
+["hnh","Hope Not Hate","lobby",3,"Britain's largest anti-fascist organisation, founded in 2004 by former Searchlight editor Nick Lowles in response to the rise of the BNP. Its researchers infiltrate and expose far-right networks \u2014 undercover work dramatised by ITV as The Walk In \u2014 and it documents and campaigns against everyone on the far right of this map, from Tommy Robinson to Reform's hard edge. Why it matters: the far right does not operate unopposed \u2014 its every move is watched, recorded and published by Britain's full-time anti-fascist intelligence operation.","hopenothate.org.uk; New Internationalist; The Conduit","Hope Not Hate"],
+["burnham","Andy Burnham","person",1,"Mayor of Greater Manchester 2017\u201326 ('King of the North'), former Blair and Brown cabinet minister and two-time leadership runner-up \u2014 now Prime Minister (20 July 2026). Blocked by the NEC from the Gorton and Denton by-election in January 2026, he returned via Makerfield in June after Josh Simons stood aside for him; Starmer resigned four days later and Burnham was acclaimed leader unopposed, nominated by 379 of 403 Labour MPs. The first Labour PM who is also a Co-operative Party member.","ITV News; labour.org.uk; The Guardian","Andy Burnham"],
+["islam","Islam in Britain","lobby",0,"3.9 million Muslims (6.5% of the UK, 2021 census), concentrated in urban seats — an electorate that makes and breaks MPs. In 2019 over 80% voted Labour; in 2024 the Gaza backlash cut Labour's share by 29 points in seats over 30% Muslim and carried five pro-Gaza independents (Shockat Adam, Ayoub Khan, Adnan Hussain, Iqbal Mohamed and Jeremy Corbyn) into Parliament, where they formed the Independent Alliance. Shabana Mahmood's Ladywood vote share fell ~40 points; Wes Streeting clung on by 528 votes. Whoever speaks for this bloc holds a veto over dozens of seats — and everyone from Labour to the Muslim Brotherhood knows it.","UK Election Analysis 2024; The New Arab; Muslim News","Islam in the United Kingdom"],
+["pakistan","Pakistan","lobby",0,"The state behind Britain's largest Pakistani diaspora — around 1.6 million people, the biggest in Europe. Its stake in Westminster runs through Kashmir politics (dedicated friendship groups in both main parties) and 'biraderi' clan-network voting in dozens of urban seats, while remittances flow the other way. Its diaspora sits at the very top of British power: the Home Secretary's family is from Mirpur, Azad Kashmir, and the Mayor of London's parents emigrated from Pakistan.","House of Commons Library; geo.tv; London Museum","Pakistan–United Kingdom relations"],
+["qatar","Qatar","lobby",0,"The Gulf gas state that quietly bought pieces of the capital: Harrods (£1.5bn, 2010), the Shard, Canary Wharf, Chelsea Barracks and a slice of Heathrow, via its sovereign wealth fund. Simultaneously accused by Saudi Arabia, the UAE, Egypt and Bahrain — who blockaded it in 2017 — of being the Muslim Brotherhood's state sponsor and Hamas's host, charges Doha denies. Its state broadcaster Al Jazeera beams into every British home.","The Guardian; Middle East Eye; meforum.org","Qatar–United Kingdom relations"],
+["mb","Muslim Brotherhood network","lobby",2,"Founded in Egypt in 1928, the Brotherhood's British milieu was mapped by a UK government review (Jenkins/Farr, published December 2015): membership, fundraising and education programmes 'secretive'; the Muslim Association of Britain 'dominated by the Muslim Brotherhood'; UKIM, FOSIS, the ISB, the Islamic Forum of Europe and the MCB named as associated organisations. The review stopped short of a ban — no UK violence found, but a network helping create the conditions in which extremism flourishes. The UAE demanded the crackdown, threatening arms deals, investment and intelligence cooperation, and even pressed London to curb BBC reporting; Qatar is accused of being its sponsor (denied).","gov.uk (Jenkins review, 2015); The Guardian; MEE","2014 UK government review of the Muslim Brotherhood"],
+["khan","Sadiq Khan","person",1,"Mayor of London since 2016 — the first Muslim mayor of a Western capital and the first London mayor to win three terms (2024). Son of a Pakistani bus driver, raised on a Wandsworth council estate; human-rights lawyer, then MP for Tooting. Knighted, and in July 2026 elevated to the House of Lords in Starmer's outgoing peerages — while still Mayor. Long-running feud with Donald Trump; performed the hajj in 2026.","gov.uk political peerages July 2026; The Telegraph; London Museum","Sadiq Khan"],
+["mahmood","Shabana Mahmood","person",1,"Home Secretary (September 2025, kept on by Burnham in July 2026) — the first female Muslim Home Secretary and the first Muslim woman to be Lord Chancellor. Born in Birmingham in 1980 to parents from Mirpur, Azad Kashmir; childhood years in Taif, Saudi Arabia; Oxford-educated barrister; MP for Birmingham Ladywood since 2010. As chair of Labour's NEC she abstained in the January 2026 vote that blocked Burnham's comeback — then kept the Home Office when he won anyway. Gaza independents cut her Ladywood vote share ~40 points in 2024.","geo.tv; Wikipedia; The Telegraph","Shabana Mahmood"],
+["aljazeera","Al Jazeera English","media",3,"Qatar's state-funded global news channel — Doha money, London newsroom. Its 2017 undercover series The Lobby secretly filmed an Israeli embassy official and exposed Labour Friends of Israel's back-channel to the embassy; Ofcom rejected complaints, but the fallout reshaped how the Israel lobby operates in Britain.","Al Jazeera; Declassified UK; The Guardian","Al Jazeera English"],
+["wef","World Economic Forum","lobby",0,"Founded by Klaus Schwab in 1971 and funded by around 1,000 multinational corporations, the Davos summit is where governments, central bankers and billionaires settle the agenda before voters ever hear it. Schwab quit as chair in April 2025 amid whistleblower allegations (an internal probe cleared him of 'material wrongdoing'); BlackRock's Larry Fink now co-chairs the Forum — and in February 2026 its president Børge Brende resigned over his Epstein links. Its British congregation runs deep: Tony Blair sat on its board of trustees, Starmer and Reeves are Davos attendees, Khan an agenda contributor. Why it matters: no ballot box, no manifesto — yet every government on this map sends its people to the mountain.","FT; Politico; The Telegraph; weforum.org","World Economic Forum"],
+["mandelson","Peter Mandelson","person",1,"'The Prince of Darkness' — architect of New Labour alongside Blair and Brown, twice forced out of the cabinet (1998 loan scandal, 2001 Hinduja affair), EU trade commissioner, then brought back by Starmer as ambassador to Washington in 2025. Sacked within months when his supportive emails to Jeffrey Epstein ('I think the world of you') surfaced, and arrested in February 2026 on suspicion of misconduct in public office over alleged leaks to Epstein. Why it matters: his fall is the scandal that broke Starmer's government — and the clearest thread from Epstein's network into the heart of British power.","BBC; The Guardian; The Times","Peter Mandelson"],
+["campbell","Alastair Campbell","person",2,"Tony Blair's director of communications 1997–2003 — the most feared spin doctor of his era, central to the Iraq 'dodgy dossier' row and the Dr David Kelly tragedy. Expelled from Labour in 2019 after admitting he voted Liberal Democrat, he reinvented himself as co-host of The Rest Is Politics, Britain's biggest political podcast. Why it matters: the media-management machine he and Mandelson built for New Labour is the template every party on this map still runs on.","The Guardian; BBC; Goalhanger","Alastair Campbell"],
+["brown","Gordon Brown","person",1,"Chancellor 1997–2007 — the longest-serving of the modern era — then Prime Minister 2007–10. Sold half Britain's gold reserves near historic lows, light-touch-regulated the City into the 2008 crash, then led the bank bailouts and global response credited with stopping a depression. His decade-long 'TB-GBs' feud with Blair's camp defined an era. Why it matters: the post-crash settlement he shaped — bailouts, QE, the austerity trigger — is still the ground every government on this map fights on.","The Guardian; UK Parliament records","Gordon Brown"],
+["archer","Jeffrey Archer","person",3,"Best-selling novelist and life peer — once deputy chairman of the Conservative Party, who quit the 1999 London mayoral race and was jailed for four years in 2001 for perjury and perverting the course of justice over his 1987 libel win against the Daily Star. Why it matters: a walking emblem of the era when Tory grandees, newspaper money and libel law mixed — and of how long the establishment protects its own before the fall.","BBC; The Guardian","Jeffrey Archer"],
+["epstein","Jeffrey Epstein","person",1,"American financier and convicted sex offender whose 'black book' ran through the circles of princes, presidents and prime ministers. Convicted in Florida in 2008 on a condemned 'sweetheart' deal, arrested on federal sex-trafficking charges in July 2019 and found dead in his Manhattan cell a month later. His reach into Britain is still detonating: Andrew Mountbatten-Windsor lost his titles, Peter Mandelson was sacked as ambassador and arrested, and the WEF's president resigned over their meetings. Why it matters: the only dead node on this map — and none explains 2026's casualties better.","US DOJ; BBC; House Oversight Epstein-files releases","Jeffrey Epstein"],
+["bannon","Steve Bannon","person",2,"Trump's 2016 campaign chief and White House strategist, Breitbart chairman and War Room host — the connective tissue of the transatlantic populist right. He championed Tommy Robinson ('the backbone of this country'), filmed hours coaching Jeffrey Epstein for a never-aired 60 Minutes rehabilitation, and was jailed in 2024 for contempt of Congress. Why it matters: through Robinson and Farage, his influence operation reaches straight into Britain's street movements and its insurgent right.","New York Times; Hollywood Reporter; Middle East Eye Epstein-files reporting","Steve Bannon"],
+["ellison","Larry Ellison","money",0,"Founder of Oracle — briefly the world's richest man (September 2025). His foundation has donated or pledged £257m+ to the Tony Blair Institute since 2021, growing it to ~1,000 staff across 45 countries, while Oracle has won £1.1bn+ in UK public-sector contracts since 2022 and TBI pushes national AI and data policy mirroring Oracle's commercial interests. Former staff describe institute and company as 'inseparable'. Why it matters: a single foreign billionaire bankrolls the think tank writing Britain's AI playbook.","New Statesman / Democracy for Sale investigation (2025)","Larry Ellison"],
+["fink","Larry Fink","money",0,"Chairman and CEO of BlackRock — the world's largest asset manager, stewarding ~$11.6 trillion — and interim co-chair of the World Economic Forum since 2025. Courted at the top of British politics: a BlackRock investment roundtable with Starmer and Reeves in No 10 (November 2024), then a Downing Street growth summit (May 2025). Why it matters: when the government says 'growth, growth, growth', this is the man it is pitching to.","City AM; openDemocracy 'The BlackRock letters'","Larry Fink"],
+["thiel","Peter Thiel","money",1,"PayPal mafia don and Palantir co-founder/chairman — the surveillance-tech billionaire whose company built the NHS's £330m Federated Data Platform (awarded 2023) after years of lobbying and what he himself called 'buying its way in'. Palantir also holds MoD contracts and a 'strategic partnership' with Israel's military (2024); Thiel has said the NHS 'makes people sick'. Why it matters: Britain's most sensitive health data now sits on the platform of a man openly hostile to the institution.","BMJ; The Conversation; Democracy for Sale","Peter Thiel"],
+["mittal","Sunil Mittal","money",1,"Indian telecoms tycoon — founder and chairman of Bharti Enterprises (Airtel), and since 2024 the largest shareholder in BT Group (24.95%, bought from Patrick Drahi's debt-strained Altice and cleared under the National Security and Investment Act). He joined BT's board in September 2025; in 2026 the government moved to block him going further. Why it matters: Britain's former national telecoms champion — critical infrastructure — now has its biggest voice seated from New Delhi.","BT Group; Telecoms.com; Mobile Europe","Sunil Mittal"],
+];
+const E=[
+["hester","tories","solid","£15m+ in donations, the biggest Tory donor of the 2020s","money"],
+["marshall","gbnews","solid","co-owner","own"],
+["marshall","tories","solid","~£600k donated","money"],
+["marshall","reform","solid","£200k donated","money"],
+["marshall","spectator","solid","bought 2024, £100m","own"],
+["murdoch","talk","solid","News UK owns","own"],
+["murdoch","sky","solid","built; control bid blocked 2018","own"],
+["murdoch","tories","dash","papers back party","party"],
+["harborne","reform","solid","£20m+ incl. record £9m gift","money"],
+["gibb","telegraph","solid","agreed £1.2bn takeover 2023, blocked by law 2024","own"],
+["uae","gibb","solid","IMI = Sheikh Mansour's state vehicle","state"],
+["tabor","lbc","solid","owner","own"],
+["tabor","gbnews","solid","$60m launch funding","money"],
+["tories","reform","dash","Jan 2026 defection cascade","party"],
+["israel_lobby","reform","solid","Jewish Alliance affiliate; £50k Israeli MFA-funded delegation","state"],
+["israel_lobby","tories","solid","CFI: most Tory MPs historically","state"],
+["israel_lobby","labour","solid","LFI","state"],
+["unions","labour","solid","£20m+ Unite since 2010","money"],
+["lubner","labour","dot","cash-for-honours 2006","money"],
+["quadrature","labour","solid","£4m, 2024","money"],
+["sainsbury","labour","solid","£10m+ under Blair","money"],
+["sainsbury","vince","solid","£8m+ to Lib Dems","money"],
+["mansour","tories","solid","£5m, knighted","money"],
+["ashcroft","tories","solid","£10m+, ran 2010 marginals","money"],
+["chernukhin","tories","solid","£2m+","money"],
+["chandler","tories","dash","Legatum's Brexit influence","party"],
+["chandler","gbnews","dot","Legatum-linked founding money","money"],
+["chandler","spectator","dash","sponsored; Marshall bought","money"],
+["tories","bbc","dash","board appointments","party"],
+["bbc","israel_state","dash","coverage wars both directions","state"],
+["gbnews","farage","solid","£400k–£1m/yr presenter","work"],
+["lbc","farage","solid","nightly show 2017–20","work"],
+["telegraph","tories","dash","house paper","party"],
+["jc","labour","dash","Corbyn-era coverage","party"],
+["jc","israel_lobby","dash","community paper; BICOM-adjacent","state"],
+["singer","israel_lobby","solid","major pro-Israel funder","money"],
+["singer","tories","dot","US donor networks","money"],
+["musk","robinson","solid","promoted on X","personal"],
+["musk","utk","solid","amplified rallies","personal"],
+["musk","farage","dash","courted then attacked","personal"],
+["robinson","utk","solid","founder-leader","party"],
+["utk","urbanscoop","solid","movement media arm","own"],
+["lowe","restore","solid","founder","party"],
+["lowe","reform","solid","expelled March 2025","party"],
+["yusuf","reform","solid","chairman; co-director of company","work"],
+["yusuf","lowe","solid","police complaint triggered purge","law"],
+["tice","reform","solid","deputy leader; ex-company director","work"],
+["zahawi","reform","solid","defected 12 Jan 2026","party"],
+["jenrick","reform","solid","defected 15 Jan 2026","party"],
+["braverman","reform","solid","defected late Jan 2026","party"],
+["farage","reform","solid","leader; co-owner of company","own"],
+["farage","cottrell","dot","2016 fundraiser, convicted","work"],
+["johnson","lebedev","solid","overrode security advice for peerage","law"],
+["johnson","partygate","solid","fined; misled Parliament","law"],
+["chernukhin","johnson","solid","£160k tennis match","money"],
+["hester","expenses","dot","donor era fallout","law"],
+["tories","expenses","solid","multiple MPs jailed","law"],
+["tories","cashhonours","solid","15 of 16 treasurers ennobled","law"],
+["labour","cashhonours","solid","2006–07 police probe","law"],
+["tories","covidcontracts","solid","VIP lane ruled unlawful","law"],
+["zahawi","zahawitax","solid","~£5m HMRC settlement","law"],
+["robinson","robinsonlibel","solid","lost; bankrupt; jailed","law"],
+["bbc","gaza_doc","solid","pulled documentary","law"],
+["murdoch","phonehack","solid","NoW closed; £1bn+ settlements","law"],
+["gbnews","ofcom","solid","repeated breaches, no sanction","law"],
+["jc","jc_fab","solid","fabricated Gaza stories retracted","law"],
+["jenrick","covidcontracts","dot","Afghan scheme era; VIP-lane govt","law"],
+["israel_state","israel_lobby","solid","embassy ops exposed 2017","state"],
+["uae","israel_state","dash","Abraham Accords; shared tech","state"],
+["restore","robinson","dash","shared street base, denied alliance","personal"],
+["fabian","labour","solid","founded the party; affiliated socialist society","party"],
+["blair","labour","dash","Blair machine shaped the Starmer era","personal"],
+["hnh","robinson","dash","exposes & campaigns against him","personal"],
+["burnham","labour","solid","leader & PM since July 2026","work"],["islam","labour","dash","its historic voting bloc — 80%+ in 2019, fraying over Gaza; five pro-Gaza independents took seats in 2024","party"],
+["islam","mahmood","solid","practising Muslim; the Gaza backlash cut her vote share ~40pts","personal"],
+["islam","khan","solid","practising Muslim; performed the hajj in 2026","personal"],
+["islam","yusuf","dash","Muslim heritage","personal"],
+["robinson","islam","dash","his movement's defining target","personal"],
+["mb","islam","dash","vies to speak for Britain's Muslims (Jenkins review)","state"],
+["qatar","mb","dash","accused of sponsorship & hosting its exiles — denied; sparked the 2017 Gulf blockade","state"],
+["uae","mb","dash","demanded a UK crackdown — threatened arms deals & investment (Guardian, 2015)","state"],
+["qatar","aljazeera","solid","owns & funds it","own"],
+["aljazeera","israel_lobby","dash","The Lobby undercover exposé (2017)","personal"],
+["pakistan","mahmood","solid","family roots in Mirpur, Azad Kashmir","personal"],
+["pakistan","khan","solid","his parents emigrated from Pakistan","personal"],
+["pakistan","labour","dash","diaspora Kashmir & biraderi politics in its heartland seats","party"],
+["mahmood","labour","solid","Home Secretary — kept on by Burnham","work"],
+["khan","labour","solid","its London mayor since 2016 — three terms","work"],
+["wef","blair","dash","past board of trustees member; a Davos fixture","personal"],
+["wef","labour","dash","Starmer & Reeves are Davos attendees","party"],
+["wef","khan","dash","WEF agenda contributor","personal"],
+["grooming","lowe","dash","his crowdfunded Rape Gang Inquiry \u2014 219-page report, 149 districts (2026)","law"],
+["grooming","farage","dash","promised a Reform inquiry, never delivered; now demands a parliamentary one","law"],
+["grooming","labour","dash","whipped the 364\u2013111 vote killing the Jan 2025 inquiry amendment, then U-turned","law"],
+["grooming","khan","dash","'no indication of rape gangs in London' \u2014 the Met is now reviewing 9,000 cases","law"],
+["grooming","tories","dash","demanded an inquiry in opposition; in power left every Jay/IICSA recommendation unimplemented","law"],
+["expenses","labour","dash","its MPs among those jailed; the Speaker fell","law"],
+["cashhonours","blair","dash","questioned by police as PM; his fundraiser Lord Levy arrested twice","law"],
+["partygate","tories","dash","126 fines issued in its buildings, incl. the PM","law"],
+["phonehack","tories","dash","Coulson went from its newsroom to Cameron's spin chief \u2014 then prison","law"],
+["campbell","blair","solid","Blair's spin chief 1997–2003 — the Iraq dossier era","work"],
+["mandelson","labour","solid","New Labour architect — twice resigned from the cabinet","party"],
+["epstein","mandelson","solid","'I think the world of you' — sacked over their emails, arrested Feb 2026","personal"],
+["epstein","bannon","solid","filmed hours of 'media training' for his never-aired 60 Minutes rehab","personal"],
+["epstein","robinson","dash","emailed Bannon on his 2018 release: 'Tommy Robinson. !! good work'","personal"],
+["epstein","wef","dash","Brende's meetings with him forced the WEF president out (Feb 2026)","personal"],
+["bannon","robinson","solid","'Tommy Robinson is the backbone of this country'","personal"],
+["bannon","farage","dash","Brexit-era ally — his 'Movement' courted Europe's populists","personal"],
+["ellison","blair","solid","£257m+ to his institute — 'inseparable', say former staff","money"],
+["fink","wef","solid","BlackRock boss, interim co-chair of the Forum since 2025","work"],
+["fink","labour","dash","courted at No 10 by Starmer & Reeves (Nov 2024, May 2025)","money"],
+["thiel","tories","solid","Palantir's £330m NHS data platform awarded on their watch (2023)","money"],
+["thiel","israel_state","solid","Palantir's 'strategic partnership' with Israel's military (2024)","state"],
+["thiel","musk","dash","PayPal mafia alumni turned rivals","personal"],
+["mittal","wef","dash","WEF International Business Council member","work"],
+["mittal","labour","dash","his 24.95% BT stake won board seats; more was blocked (2026)","money"],
+["brown","labour","solid","Chancellor 1997–2007, Prime Minister 2007–10","party"],
+["archer","tories","solid","peer & ex-deputy chairman — jailed for perjury (2001)","party"],
+];
+const CONTRO={
+campbell:[["The 'dodgy dossier'","His No 10 media machine drove the September 2002 Iraq dossier; the Hutton and Chilcot inquiries dissected its presentation and the treatment of Dr David Kelly, who died during the row."],["Expelled from Labour","Thrown out of the party in 2019 after admitting he voted Liberal Democrat in the European elections."]],
+mandelson:[["Two cabinet resignations","Forced out in 1998 over an undisclosed £373,000 loan from Geoffrey Robinson, and again in 2001 over the Hinduja passport affair."],["Epstein emails & arrest","Sacked as ambassador in 2025 when his 'I think the world of you' emails to Epstein surfaced; arrested in February 2026 on suspicion of misconduct in public office over alleged leaks to Epstein."]],
+brown:[["Brown's bottom","Sold roughly half the UK's gold reserves (1999–2002) near multi-decade price lows."],["The 2008 crash","A decade of light-touch City regulation ended in banking collapse on his watch; his bailouts rescued the banks at vast public cost."]],
+archer:[["Perjury","Jailed for four years in 2001 for lying in his 1987 libel case against the Daily Star."]],
+epstein:[["Convictions","2008 Florida guilty plea on a minor-related prostitution charge — a 'sweetheart' deal later ruled unlawful; arrested on federal sex-trafficking charges July 2019, dead in jail a month later."]],
+bannon:[["Contempt of Congress","Jailed for four months in 2024 for defying the January 6 committee."],["'We Build the Wall' fraud","Indicted in 2020 over the border-wall fundraiser; pardoned federally by Trump, pleaded guilty in New York state court (2025)."]],
+ellison:[["Policy capture row","TBI lobbies ministers on AI and data policy that mirrors Oracle's commercial interests while his money funds it; Oracle has won £1.1bn+ in UK public contracts since 2022."]],
+fink:[["The 'close partnership'","openDemocracy's BlackRock letters revealed ministers' gushing correspondence with the firm as it pitched for a role in UK industrial strategy."]],
+thiel:[["'Buying its way in'","His own words on Palantir's NHS strategy; the £330m platform award followed years of lobbying, MP donations and £1 Covid contracts."],["'The NHS makes people sick'","His stated view of the institution whose patient data his company now platforms."]],
+mittal:[["Blocked from more BT","The government moved in 2026 to resist any increase in Bharti's 24.95% stake on national-security grounds."]],
+wef:[["Rigged rankings","The Telegraph revealed (July 2025) that Schwab ordered staff the UK 'must not see any improvement' in the 2017/18 competitiveness report — suppressing a rise from 7th to 4th because it would be 'exploited by the Brexit camp'. The published report showed Britain falling to 8th."],["Epstein fallout","President & CEO Børge Brende resigned in February 2026 after his relationship with Jeffrey Epstein surfaced — the Forum's second leadership casualty in ten months."]],
+khan:[["Grooming gangs row","Pressed eight times in January 2025 by Assembly Conservatives, he denied rape gangs operated in the capital; by October the Met was reviewing 9,000 cases, by June 2026 more than 4,000 had been flagged for possible reinvestigation, and London is among the national inquiry's first targets."],["ULEZ backlash","His 2023 expansion of the Ultra Low Emission Zone across Greater London triggered protests and a national row over the cost to drivers."],["Trump feud","A decade-long public war with Donald Trump — who called him a 'stone cold loser'; Khan approved the giant 'Trump baby' blimp over Parliament Square in 2018."]],
+mahmood:[["NEC stitch-up abstention","As NEC chair she presided over — and abstained in — the 8–1 January 2026 vote blocking Andy Burnham's Gorton & Denton candidacy, a decision Burnham's allies dubbed a stitch-up. He was prime minister six months later."]],
+qatar:[["Terror-funding accusations","Accused by its Gulf neighbours and Western critics of funding Hamas and hosting Brotherhood leaders — charges Doha denies; the accusation drove the 2017–21 blockade."]],
+mb:[["Jenkins review findings","The 2015 government review found senior Brotherhood figures 'routinely use virulent, anti-Semitic language' and had justified attacks on coalition forces in Iraq and Afghanistan — but stopped short of proscription."]],
+burnham:[["The NEC stitch-up","His own party's NEC voted 8\u20131 to stop him standing in Gorton and Denton \u2014 a decision Angela Rayner called a 'stitch-up' and later 'a huge mistake'; 50 Labour MPs signed a letter of objection."]],
+blair:[["Iraq War","Took Britain into the 2003 invasion of Iraq on intelligence claims that proved false; the Chilcot Report (2016) damned the case-making, the legality arguments and the absence of post-war planning."],["Cash for honours","His chief fundraiser Lord Levy was arrested twice in the 2006\u201307 police investigation into secret loans traded for peerage nominations; Blair himself was interviewed by police as a witness."],["TBI and Oracle money","His institute is funded by Larry Ellison's foundation (\u00a3257m+ donated or pledged) while lobbying ministers on AI and data policy aligned with Oracle's commercial interests; former staff told the New Statesman/Democracy for Sale investigation the two had become 'inseparable'."]],
+fabian:[["Power without a mandate","Critics left and right have long accused Fabian gradualism of pursuing sweeping change without ever openly campaigning for it. The society's own stained-glass window, designed by George Bernard Shaw, shows its founders hammering the world on an anvil beneath the motto 'Remould it nearer to the heart's desire' \u2014 and its first emblem was literally a wolf in sheep's clothing."]],
+hester:[["Diane Abbott remarks (2024)","Said the MP made you 'want to hate all black women' and should be shot. Sunak called it racist; Labour and the Lib Dems demanded the Tories return his £10m. The party kept every penny. Why it matters: the price of mega-donor money is silence from the government it funds."],["NHS contracts while funding government","His company TPP holds NHS patient-data contracts worth hundreds of millions — awarded while he was the governing party's biggest donor. No rule broken; the appearance is the point."]],
+marshall:[["Riot-time tweets (Aug 2024)","Boosted far-right accounts and 'mass deportation' posts on X during the Southport riots, then deleted them without explanation — while owning GB News and UnHerd."],["Offshore-built fortune","Marshall Wace operates through Cayman structures — standard for hedge funds, but the 'man of the people' media empire is financed by offshore wealth."]],
+murdoch:[["Phone hacking","His tabloids ran industrial-scale illegal interception for years; he closed the News of the World to save his Sky bid and called his appearance before MPs 'the most humble day of my life'. Nobody senior went to prison."],["Dominion settlement ($787.5m, 2023)","Fox News paid the largest defamation settlement in US history after its own executives' messages showed they knew the stolen-election claims they aired were false — the internal proof that his outlets broadcast known lies for audience share."]],
+harborne:[["Anonymity lawsuit","Sued to stop the Electoral Commission naming him as Reform's donor — and lost. A man giving record sums to shape British politics fought in court for the right to do it secretly."],["Crypto fortune","His wealth rests on Bitfinex/Tether, the stablecoin repeatedly fined and investigated (US CFTC, NY Attorney General) over its reserves and its use in market manipulation. The foundation of Reform's funding is offshore crypto money."]],
+gibb:[["Foreign-state media ownership bid","The takeover would have made the UAE — an absolute monarchy that jails critics — the ultimate owner of the Conservative party's newspaper. Parliament legislated to ban foreign-state newspaper ownership specifically to stop it."],["Blocked, not withdrawn","The deal only died because the law changed. Everything about it was acceptable to the sellers and the buyers until Parliament said no."]],
+tabor:[["Gambling fortune, political platforms","A fortune built on betting shops now owns the microphones — LBC — and helped launch GB News. The populist right's 'voice of the people' is a bookmaker's portfolio."]],
+reform:[["A company, not a party","Reform 2025 Ltd has two directors — Farage and Yusuf. Members had no vote on the leader until a constitution was adopted in 2025. The 'democratic insurgency' is a private firm."],["Farage's 75% control","Companies House listed Farage as controlling 75%+ of the Brexit Party/Reform until February 2025, when the entry was removed — the filing says he retains the power to appoint a majority of the executive."],["Foreign-government-funded travel","Israel's Ministry of Foreign Affairs paid £50,000 to fly Reform figures to Israel in March 2025 — a foreign state openly cultivating Britain's fastest-growing party."],["Brexit Party Ltd struck off","The party's previous corporate shell was compulsorily struck off at Companies House in 2022 while Richard Tice was a director."]],
+tories:[["Cash for honours pattern","Fifteen of the party's last sixteen treasurers — each having given £3m+ — were offered peerages. No one calls it a sale; everyone can read the price list."],["Chernukhin money kept","The party refused to return £2m+ from the wife of a former Putin minister even after the invasion of Ukraine."],["14 years of scandals","Expenses-era survivors, Partygate, PPE VIP lane, Westferry, Zahawi's taxes — the pattern documented node by node on this map."]],
+labour:[["Inquiry vote U-turn","Whipped its MPs to defeat the January 2025 amendment for a national grooming inquiry 364\u2013111 \u2014 Starmer called the campaign a \u2018bandwagon\u2019 \u2014 then ordered exactly that inquiry five months later, after the Casey audit."],["Cash for honours (2006–07)","Police arrested Blair's fundraiser Lord Levy; Blair was questioned as a witness. Secret loans were converted to donations after the fact. No charges — and no real reform followed."],["Mandelson arrested (Feb 2026)","Lord Mandelson — sacked as ambassador to Washington in Sept 2025 over his Epstein emails — was arrested on suspicion of misconduct in public office over alleged leaks of government material to Epstein while Business Secretary. Bailed pending investigation."],["Rayner resignation (Sept 2025)","The Deputy PM resigned after the standards adviser found she breached the ministerial code over a £40,000 stamp-duty underpayment on her Hove flat."],["Ecclestone £1m / F1 exemption","Blair's Labour took £1m from Bernie Ecclestone, then exempted Formula 1 from the tobacco advertising ban. The donation was eventually returned — after the exemption."]],
+unions:[["Unite hotel scandal","Unite's Birmingham hotel and conference complex — budgeted at £7m, ballooning past £100m of members' money — triggered raids, criminal inquiries and litigation after Len McCluskey's departure."],["Funding leverage","Union money comes with named expectations: employment-rights legislation, repeal of anti-union laws. Both sides say so openly."]],
+lubner:[["Arrested twice","The only man arrested twice in the cash-for-honours probe. His 'blind trust' structure let Labour take millions without naming the source. Never charged; the template survived him."]],
+sainsbury:[["Cross-party purchase","Funded Labour under Blair (and received a ministerial job), then the Lib Dems, then anti-Brexit campaigns — one fortune steering three vehicles toward one destination."]],
+quadrature:[["Founder lawsuit","Co-founder Greg Skibiski sued claiming he was cut out of billions in value — litigation that exposed the fund's offshore structure weeks before it gave Labour £4m."],["Tax-haven structures","A Cayman-based fund financing the party that campaigns on tax fairness."]],
+mansour:[["Knighted after £5m","A former minister in Hosni Mubarak's government gave the Tories their biggest donation of 2023 and received a knighthood in the following honours round. The party calls it coincidence."]],
+cottrell:[["US fraud conviction","Pleaded guilty in a US federal money-laundering sting in 2016 — months after running Farage's fundraising."],["Expelled from UKIP (2019)","Over recorded racist and Holocaust-trivialising remarks. The Brexit campaign's money man, in full."]],
+chandler:[["MI6-sourced claims in Parliament (2018)","MPs used privilege to cite intelligence-sourced claims about his historical business links to Russia. He sued, won apologies, and denied everything — but the fact that Parliament debated a Brexit think tank's funder as a security question is itself the story."],["'Most secretive think tank'","Legatum Institute's funding, registration and agenda were opaque for years while its staff walked in and out of Downing Street shaping Brexit trade policy."]],
+israel_lobby:[["'The Lobby' (Al Jazeera, 2017)","Undercover filming recorded Israeli embassy officer Shai Masot discussing 'taking down' MPs including minister Alan Duncan, and a £1m plot claim around Labour Friends of Israel's chair. The ambassador apologised; Masot was recalled. Ofcom rejected all complaints about the film."],["Priti Patel resignation (2017)","The International Development Secretary held a dozen undisclosed meetings with Israeli officials — including Netanyahu — while on 'holiday', and suggested giving UK aid money to the Israeli army. She resigned."],["Friends groups in every party","CFI, LFI, Liberal Democrat Friends of Israel, Reform's Jewish Alliance — no other foreign country maintains a formalised friends organisation inside every significant British party."]],
+bbc:[["Robbie Gibb on the board","A former Tory spin chief and GB News co-founder sits on the BBC board; staff and ex-presenters accuse him of intervening in coverage. The government appoints the chairman."],["Both directions at once","Accused of anti-Israel bias by the government and of pro-Israel bias by its own staff letter (2024) — a sign the institution is being pulled apart by the conflict rather than reporting it."]],
+gbnews:[["Politicians as presenters","Ofcom ruled against GB News for letting serving MPs present news — a first in British broadcasting. Farage presents while leading a party and sitting as an MP."],["Dan Wootton scandal (2023)","Its star presenter was suspended then exited after byline/Tortoise reporting on allegations of misconduct and catfishing (he denied criminal wrongdoing); the Laurence Fox on-air rant about journalist Ava Evans ('who would want to shag that?') brought record complaints."],["14+ Ofcom investigations","Repeated due-impartiality breaches with no licence sanction — see the Ofcom node."]],
+telegraph:[["Owned by the party's funder","Sold to a UAE-backed vehicle in 2023 while covering the very politics its buyers were funding; blocked only by a new law on foreign-state ownership."],["Barclay era","The previous owners bought it with debt and ran it as a fiefdom until Lloyds seized it — the paper changed hands like collateral, because it was."]],
+restore:[["The smear pattern","Within weeks of Lowe's break with Farage he faced a police complaint (no charges), an armed raid, a standards probe and 'nazi' branding across Reform-aligned media. Whether or not one rates Lowe, the sequence is the documented fact."]],
+farage:[["The inquiry that never was","Reform accepted positive press for a promised rape-gang inquiry that was never delivered \u2014 Rupert Lowe apologised for the broken promise after his suspension and launched his own crowdfunded inquiry instead (March 2025)."],["Coutts debanking (2023)","His bank closed his accounts; the NatWest CEO resigned after misleading the BBC about it. He was right that time — which is why his allies cite it as proof the system is rigged."],["Paid presenter while party leader","Draws a reported £400k–£1m a year from GB News while leading Reform — his media income dwarfs his MP salary, from a channel part-owned by his donors."],["Company control","75%+ 'person of significant control' of the party until Feb 2025; still one of two directors. Reform's democracy is contractual, not real."],["School-era allegations (2024 reporting)","Former Dulwich College contemporaries alleged racist and antisemitic behaviour in his youth, which he denies — the pattern alleged matches what his defenders call 'banter' and his critics call formation."]],
+robinson:[["Conviction record","Mortgage fraud (2014, jailed), contempt of court (2018–19, jailed), travelling on someone else's passport to the US (2013, jailed), stalking prevention order (2021), assault conviction (2011). The state's file on him is long — his supporters see persecution, his critics see a career criminal."],["Hidden assets","Courts found he concealed money and broke orders after losing the Hijazi libel case — while fundraising on 'free speech'."],["US funding","The Middle East Forum and other US groups have funded his legal defence and tours — the 'British street movement' is part-financed from America."]],
+musk:[["'Civil war is inevitable'","Posted during the Southport riots while amplifying Robinson — a foreign platform owner predicting and arguably promoting British civil conflict."],["Turned on Farage","Demanded Reform replace Farage, briefly floated Lowe — a demonstration that Britain's opposition leadership was, for a week, a topic of one man's feed."]],
+jc:[["Fabricated Gaza stories (2024)","Published nine articles by 'Elon Perry', a journalist who did not exist, containing invented IDF claims; retracted them after Israeli media exposed the fraud. The fabrications had already been cited internationally."],["IPSO rulings","Multiple accuracy rulings against it during the Corbyn era — the paper's role in the antisemitism crisis was real journalism mixed with material the regulator found wanting."]],
+singer:[["'Vulture fund' model","Elliott bought Argentine default debt at cents on the dollar and sued for full repayment — a 15-year siege that included seizing an Argentine navy ship in Ghana. Argentina's president called his funds 'extortion'; he calls it enforcing contracts."]],
+uae:[["Pegasus on UK soil","The High Court found (2021) that UAE agents hacked Princess Haya's phone — and her British lawyers', including a peer — with NSO spyware during her custody case in London. A foreign state ran a cyber operation against a UK court case."],["Sportswashing and soft power","Manchester City, the Telegraph bid, ports and infrastructure — the same state buys British prestige assets while its lobbying machine frames the Brotherhood and Qatar as the only threats worth naming."]],
+israel_state:[["Embassy operations exposed","'The Lobby' (2017) showed embassy staff discussing action against UK ministers. The government accepted an apology and moved on — no inquiry."],["Gaza conduct","The ICJ genocide case (brought by South Africa) is live; Israel rejects it entirely. The UK continues arms exports with partial suspensions — the lobby node shows the domestic machinery that keeps it that way."],["Unit 8200 pipeline","Israeli intelligence veterans founded a striking share of the cyber-security firms embedded in UK finance and government infrastructure — capability and access travelling together."]],
+ashcroft:[["Non-dom mystery (2010)","As Tory deputy chairman running the 2010 election machine he refused to confirm his tax status for a decade — it emerged he was non-domiciled, i.e. a man not fully taxed in Britain was picking its government."],["Pollster of record","After the donor scandals he bought credibility as the country's leading political pollster — influence by other means."]],
+chernukhin:[["£160k tennis match","Paid that sum at auction for a game with Boris Johnson — the literal market price of prime-ministerial access, paid by a Kremlin-adjacent fortune."],["Money never returned","The Conservatives kept the £2m+ through the Salisbury poisonings and the Ukraine invasion, citing her British passport."]],
+utk:[["Rally violence and signage","Arrests, clashes with police and rape-chant placards documented by journalists at 2024–25 rallies — organisers blame infiltrators; the footage exists either way."],["Leader jailed mid-movement","Robinson served contempt sentences while UTK mobilised — the movement's martyr narrative and its criminal record are the same document."]],
+tice:[["Standards investigation (May 2025)","The parliamentary commissioner opened a probe into whether he properly declared registered shareholdings in debate. He calls it trivial; it is now part of the file."],["Struck-off company","Director of Brexit Party Ltd when it was compulsorily struck off (2022) — the paperwork of the 'business-like party'."],["Israeli-government-funded trip","Led the March 2025 delegation funded by Israel's Foreign Ministry — a foreign state paying for the Reform deputy leader's travel."]],
+yusuf:[["Lowe purge","His police complaint over alleged threats triggered armed officers seizing an MP's guns. The CPS found no case. He lost nothing; Lowe lost everything."],["BBC conduct dossier (June 2025)","Staff described 'unpredictable' behaviour, fear and frequent sackings; alleged he approved inflated figures to Velocity Black's investors. He denies wrongdoing — the reporting stands on the record."],["Quit and un-quit","Resigned as chairman over the burqa-ban row and returned within 48 hours — demonstrating where power actually sits: with the directors, not the members."],["Recent Tory","A Conservative member until 2024 and a six-figure donor — the insurgency's administrator is the establishment's own alumnus."]],
+lowe:[["Standards probe","Faces a parliamentary bullying investigation he calls a stitch-up timed to his split with Farage. Whatever the findings, the timing is a matter of record."],["Armed raid, no charges","Police seized his legally held guns on Yusuf's complaint; the CPS brought no charges. The state moved against him on his own party's word — his supporters' central exhibit."]],
+johnson:[["Misled Parliament","The privileges committee found he deliberately misled the Commons over Partygate — the finding that ended his career when his own party enforced it."],["Unlawful prorogation","The Supreme Court ruled unanimously (2019) that his suspension of Parliament was unlawful — a PM voided by his own judges."],["Paterson affair","Tried to tear up the standards system to save a lobbying MP — the U-turn that began his collapse."],["Lebedev peerage","Overrode security advice to put a KGB-linked media owner in the legislature."]],
+urbanscoop:[["Rose's expulsion","Founder Brian Rose was expelled from Reform over a hand gesture deemed offensive — he denies intent — before becoming UTK's media arm. The pipeline from 'respectable' insurgent party to street movement runs through him."]],
+zahawi:[["The tax settlement","Paid HMRC a reported ~£5m including a penalty — negotiated while he was Chancellor, the minister responsible for HMRC. He publicly denied the stories and had lawyers threaten journalists (Dan Neidle) who pursued them. Sunak's adviser found a 'serious breach' of the ministerial code; sacked January 2023."],["COVID role","Ran the vaccine rollout (2020–21) then Education — the pandemic-era state at its most powerful, held by a man simultaneously concealing a tax penalty."],["The defection price","Reportedly sought a Tory peerage, was refused, and joined Reform within weeks — the establishment's rewards system malfunctioning in public."]],
+jenrick:[["Westferry / Desmond","Approved a Tory donor's £1bn development against Planning Inspectorate advice, timing it to save Richard Desmond ~£45m in council charges, after sitting beside him at a fundraiser where Desmond showed him a promo video on his phone. The High Court quashed the approval as unlawful. Desmond had given the Tories money weeks after the decision."],["Afghan data breach & superinjunction","A 2022 MoD breach exposed ~19,000 Afghan applicants' details to the Taliban; the government gagged the entire affair with a superinjunction. Jenrick says he learned of the breach only after the gagging order — then opposed relocating 24,000 affected Afghans ('I've seen what's happened, I don't want any more coming over'), a secret programme costed at £850m. He resigned in Dec 2023 over Rwanda instead."],["Sacked then defected","Badenoch sacked him from the shadow cabinet for plotting his defection — he joined Reform the same day, 15 January 2026."]],
+braverman:[["Two sackings","Breached security rules emailing classified material (Oct 2022), reappointed six days later, then sacked for an unauthorised op-ed accusing police of bias toward pro-Palestinian marchers (Nov 2023)."],["'Invasion' rhetoric","Described migration as an 'invasion' while responsible for asylum policy — language her own side's moderates called inflammatory, now normalised in Reform's ranks."]],
+expenses:[["Jail sentences","Six parliamentarians jailed. Hundreds repaid. The reforms (IPSA) calmed the headlines but the culture of entitlement outlived the scandal."]],
+cashhonours:[["No convictions, no reform","Two police investigations, one PM questioned, zero charges — and the £3m-treasurer-to-peerage conveyor continued for another fifteen years."]],
+partygate:[["The numbers","126 fines, 16 gatherings, one PM found to have lied to Parliament — while ordinary people were prosecuted for attending funerals."]],
+covidcontracts:[["The VIP lane","Ministers, MPs, peers and donors referred firms to a fast lane where they were ~10x more likely to win contracts. Ruled unlawful in 2022. Michelle Mone's PPE Medpro: £200m in contracts, £75m in assets now restrained, NCA investigation live."],["Unusable PPE","Billions in kit never met standards and was burned or stored — the taxpayer paid for the failure twice."]],
+zahawitax:[["The libel threats","His lawyers threatened tax expert Dan Neidle for asking questions — legal intimidation used to keep a Chancellor's tax penalty secret. It failed."]],
+robinsonlibel:[["What the court found","His central claim was fabricated; he hid assets; he broke orders. The 'silencing' narrative and the judgment cannot both be true."]],
+gaza_doc:[["Both directions","The BBC paid money that reached a Hamas minister's family — and its critics say the documentary's real offence was humanising Gaza at all. The row tells you the corporation cannot cover the conflict without becoming the story."]],
+phonehack:[["The cancelled inquiry","Leveson Part 2 — into press-police-politician corruption — was cancelled by the government in 2018. The crimes were prosecuted; the protection network was never examined."]],
+ofcom:[["Toothless by design","Breaches ruled, sanctions absent. A regulator that can name the offence but not stop it is the offence's best friend."]],
+jc_fab:[["Precedent and retraction","A 184-year-old paper broke its own evidence standards twice — into a general election and into a war — and in both cases the correction travelled a fraction as far as the claim."]],
+lebedev:[["The advice overridden","Security services advised against the peerage; Johnson intervened. Parliament's Intelligence and Security Committee was refused the full file."]],
+grooming:[["The admitted failure","Jay (2014): 1,400+ children in Rotherham alone; officials suppressed reports fearing racism accusations. Casey (2015): the council 'not fit for purpose'. Musk's intervention forced a national inquiry in 2025 — proof that the agenda now moves on a foreign billionaire's posts."]]
+};
+
+/* Demographics for the individuals on the map.
+   [heritage, religion, party allegiance, zionist affiliation]
+   "Not public" = no reliable public record. Zionist tiers:
+   "Yes" = self-described / major funder; "Supporter" = vocal public
+   pro-Israel record; "Affiliated (CFI)" = Friends of Israel member. */
+const DEMOG={
+mandelson:["White Briton (Jewish heritage)","Not public","Labour","","",""],
+campbell:["White Briton","Atheist","Labour","","",""],
+brown:["White Scot","Church of Scotland","Labour","","",""],
+archer:["White Briton","Not public","Conservative","","",""],
+epstein:["White American (Jewish heritage)","Not public","None (Democratic donor)","","",""],
+bannon:["White American","Catholic","Republican (US)","","",""],
+ellison:["White American","Not public","Republican (US)","","",""],
+fink:["White American","Jewish","Democratic (US)","","WEF interim co-chair",""],
+thiel:["White American","Christian","Republican (US)","","",""],
+mittal:["Indian","Hindu","None (foreign national)","","WEF IBC member",""],
+hester:["White Briton","Not public","Conservative","","",""],
+marshall:["White Briton","Christian (evangelical)","Conservative","","",""],
+murdoch:["White Australian","Christian (nominal)","Aligned: Conservative","Supporter","",""],
+harborne:["White Briton","Not public","Reform UK","","",""],
+tabor:["White Briton","Not public","Conservative","","",""],
+lubner:["White Briton","Jewish","Labour","Yes","",""],
+vince:["White Briton","Not public","Liberal Democrat","","",""],
+sainsbury:["White Briton","Not public","Labour","","",""],
+mansour:["Egyptian-British","Muslim","Conservative","","",""],
+cottrell:["White Briton","Not public","Reform UK","","",""],
+chandler:["White New Zealander","Not public","Aligned: Conservative","","",""],
+farage:["White Briton","Christian (nominal)","Reform UK","Supporter","",""],
+robinson:["White Briton","None (public)","Independent","Yes","",""],
+musk:["White South African\u2013American","None (public)","None","","",""],
+singer:["White American","Jewish","US Republican","Yes","",""],
+ashcroft:["White Briton","Not public","Conservative","","",""],
+chernukhin:["Russian-British","Not public","Conservative","","",""],
+tice:["White Briton","Not public","Reform UK","Supporter","",""],
+yusuf:["British Sri Lankan","Muslim","Reform UK","","",""],
+lowe:["White Briton","Not public","Restore Britain","","",""],
+johnson:["White Briton","Christian","Conservative","Yes","",""],
+zahawi:["Iraqi-British (Kurd)","Muslim heritage","Reform UK","","",""],
+jenrick:["White Briton","Not public","Reform UK","Affiliated (CFI)","",""],
+braverman:["British Indian","Buddhist","Reform UK","Affiliated (CFI)","",""],
+blair:["White Briton","Christian","Labour (former PM)","Yes","WEF agenda contributor","Member"],
+burnham:["White Briton","Christian (Catholic)","Labour","","",""],
+khan:["Pakistani heritage","Muslim","Labour","","WEF agenda contributor",""],
+mahmood:["Pakistani heritage (Mirpur, Kashmir)","Muslim","Labour","","",""]
+};
+
+/* "Kissed the wall": documented free / funded trips to Israel (lobby- or state-paid).
+   Only verified cases from registers of interests & investigative reporting. */
+const KISSED={
+tice:"September 2025: flew to Israel on a £6,500 'Reform Friends of Israel' trip — met President Herzog and Foreign Minister Sa'ar. Israel's foreign ministry had already bankrolled a March 2025 Reform delegation of his staff and allies (~£4,861 a head, declared).",
+jenrick:"Flown to Israel by pro-Israel lobby groups, per Declassified UK's analysis of the MPs' register of interests.",
+braverman:"2024 'solidarity mission' to Tel Aviv — pro-Israel lobby groups (incl. the National Jewish Assembly) contributed £27,801 towards it (Declassified UK).",
+zahawi:"The Israeli state independently funded his trips to Israel (Declassified UK).",
+robinson:"October 2025: state-hosted visit at the personal invitation of diaspora minister Amichai Chikli — Gaza-border tour and a Tel Aviv speech (Haaretz, NBC)."
+};
+
+/* Satellites: the important people around each subject.
+   [host, name, role, detail, [affiliation links], [[controversy title, detail]]]
+   Their links appear ONLY in their popup — never as beams on the map. */
+const SAT=[
+["talk","Alex Phillips","Presenter","Former BBC journalist and Brexit Party MEP (2019-20) who became one of TalkTV's launch hosts — the channel's bridge between Westminster and the street-right audience.",["TalkTV — presenter since 2021","Brexit Party — MEP 2019-20","GB News — early contributor"],[]],
+["talk","Mike Graham","Presenter","Veteran tabloid journalist (Sun, Express) hosting Talk's combative morning show.",["Talk — morning host","The Sun / Express — former"],[]],
+["talk","Julia Hartley-Brewer","Presenter","Talk breakfast host whose abrasive interviews made her the station's best-known voice; prominent lockdown sceptic.",["Talk — breakfast host since 2016","LBC — former presenter"],[["Covid commentary","Criticised for downplaying Covid and platforming sceptics through 2020-21."]]],
+["gbnews","Jacob Rees-Mogg","Presenter","Former cabinet minister turned GB News host after losing his seat in 2024 — the channel's biggest Westminster recruit.",["GB News — presenter since 2025","Conservative — MP 2010-24"],[["Ofcom breaches","His shows were among those ruled in breach of impartiality rules for politicians acting as newsreaders."]]],
+["gbnews","Eamonn Holmes","Presenter","Veteran breakfast presenter poached from ITV's This Morning to anchor GB News mornings.",["GB News — breakfast host","ITV This Morning — 2006-21"],[]],
+["gbnews","Michelle Dewberry","Presenter","Former Apprentice winner and Brexit Party candidate hosting GB News's evening politics slot.",["GB News — presenter","Brexit Party — 2019 candidate"],[]],
+["bbc","Robbie Gibb","Board member","Theresa May's former communications chief, appointed to the BBC board in 2021 — the government's man inside, accused by staff of leaning on news output.",["BBC — board director since 2021","No 10 — comms director 2017-19","GB News — early advisory role"],[["Impartiality row","Named in the 2025 Prescott memo crisis over political interference in editorial decisions."]]],
+["bbc","Tim Davie","Former Director-General","DG 2020-25: defended the BBC through licence-fee wars, resigned after the Trump Panorama edit scandal.",["BBC — DG 2020-25"],[["Panorama edit","Resigned when a doctored-looking Panorama speech edit triggered an editorial crisis."]]],
+["bbc","Laura Kuenssberg","Presenter","The BBC's flagship political interviewer after seven years as political editor — access journalism personified.",["BBC — Sunday politics host","BBC — political editor 2015-22"],[]],
+["telegraph","Charles Moore","Columnist","Thatcher's authorised biographer, former Telegraph and Spectator editor — the right's ideological centre of gravity.",["The Telegraph — columnist","The Spectator — former editor","BBC — former board member"],[]],
+["telegraph","Allison Pearson","Columnist","The Telegraph's loudest columnist; her Southport-era tweet made her a free-speech cause celebre when police investigated (no charge).",["The Telegraph — columnist"],[["Southport tweet","Investigated over a 2024 tweet during the riots; case dropped, cited by the right as proof of two-tier policing."]]],
+["telegraph","Chris Evans","Editor","Editor of the Daily Telegraph since 2021, steering it through the Barclays' collapse and the RedBird IMI takeover saga.",["The Telegraph — editor since 2021"],[]],
+["spectator","Michael Gove","Editor","Former cabinet minister installed as Spectator editor in 2024 by Paul Marshall — the magazine's bridge into the Tory establishment.",["The Spectator — editor since 2024","Conservative — cabinet 2010-24"],[]],
+["spectator","Fraser Nelson","Former editor","Editor 2009-24 who built The Spectator into the right's must-read, then left for The Times after the Marshall takeover.",["The Spectator — editor 2009-24","The Times — columnist"],[]],
+["spectator","Katy Balls","Columnist","The magazine's best-sourced Westminster journalist — its lobby operation's public face.",["The Spectator — political editor / columnist"],[]],
+["lbc","Nick Ferrari","Presenter","LBC's breakfast anchor — tabloid instincts with a phone-in populism every party leader must face.",["LBC — breakfast host","The Sun — former editor"],[]],
+["lbc","Iain Dale","Former presenter","Evening host 2013-25; also founded Biteback Publishing, the political book trade's biggest imprint.",["LBC — presenter 2013-25","Biteback Publishing — founder"],[]],
+["jc","Stephen Pollard","Editor 2008-21","His Corbyn-era campaigning front pages defined the Jewish Chronicle's war on Labour's left.",["The Jewish Chronicle — editor 2008-21","Daily Express — columnist"],[["Corbyn coverage","IPSO upheld multiple complaints against the paper on his watch; critics say it blurred anti-Zionism and antisemitism."]]],
+["jc","Jake Wallis Simons","Editor 2021-25","Oversaw the paper's Gaza coverage — including the fabricated 'Elon Perry' stories — then stepped down.",["The Jewish Chronicle — editor 2021-25","Daily Mail — former editor-at-large"],[["Fabricated stories","Published nine articles by an invented journalist in 2024; all were retracted."]]],
+["sky","Kay Burley","Presenter","Sky's founding breakfast presenter — the channel's most recognisable face for 30+ years.",["Sky News — presenter since 1989"],[]],
+["sky","Beth Rigby","Political editor","Sky's political editor, its lead interrogator of PMs and would-be PMs.",["Sky News — political editor","FT — former correspondent"],[]],
+["tories","Kemi Badenoch","Party leader","Leader of the Opposition since November 2024 \u2014 the free-market culture warrior holding the right flank as Reform eats it: sacked Jenrick, then lost him, Zahawi and Braverman to Farage's party. Half of Tory members wanted her gone before the next election (YouGov, Oct 2025), yet she remains in post, sparring with Burnham's government.",["Conservative \u2014 leader since 2024","Conservative \u2014 cabinet 2022\u201324"],[["Defections on her watch","Sacked Robert Jenrick from her shadow cabinet for plotting a defection \u2014 he, Nadhim Zahawi and Suella Braverman all crossed to Reform in January 2026."]]],
+["tories","James Cleverly","Former Foreign Secretary","Former Foreign and Home Secretary; the party's most senior remaining mainstream frontliner.",["Conservative — former foreign & home secretary"],[]],
+["labour","Keir Starmer","Former Prime Minister","Labour leader 2020\u201326, PM 2024\u201326: purged the Corbyn left, embraced donors, won a landslide on a small-target manifesto \u2014 then bled authority through the Mandelson and Rayner scandals and catastrophic May 2026 local-election losses to Reform. After Burnham's Makerfield by-election win he announced his resignation on 22 June 2026, leaving No 10 a month later declaring 'my work is done'.",["Labour \u2014 PM 2024\u201326, leader 2020\u201326","CPS \u2014 DPP 2008\u201313"],[["Freebies row","Accepted \u00a3100k+ in gifts and hospitality \u2014 declared, but damaging."],["Mandelson appointment","Made Peter Mandelson ambassador to Washington despite his Epstein links, then had to sack him \u2014 the judgment failure dogged him to the end."]],{"wef":"Davos attendee","fabian":"Member (former exec)"}],
+["labour","Morgan McSweeney","Starmer's chief of staff","The strategist who built Labour Together, defenestrated the left and ran the 2024 campaign \u2014 the most powerful unelected figure of the Starmer government.",["No 10 \u2014 chief of staff under Starmer","Labour Together \u2014 director 2017\u201320"],[["Journalist probe","Labour Together, the group he built, commissioned a private investigation into journalists' backgrounds; the fallout forced its former director Josh Simons out of government in March 2026 \u2014 and Simons then vacated his Makerfield seat for Burnham."],["Funding disclosures","His group's funding disclosures and war with the left were widely reported and investigated."]]],
+["labour","Rachel Reeves","Former Chancellor","First female Chancellor (2024\u201326): her budgets hiked employer NI and froze thresholds, defining the Starmer government's fiscal fight with business. Not retained by Burnham, she left saying 'the economy today is stronger, fairer and more resilient' \u2014 and 'no ceilings on your ambitions'.",["Labour \u2014 Chancellor 2024\u201326","\u2713 KISSED THE WALL \u2014 LFI-funded Israel trip (Declassified UK)"],[],{"wef":"Davos attendee","fabian":"Member (former exec)"}],
+["reform","David Bull","Chairman","Former TV doctor turned Reform chairman (2025-) — the party's affable broadcast front-of-house.",["Reform UK — chairman since 2025"],[]],
+["reform","Arron Banks","Candidate","UKIP's former mega-donor and Leave.EU founder — Farage's old sugar daddy, back as Reform's 2025 West of England mayoral candidate.",["Leave.EU — founder","UKIP — largest donor 2014-16"],[["NCA probe","Investigated over £8m referendum funding; NCA found no evidence of offences (2019)."]]],
+["israel_lobby","Stephen Crabb","CFI chair","Former cabinet minister and Conservative Friends of Israel's parliamentary chairman — the lobby's senior voice in the Commons.",["CFI — parliamentary chairman","Conservative — former Welsh Secretary"],[]],
+["israel_lobby","Joan Ryan","Former LFI chair","Chaired Labour Friends of Israel 2015-19; secretly filmed discussing embassy-linked funding in 'The Lobby', later quit Labour for Change UK.",["LFI — chair 2015-19","Labour — MP 1997-2010, 2015-19"],[["The Lobby","Al Jazeera's undercover film showed her discussing £1m of funding with an Israeli embassy officer."]]],
+["israel_state","Tzipi Hotovely","Ambassador","Israel's ambassador to the UK since 2020: a settler-advocate whose appointment was itself protested by some British Jews.",["Israel — ambassador to the UK","Israel — former deputy foreign minister"],[]],
+["israel_state","Shai Masot","Former embassy officer","The embassy political officer caught on tape in 2017 discussing 'taking down' a minister seen as hostile.",["Israeli embassy — political officer"],[["The Lobby sting","Filmed by Al Jazeera plotting against MP Alan Duncan; quietly sent home."]]],
+["unions","Sharon Graham","Unite general secretary","Elected 2021 promising to spend less on Labour politics and more on disputes — bankrolls Labour anyway, on her terms.",["Unite — general secretary since 2021"],[]],
+["unions","Mick Lynch","RMT general secretary","The rail union leader whose strike-era media performances made him the unions' unlikely star.",["RMT — general secretary since 2021"],[]],
+["murdoch","Rebekah Brooks","News UK CEO","Rose from News of the World editor to Murdoch's most loyal executive; cleared of hacking charges in 2014, restored as CEO — the scandal's survivor.",["News UK — CEO since 2015","News of the World — editor 2000-03"],[["Phone hacking","Edited NoW in the hacking era; acquitted at trial, but the culture ran on her watch."]]],
+["murdoch","Lachlan Murdoch","Heir","Rupert's chosen successor — won the 2024-25 family trust battle; runs Fox Corp with a harder right edge than his father.",["Fox Corp / News Corp — chair"],[]],
+["johnson","Dominic Cummings","Former chief adviser","The Vote Leave director who ran No 10 2019-20, then detonated against Johnson over Partygate and competence.",["No 10 — chief adviser 2019-20","Vote Leave — campaign director"],[["Barnard Castle","His lockdown drive shredded the government's own rules messaging."]]],
+["utk","Danny Tommo","Organiser","Daniel Thomas — Robinson's bodyguard-organiser and the street movement's logistics chief.",["UTK — organiser"],[["Convictions","Jailed in 2018 for violent disorder at a Robinson rally."]]],
+["restore","Charlie Downs","Aide","Lowe's former aide whose split with Reform was loud: smeared as an antisemite over an old tweet at the exact moment of the purge.",["Restore Britain — aide","Reform UK — former Lowe aide"],[]],
+["urbanscoop","Brian Rose","Founder","London Real founder whose 2020 Covid-denial broadcasts (David Icke) got him deplatformed; relaunched as 'citizen journalism'.",["Urban Scoop — founder","London Real — founder"],[["Icke interview","Broadcast David Icke's Covid conspiracy in 2020; Ofcom sanctioned, platforms pulled him."]]],
+["chandler","Philippa Stroud","Legatum Institute CEO 2017-23","Former welfare minister who ran the Legatum Institute through its Brexit influence peak — the think tank's respectable Westminster face.",["Legatum Institute — CEO 2017-23","Conservative — former DCLG minister"],[]],
+["tabor","Ashley Tabor-King","Global founder","Michael Tabor's son: founded Global, the commercial radio giant (LBC, Heart, Capital) — the family's broadcasting crown.",["Global — founder & executive president"],[]],
+["gibb","Jeff Zucker","RedBird IMI president","The former CNN president hired to front RedBird IMI — the friendly Western face of its UAE state money.",["RedBird IMI — president","CNN — president 2013-22"],[]],
+["covidcontracts","Baroness Mone","VIP lane case","Peer whose linked company PPE Medpro won £200m of contracts via the VIP lane; ruled to have misled about her role.",["House of Lords — peer since 2015","PPE Medpro — linked company"],[["PPE Medpro","High Court ruled PPE Medpro breached contract; criminal investigation ongoing."]]],
+["phonehack","Andy Coulson","Former editor","News of the World editor, then Cameron's No 10 comms chief; the only editor jailed for hacking — the scandal's sole senior conviction.",["News of the World — editor 2003-07","No 10 — comms director 2010-11"],[["Jailed 2014","Convicted of conspiracy to hack phones; served four and a half months."]]],
+["lebedev","Evgeny Lebedev","Peer","Owner of the Evening Standard and Independent, son of ex-KGB officer Alexander Lebedev — ennobled by Johnson despite security advice.",["House of Lords — peer since 2020","Evening Standard / Independent — owner"],[["Security warnings","MI5 raised concerns over his father's KGB ties; Johnson pushed the peerage through."]]]
+,
+["tice","Isabel Oakeshott","Journalist \u2014 Tice's partner","Political journalist and author; Richard Tice's partner (engagement announced December 2025). Former Sunday Times political editor; ghostwrote Matt Hancock's 'Pandemic Diaries', then passed his WhatsApp messages to the Telegraph \u2014 the 'Lockdown Files' (2023). Now based in Dubai.",["Reform UK \u2014 partner of deputy leader Richard Tice","Sunday Times \u2014 former political editor","Telegraph \u2014 Hancock ghostwriter & Lockdown Files source"],[["Lockdown Files","After ghostwriting Hancock's book she gave 100,000+ of his WhatsApp messages to the Telegraph, arguing publication was overwhelmingly in the public interest; allies of Hancock called it a betrayal of trust."]]],
+["blair","Jonathan Powell","National Security Adviser","Blair's chief of staff for the entire New Labour era (1995\u20132007) and chief negotiator on Northern Ireland \u2014 appointed National Security Adviser in 2024: the most direct pipeline from the Blair machine into the current government.",["Tony Blair \u2014 chief of staff 1995\u20132007","Starmer government \u2014 National Security Adviser","Inter Mediate \u2014 founder, conflict-resolution charity"],[["China spy-case row","Faced questions in 2025 over the collapse of the China espionage prosecution and his role in the government's evidence; also led the contested Chagos Islands handover negotiations."]]],
+["fabian","Joe Dromey","General Secretary","General secretary of the Fabian Society since January 2025 \u2014 previously the society's deputy general secretary and head of policy; a Lewisham councillor and son of Harriet Harman and the late Jack Dromey.",["Fabian Society \u2014 general secretary","Labour \u2014 Lewisham councillor"],[],{"fabian":"General Secretary"}],
+["fabian","Sara Hyde","Chair","Chair of the Fabian Society; Islington councillor and criminal-justice worker, made a Labour life peer (Baroness Hyde of Bemerton) in January 2026.",["Fabian Society \u2014 chair","House of Lords \u2014 Labour peer since 2026"],[],{"fabian":"Chair"}],
+["labour","Wes Streeting","Defence Secretary","A vice chair of the Fabian Society and the most Blair-coded figure of the Starmer era: Health Secretary 2024\u201326, he quit and led the calls for Starmer to resign after the May 2026 local-election rout, then ruled himself out of the leadership race and endorsed Burnham \u2014 who made him Defence Secretary (July 2026).",["Labour \u2014 Defence Secretary since July 2026","Labour \u2014 Health Secretary 2024\u201326","Fabian Society \u2014 vice chair","\u2713 KISSED THE WALL \u2014 LFI-funded Israel delegation, Oct 2022"],[],{"fabian":"Vice chair"}],
+["bbc","Samir Shah","BBC Chair","Chair of the BBC since March 2024 \u2014 appointed by the King-in-Council on government recommendation after the Richard Sharp loan scandal. Forty-year broadcasting veteran (former BBC head of current affairs, CEO of Juniper) and co-author of the government's 2021 Sewell report on race.",["BBC \u2014 Chair (2024\u201328)","Sewell Commission \u2014 co-author (2021)"],[]]
+,
+["braverman","Rael Braverman","Husband","South African-born husband of Suella Braverman, a Mercedes-Benz Group manager who is Jewish and has lived in Israel. He joined Reform UK in December 2024 \u2014 long before his wife \u2014 quit in July 2025 after Zia Yusuf's attacks on her, then rejoined in January 2026 when she defected, declaring her 'home, where she belongs'.",["Reform UK \u2014 member (Dec 2024\u2013Jul 2025, rejoined Jan 2026)","Mercedes-Benz Group \u2014 manager"],[["In-out-in","His resignation 'with immediate effect' in July 2025 \u2014 after Reform figures briefed against Suella \u2014 was a public embarrassment for the party; his rejoining five months later sealed her defection."]]],
+["chernukhin","Vladimir Chernukhin","Husband \u2014 ex-Putin minister","Lubov Chernukhin's husband and the source of the family's wealth (per the Pandora Papers): deputy finance minister of Russia under Putin (2000\u201302), then chairman of state bank Vneshekonombank \u2014 VEB, later UK-sanctioned \u2014 dismissed in 2004. The couple settled in London; their assets have included a \u00a338m house by Regent's Park.",["Russia \u2014 deputy finance minister 2000\u201302","VEB (Vneshekonombank) \u2014 chairman 2002\u201304"],[["The $8m payment","The FT revealed he received $8m in 2016 from a Putin-ally MP later sanctioned by the US; Starmer raised it at PMQs. His wife's lawyers say her donations were never 'tainted by Kremlin or any other influence'."]]],
+["marshall","Freddie Sayers","UnHerd editor","Editor-in-chief and CEO of UnHerd since 2019 (formerly editor-in-chief of YouGov, co-founder of PoliticsHome) \u2014 the man who turned Marshall's endowment into an influential anti-lockdown, anti-woke commentary platform with a Westminster members' club.",["UnHerd \u2014 editor-in-chief & CEO","YouGov \u2014 former editor-in-chief"],[]],
+["talk","Piers Morgan","Former flagship presenter","TalkTV's launch star: Piers Morgan Uncensored anchored the station from April 2022 until February 2024, when he quit the 'straitjacket' of TV schedules for his YouTube channel (2.3m+ subscribers) \u2014 taking the station's biggest name with him. Since September 2025 a weekly highlights show has aired on Channel 5.",["TalkTV \u2014 Uncensored 2022\u201324","YouTube \u2014 Piers Morgan Uncensored","Channel 5 \u2014 weekly highlights since 2025"],[]],
+["reform","Andrea Jenkyns","Mayor of Greater Lincolnshire","Former Conservative MP (2015\u201324 \u2014 the woman who unseated Ed Balls) who defected to Reform in November 2024 and in May 2025 became the first Mayor of Greater Lincolnshire with 42% of the vote \u2014 Reform's most senior elected official, appointed to the party's decision-making board by Farage in August 2025.",["Reform UK \u2014 mayor since 2025","Conservative \u2014 MP 2015\u201324","Reform UK \u2014 party board member"],[["Climate denial","Says she does not believe climate change exists and has 'declared war' on wind and solar projects alongside Richard Tice."]]],
+["hnh","Nick Lowles","Founder & CEO","Founded Hope Not Hate in 2004 after years editing the anti-fascist magazine Searchlight, in response to the rise of the BNP. Britain's best-known anti-fascist campaigner: eight books, undercover operations that became the ITV drama The Walk In (in which Jason Flemyng played him), and constant pressure on the far-right figures on this map.",["HOPE not hate \u2014 founder & CEO","Searchlight \u2014 former editor"],[],{"hnh":"Founder & CEO"}],
+["hnh","Joe Mulhall","Director of research","Historian who leads HOPE not Hate's research \u2014 including going undercover inside extremist groups from British street movements to US vigilante militias. Author of Drums in the Distance and British Fascism After the Holocaust; regular broadcast commentator on the far right.",["HOPE not hate \u2014 director of research","Author \u2014 Drums in the Distance"],[],{"hnh":"Director of research"}]
+,
+["labour","John Healey","Chancellor of the Exchequer","MP since 1997 and a Treasury veteran of the Blair/Brown years (Economic and Financial Secretary) \u2014 Defence Secretary 2024\u201326, he resigned from Starmer's cabinet saying the government's defence funding plan would leave Britain 'less safe' \u2014 then was unexpectedly made Chancellor by Burnham (July 2026), tasked with funding the very investment he demanded.",["Labour \u2014 Chancellor since July 2026","Labour \u2014 Defence Secretary 2024\u201326","HM Treasury \u2014 minister under Blair/Brown"],[]],
+["labour","Ed Miliband","Foreign Secretary","Labour leader 2010\u201315 (who beat his brother David, then lost the 2015 election) \u2014 reinvented as the party's climate conscience: Energy Secretary 2024\u201326, then Foreign Secretary under Burnham (July 2026). Co-host of the Reasons to be Cheerful podcast.",["Labour \u2014 Foreign Secretary since July 2026","Labour \u2014 leader 2010\u201315","Labour \u2014 Energy Secretary 2024\u201326"],[]],
+["labour","Louise Haigh","First Secretary of State","Burnham's right-hand woman: First Secretary of State and Cabinet Office minister (July 2026) \u2014 the Prescott/Osborne-style deputy-in-all-but-name. Transport Secretary in 2024, she was Starmer's first ministerial resignation (the 'stolen phone' conviction), rebuilt herself on the backbenches \u2014 NDA-ban campaign, relaunching the Tribune Group (100+ MPs), attacking the OBR's 'fiscal straitjacket' \u2014 and returned at the top.",["Labour \u2014 First Secretary of State since July 2026","Labour \u2014 Transport Secretary 2024","Tribune Group \u2014 relaunch leader"],[["The phone conviction","Pleaded guilty in 2014 to misleading police after reporting a phone stolen that was later found (she had been mugged); the spent conviction surfaced in November 2024 and she resigned \u2014 allies called it a 'total non-story' and a briefing hit-job on the cabinet's left leader."]]],
+["tories","Katie Lam","Shadow Home Office minister","Conservative rising star: MP for Weald of Kent (2024\u2013), shadow Home Office minister, described by the Guardian as a 'disciple' of Dominic Cummings and tipped as a future leader. Of Dutch and German Jewish descent \u2014 most of her grandfather's family was murdered in the Holocaust; her refugee grandmother's family fled to England.",["Conservative \u2014 MP since 2024","Conservative \u2014 shadow Home Office minister"],[["'Sent home'","Told the Sunday Times (Oct 2025) that large numbers of legally resident people should have their right to remain revoked to create a 'mostly but not entirely culturally coherent' country. Ed Davey called it 'deeply concerning and unpatriotic'; Badenoch's team first said the views were 'broadly in line' with policy, then that Lam had spoken 'imprecisely'. She kept her job."],["Grooming gangs speech","Her graphic April 2025 Commons speech on the grooming gangs scandal \u2014 which she calls 'the greatest stain on this country' \u2014 went viral and made her name on the right."]]],
+["wef","Klaus Schwab","Founder","Built the Forum from a 1971 business conference into the world's most powerful private summit, chairing it for 54 years until resigning in April 2025 amid whistleblower allegations of financial misconduct, data manipulation and harassment mishandling — allegations he denies, and an internal probe found no 'material wrongdoing'. The WSJ reports he is plotting a return.",["WEF — founder & chairman 1971–2025"],[["Data rigging","Accused of intervening in competitiveness rankings for political ends — including suppressing a UK rise to protect the narrative on Brexit (Telegraph, July 2025)."]]],
+["mb","Daud Abdullah","MCB deputy secretary-general (2009)","Signed the 2009 Istanbul Declaration on Gaza — read by ministers as endorsing attacks on British forces — prompting the government to suspend ties with the Muslim Council of Britain, the UK's largest Muslim umbrella body. The MCB, named in the 2015 Brotherhood review, is boycotted by ministers to this day.",["Muslim Council of Britain — deputy sec-gen"],[["Government boycott","Brown's government suspended engagement in 2009; the boycott was reaffirmed in 2015 and again under Johnson in 2021."]]],
+["mb","Anas Altikriti","Cordoba Foundation founder","Described in coverage of the 2015 government review as 'associated with the Brotherhood' through his Cordoba Foundation — a claim he flatly rejects ('absolutely no links'). HSBC closed his bank accounts in 2014; his father led the Iraqi Islamic Party, the Brotherhood's Iraqi branch.",["Cordoba Foundation — founder"],[["MB link — denied","The review named his foundation as Brotherhood-associated; Altikriti calls the report 'filled with mistakes'."]]],
+["islam","Shockat Adam","Independent MP, Leicester South","The optician who unseated shadow cabinet minister Jonathan Ashworth in 2024 on a pro-Gaza platform — 'This is for the people of Gaza.' Now sits in the Independent Alliance with Corbyn and three fellow independents.",["Independent Alliance — Leicester South"],[]],
+["tories","Mohamed Amersi","Telecoms tycoon & donor","Nearly £525,000 to the Conservatives since 2018, including £10,000 each to Johnson's and Gove's 2019 leadership bids. Advised Telia on a 2010 deal with Gulnara Karimova that US authorities later called a bribe (Pandora Papers); his defamation claim against ex-MP Charlotte Leslie was struck out by the High Court in 2023.",["Conservative Party — donor since 2018"],[["Pandora Papers","Named in the 2021 leak as an adviser on the Telia–Takilant deal; his representatives said he acted only in a limited advisory capacity and was never a suspect."]]]]
+
+const LGROUPS=[["THE BLAIR MACHINE",["blair","mandelson","campbell"]],["THE TECH BROS",["ellison","thiel","fink","mittal"]],["THE EPSTEIN WEB",["epstein","bannon","robinson"]],["THE REFORM DEFECTORS",["jenrick","zahawi","braverman"]]];
+
+</script>
+<script>
+'use strict';
+/* ================================================================
+   UK POWER & INFLUENCE — the glass web (2D renderer)
+   A pane of glass looking into space. Pins = subjects, most
+   powerful at the centre. Curved beams of light = connections,
+   pulsing in the direction of control. Pure Canvas 2D — no WebGL,
+   no GPU dependency, works everywhere. Fixed layout every load.
+   ================================================================ */
+const CAT={money:0x2f9bff,media:0xf472b6,party:0xff4757,lobby:0xb16bff,person:0xf5f7fa,scandal:0xffb020};
+const CATN={money:"Donors & big money",media:"Media owners & outlets",party:"Parties & movements",lobby:"Lobby groups & foreign states",person:"Powerful people",scandal:"Scandals & inquiries"};
+const ET={money:0xffd166,own:0x2ee6cf,work:0x7bf59a,party:0xff5c5c,state:0xc98bff,personal:0x93a0b8,law:0xff8f4d};
+const ETN={money:"Money & funding",own:"Ownership & control",work:"Jobs & roles",party:"Party & political ties",state:"Foreign states & lobbies",personal:"Personal & amplification",law:"Legal & scandal"};
+const PWR=[100,70,45,25,12];
+const CERTN={solid:"documented",dash:"influence",dot:"reported / unconfirmed"};
+function hex(c){return '#'+c.toString(16).padStart(6,'0');}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function shade(c,f){const r=(c>>16)&255,g=(c>>8)&255,b=c&255;
+  return `rgb(${Math.round(r*f)},${Math.round(g*f)},${Math.round(b*f)})`;}
+/* ---------- fixed layout — identical every load ---------- */
+const P={},POS={},nodeById={},HGT={};
+N.forEach(a=>{P[a[0]]=PWR[a[3]];nodeById[a[0]]=a;});
+const FIXED_POS={"israel_state":[15.5,58.0,0],"uae":[42.4,-42.4,0],"hester":[-31.4,-126.1,0],"marshall":[19.2,-128.6,0],"chandler":[67.0,-111.4,0],"murdoch":[104.5,-77.3,0],"chernukhin":[126.1,-31.4,0],"harborne":[128.6,19.2,0],"singer":[111.4,67.0,0],"tabor":[77.3,104.5,0],"ashcroft":[31.4,126.1,0],"mansour":[-19.2,128.6,0],"gibb":[-67.0,111.4,0],"musk":[-77.3,-104.5,0],"labour":[185.8,73.9,0],"burnham":[199.2,17.4,0],"israel_lobby":[228.9,-87.2,0],"unions":[242.6,-34.1,0],"blair":[194.8,148.6,0],"fabian":[144.7,197.7,0],"hnh":[-124.2,-211.2,0],"reform":[-230.5,-130.7,0],"bbc":[-256.3,-67.4,0],"tories":[-145.6,245.0,0],"restore":[-318.6,-30.1,0],"tice":[-303.9,-100.3,0],"telegraph":[-230.3,-222.2,0],"spectator":[-175.1,-267.9,0],"robinson":[-41.5,-317.3,0],"braverman":[300.1,-111.1,0],"quadrature":[165.4,-274.0,0],"jenrick":[222.2,-230.3,0],"lubner":[317.3,-41.5,0],"talk":[318.6,30.1,0],"sainsbury":[303.9,100.3,0],"cottrell":[274.0,165.4,0],"urbanscoop":[230.3,222.2,0],"sky":[175.1,267.9,0],"vince":[111.1,300.1,0],"johnson":[41.5,317.3,0],"jc":[-30.1,318.6,0],"lbc":[-100.3,303.9,0],"farage":[-165.4,274.0,0],"utk":[-222.2,230.3,0],"lowe":[-267.9,175.1,0],"yusuf":[-300.1,111.1,0],"gbnews":[-317.3,41.5,0],"zahawi":[267.9,-175.1,0],"expenses":[-667.6,30.4,0],"cashhonours":[-91.1,673.5,0],"partygate":[-296.2,713.7,0],"covidcontracts":[-449.9,-482.7,0],"zahawitax":[-778.0,-328.5,0],"robinsonlibel":[28.9,-777.1,0],"gaza_doc":[-833.9,192.3,0],"phonehack":[701.5,-329.1,0],"ofcom":[-585.7,561.7,0],"jc_fab":[780.5,421.6,0],"grooming":[-319.6,-814.4,0],"lebedev":[341.7,801.7,0],"pakistan":[-42.4,42.4,0],"qatar":[-15.5,-58.0,0],"islam":[-58.0,-15.5,0],"mb":[-42.5,-241.3,0],"khan":[133.8,148.6,0],"mahmood":[192.3,-55.1,0],"aljazeera":[-274.0,-165.4,0],"wef":[58.0,15.5,0],"ellison":[-104.5,77.3,0],"thiel":[-126.1,31.4,0],"fink":[-128.6,-19.2,0],"mittal":[-111.4,-67.0,0],"archer":[-111.1,-300.1,0],"bannon":[30.1,-318.6,0],"epstein":[100.3,-303.9,0],"mandelson":[216.3,115.0,0],"campbell":[168.6,177.7,0],"brown":[-42.5,241.3,0]};;
+/* ---------- spread: every distance from the centre x3 ---------- */
+const SPREAD=9;
+Object.keys(FIXED_POS).forEach(k=>{FIXED_POS[k][0]*=SPREAD;FIXED_POS[k][1]*=SPREAD;});
+Object.assign(POS,FIXED_POS);
+computeLGroups();
+N.forEach(a=>{HGT[a[0]]=(30+P[a[0]]/100*40)*1.5;});
+/* ---------- edges ---------- */
+const edgeObjs=[];const adj=new Map();N.forEach(a=>adj.set(a[0],[]));
+E.forEach(e=>{
+  const[a,b,cert,lb,ty]=e;
+  if(!POS[a]||!POS[b])return;
+  const len=Math.hypot(POS[b][0]-POS[a][0],POS[b][1]-POS[a][1]);
+  const lift=Math.min(520,Math.max(120,len*0.24));
+  edgeObjs.push({a,b,cert,lb,ty,len,lift,visible:true,baseOp:cert==='solid'?0.8:cert==='dash'?0.55:0.4});
+  adj.get(a).push({o:b,cert,lb,ty});adj.get(b).push({o:a,cert,lb,ty});
+});
+const pulses=[];
+edgeObjs.forEach(e=>{
+  const n=e.len>420?3:2;
+  for(let i=0;i<n;i++)pulses.push({edge:e,t:i/n,speed:220/e.len,dimmed:false});
+});
+/* ---------- canvas & camera ---------- */
+const canvas=document.getElementById('cv');
+const ctx=canvas.getContext('2d');
+if(!ctx){
+  const b=document.getElementById('errbox');b.style.display='block';
+  b.textContent='Your browser could not start 2D canvas drawing. Try another browser.';
+  document.getElementById('boot').style.display='none';
+  throw new Error('no 2d context');
+}
+const YSQ=1.0;               /* flat star chart — no tilt */
+let vw=0,vh=0,dpr=1,cxOff=0;
+let camX=0,camY=0,scale=1;
+const FIT={x:0,y:0,s:1};
+function w2s(wx,wy){return {x:vw/2+cxOff+(wx-camX)*scale, y:vh/2+(camY-wy)*scale*YSQ};}
+function s2w(sx,sy){return {x:camX+(sx-vw/2-cxOff)/scale, y:camY-(sy-vh/2)/(scale*YSQ)};}
+function computeFit(){
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  N.forEach(a=>{const p=POS[a[0]];
+    x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);
+    y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);});
+  const bw=x1-x0+300,bh=(y1-y0+300)*YSQ;
+  cxOff=vw>900?100:0;
+  FIT.s=Math.min((vw-Math.abs(cxOff)*2-70)/bw,(vh-130)/bh);
+  FIT.s=Math.max(0.02,FIT.s);            /* never negative — a zero-size layout moment must not crash arc() */
+  FIT.x=(x0+x1)/2;FIT.y=(y0+y1)/2;
+}
+const root=document.getElementById('root');
+function resize(){
+  dpr=Math.min(devicePixelRatio||1,2);
+  vw=root.clientWidth||innerWidth;vh=root.clientHeight||innerHeight;
+  canvas.width=Math.round(vw*dpr);canvas.height=Math.round(vh*dpr);
+  canvas.style.width=vw+'px';canvas.style.height=vh+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  computeFit();
+}
+addEventListener('resize',resize);
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(root);
+resize();
+camX=FIT.x;camY=FIT.y;scale=FIT.s*0.92;
+/* ---------- cinematic intro: pull back from the centre, title card, then hand over ---------- */
+let introDone=false;
+function endIntro(jump){
+  if(introDone)return;introDone=true;
+  const iv=document.getElementById('intro');
+  if(iv){iv.classList.remove('show');setTimeout(()=>iv.remove(),1200);}
+  if(jump){anim=null;camX=FIT.x;camY=FIT.y;scale=FIT.s*0.92;}
+}
+{
+  scale=FIT.s*2.3;                       /* start close on the centre */
+  setTimeout(()=>flyTo(FIT.x,FIT.y,FIT.s*0.92,4600),0);  /* slow pull-back reveals the whole web */
+  setTimeout(()=>{const iv=document.getElementById('intro');if(iv)iv.classList.add('show');},250);
+  setTimeout(()=>endIntro(false),3600);
+}
+/* ---------- stars: deep space behind the glass, parallax drift ---------- */
+const stars=[];
+for(let i=0;i<420;i++)stars.push({
+  x:Math.random(),y:Math.random(),z:0.12+Math.random()*0.55,
+  r:0.4+Math.random()*1.3,tw:Math.random()*6.283,sp:0.5+Math.random()*1.7});
+function drawStars(t){
+  for(const s of stars){
+    const sx=((s.x*vw-camX*scale*s.z*0.06)%vw+vw)%vw;
+    const sy=((s.y*vh+camY*scale*s.z*0.06)%vh+vh)%vh;
+    ctx.globalAlpha=0.18+0.5*(0.5+0.5*Math.sin(t*s.sp+s.tw))*s.z;
+    ctx.fillStyle=s.z>0.42?'#9fb4dd':'#66748f';
+    ctx.fillRect(sx,sy,s.r,s.r);
+  }
+  ctx.globalAlpha=1;
+}
+/* ---------- rings of power: the star-chart guides ---------- */
+const RINGS=[[540,'THE CENTRAL RING OF POWER'],[1170,'BILLIONAIRES & MEGA-DONORS'],[1800,'THE GOVERNMENT'],[2205,'LOBBIES & PROXIES'],[2385,null],[2565,null],[2880,'MEDIA & OPERATORS'],[6750,'SCANDALS & INQUIRIES']];  /* POS units = FIXED_POS x SPREAD */
+function drawRings(){
+  const c=w2s(0,0);
+  ctx.save();
+  ctx.strokeStyle='rgba(180,200,230,0.075)';
+  ctx.lineWidth=1;
+  for(const rr of RINGS){const rad=rr[0]*scale;if(rad<=0.5)continue;ctx.beginPath();ctx.arc(c.x,c.y,rad,0,6.2832);ctx.stroke();}
+  const la=0.13+Math.min(0.4,Math.max(0,(scale-0.14)*1.2));
+  ctx.fillStyle=`rgba(185,200,225,${la})`;
+  ctx.font='600 9.5px Inter,system-ui,sans-serif';
+  ctx.textAlign='center';
+  try{ctx.letterSpacing='2.5px';}catch(e){}
+  for(const rr of RINGS){if(!rr[1])continue;const rad=rr[0]*scale;if(rad<130)continue;const p=w2s(0,rr[0]);if(p.y<-30||p.y>vh+30)continue;ctx.fillText(rr[1],c.x,p.y-7);}
+  try{ctx.letterSpacing='0px';}catch(e){}
+  ctx.restore();
+}
+/* ---------- local groups: circles on the rings for clusters that work closely together ---------- */
+var LGROUPGEO; /* declaration only — computeLGroups() assigns it at layout build, before this line executes */
+function computeLGroups(){
+  LGROUPGEO=(typeof LGROUPS!=='undefined'?LGROUPS:[]).map(g=>{
+    let cx=0,cy=0,n=0;
+    g[1].forEach(id=>{if(POS[id]){cx+=POS[id][0];cy+=POS[id][1];n++;}});
+    if(!n)return null;
+    cx/=n;cy/=n;
+    let r=0;
+    g[1].forEach(id=>{if(POS[id]){const d=Math.hypot(POS[id][0]-cx,POS[id][1]-cy);if(d>r)r=d;}});
+    return{name:g[0],x:cx,y:cy,r:r+85};
+  }).filter(Boolean);
+}
+function drawLGroups(){
+  ctx.save();
+  for(const g of (LGROUPGEO||[])){
+    const c=w2s(g.x,g.y),rad=g.r*scale;
+    if(rad<40)continue;
+    if(c.x+rad<-40||c.x-rad>vw+40||c.y+rad<-40||c.y-rad>vh+40)continue;
+    ctx.beginPath();ctx.arc(c.x,c.y,rad,0,6.2832);
+    ctx.strokeStyle='rgba(200,214,240,0.10)';ctx.lineWidth=1;
+    ctx.setLineDash([4,7]);ctx.stroke();ctx.setLineDash([]);
+    if(rad>60){
+      ctx.fillStyle='rgba(200,214,240,0.34)';
+      ctx.font='600 9px Inter,system-ui,sans-serif';
+      ctx.textAlign='center';
+      try{ctx.letterSpacing='2px';}catch(e){}
+      ctx.fillText(g.name,c.x,c.y-rad-6);
+      try{ctx.letterSpacing='0px';}catch(e){}
+    }
+  }
+  ctx.restore();
+}
+/* ---------- selection state ---------- */
+let sel=null,selEdge=null;const dimSet=new Set();
+let camBefore=null,selTouched=false;
+let demoFilter=null;
+const DEMOG_IDX={heritage:0,religion:1,party:2,zionist:3,wef:4,fabian:5};
+const SATGROUPS=['wef','fabian','hnh'];
+function satDemoMatch(sat){
+  if(!demoFilter)return false;
+  const t=sat[6];return !!(t&&t[demoFilter.group]===demoFilter.value);
+}
+function demoMatch(id){
+  if(!demoFilter)return false;
+  const d=DEMOG[id];if(!d)return false;
+  return d[DEMOG_IDX[demoFilter.group]]===demoFilter.value;
+}
+function alphaFor(id){
+  if(demoFilter)return demoMatch(id)?1:0.07;
+  return (!sel||!dimSet.has(id))?1:0.07;
+}
+function edgeAlpha(e){
+  if(demoFilter)return (demoMatch(e.a)||demoMatch(e.b))?e.baseOp:0.04;
+  if(!sel)return e.baseOp;
+  if(selEdge)return e===selEdge?0.95:0.04;
+  return (e.a===sel||e.b===sel)?Math.min(1,e.baseOp+0.35):0.04;
+}
+/* ---------- beams of light ---------- */
+function quadGeom(e){
+  const A=w2s(POS[e.a][0],POS[e.a][1]),B=w2s(POS[e.b][0],POS[e.b][1]);
+  return {A,B,mx:(A.x+B.x)/2,my:(A.y+B.y)/2-e.lift*scale};
+}
+function quadPoint(g,t){
+  const u=1-t;
+  return {x:u*u*g.A.x+2*u*t*g.mx+t*t*g.B.x, y:u*u*g.A.y+2*u*t*g.my+t*t*g.B.y};
+}
+function drawEdge(e){
+  const g=quadGeom(e),col=hex(ET[e.ty]);
+  const op=edgeAlpha(e);
+  if(op<0.02)return;
+  ctx.beginPath();ctx.moveTo(g.A.x,g.A.y);ctx.quadraticCurveTo(g.mx,g.my,g.B.x,g.B.y);
+  /* halo pass */
+  ctx.globalAlpha=op*0.28;ctx.lineWidth=6;ctx.strokeStyle=col;ctx.stroke();
+  /* core pass */
+  ctx.globalAlpha=op;ctx.lineWidth=1.5;
+  ctx.setLineDash(e.cert==='dash'?[8,6]:e.cert==='dot'?[2.5,4.5]:[]);
+  ctx.stroke();ctx.setLineDash([]);
+  ctx.globalAlpha=1;
+}
+const pulseSprites={};
+function pulseSprite(col){
+  let c=pulseSprites[col];
+  if(!c){
+    c=document.createElement('canvas');c.width=c.height=32;
+    const g=c.getContext('2d');
+    const gr=g.createRadialGradient(16,16,0,16,16,16);
+    gr.addColorStop(0,'rgba(255,255,255,0.9)');gr.addColorStop(0.25,col);gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr;g.fillRect(0,0,32,32);
+    pulseSprites[col]=c;
+  }
+  return c;
+}
+function drawPulses(dt){
+  ctx.globalCompositeOperation='lighter';
+  for(const p of pulses){
+    if(!p.edge.visible)continue;
+    p.t=(p.t+dt*p.speed)%1;
+    const op=edgeAlpha(p.edge);
+    if(op<0.1)continue;
+    const g=quadGeom(p.edge),pt=quadPoint(g,p.t);
+    const spr=pulseSprite(hex(ET[p.edge.ty])),sz=4.5*2.6*2;
+    ctx.globalAlpha=Math.min(1,op+0.25);
+    ctx.drawImage(spr,pt.x-sz/2,pt.y-sz/2,sz,sz);
+  }
+  ctx.globalAlpha=1;
+  ctx.globalCompositeOperation='source-over';
+}
+/* ---------- pins ---------- */
+const photos={},photoQ=[];
+let photoBusy=false;
+function pumpPhotos(){
+  if(photoBusy||!photoQ.length)return;
+  photoBusy=true;
+  const a=photoQ.shift();
+  fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(a[6]))
+    .then(r=>r.ok?r.json():null)
+    .then(j=>{
+      if(j&&j.thumbnail&&j.thumbnail.source){
+        const img=new Image();
+        img.onload=()=>{photos[a[0]]=img;};
+        img.onerror=()=>{};
+        img.src=j.thumbnail.source;
+      }
+    })
+    .catch(()=>{})
+    .finally(()=>{photoBusy=false;setTimeout(pumpPhotos,140);});
+}
+N.forEach(a=>{if(a[6])photoQ.push(a);});
+pumpPhotos();
+function drawPinNode(a){
+  const id=a[0],col=hex(CAT[a[2]]);
+  const hpx=HGT[id]*scale;
+  const base=w2s(POS[id][0],POS[id][1]);
+  if(base.x<-80||base.x>vw+80||base.y<-80||base.y>vh+80){a._head=null;return;}
+  if(hpx<3){a._head=null;ctx.globalAlpha=alphaFor(id)*0.8;ctx.fillStyle=col;
+    ctx.beginPath();ctx.arc(base.x,base.y,2,0,6.2832);ctx.fill();ctx.globalAlpha=1;return;}
+  const headR=hpx*0.34,head={x:base.x,y:base.y-hpx*0.72};
+  const al=alphaFor(id);
+  ctx.globalAlpha=al;
+  /* grounding glow on the glass */
+  const gg=ctx.createRadialGradient(base.x,base.y,1,base.x,base.y,hpx*0.5);
+  gg.addColorStop(0,col+'66');gg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.save();ctx.translate(base.x,base.y);ctx.scale(1,0.42);
+  ctx.fillStyle=gg;ctx.beginPath();ctx.arc(0,0,hpx*0.5,0,6.2832);ctx.fill();ctx.restore();
+  /* tail */
+  ctx.beginPath();
+  ctx.moveTo(head.x-headR*0.62,head.y+headR*0.45);
+  ctx.lineTo(head.x+headR*0.62,head.y+headR*0.45);
+  ctx.lineTo(base.x,base.y-1);ctx.closePath();
+  ctx.fillStyle=shade(CAT[a[2]],0.8);ctx.fill();
+  /* head */
+  ctx.beginPath();ctx.arc(head.x,head.y,headR,0,6.2832);
+  ctx.fillStyle=col;ctx.fill();
+  ctx.globalAlpha=al*0.35;
+  ctx.beginPath();ctx.arc(head.x,head.y,headR*1.35,0,6.2832);ctx.fill();
+  ctx.globalAlpha=al;
+  ctx.beginPath();ctx.arc(head.x,head.y,headR,0,6.2832);ctx.fill();
+  /* portrait window */
+  const pr=headR*0.66;
+  ctx.beginPath();ctx.arc(head.x,head.y,pr,0,6.2832);
+  ctx.fillStyle='#0b0f16';ctx.fill();
+  const img=photos[id];
+  if(img){
+    ctx.save();
+    ctx.beginPath();ctx.arc(head.x,head.y,pr,0,6.2832);ctx.clip();
+    const s=Math.max(2*pr/img.naturalWidth,2*pr/img.naturalHeight);
+    ctx.drawImage(img,head.x-img.naturalWidth*s/2,head.y-img.naturalHeight*s/2,img.naturalWidth*s,img.naturalHeight*s);
+    ctx.restore();
+  }else{
+    ctx.fillStyle=col;
+    ctx.font=`600 ${Math.max(7,pr*0.85)}px -apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(a[1].split(/\s+/).map(w=>w[0]).slice(0,2).join(''),head.x,head.y+1);
+  }
+  if(id==='epstein'){ /* red cross over his portrait */
+    const xr=pr*0.78;
+    ctx.strokeStyle='rgba(216,45,45,0.92)';
+    ctx.lineWidth=Math.max(1.5,pr*0.2);
+    ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(head.x-xr,head.y-xr);ctx.lineTo(head.x+xr,head.y+xr);
+    ctx.moveTo(head.x+xr,head.y-xr);ctx.lineTo(head.x-xr,head.y+xr);
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  a._head=head;a._headR=headR;a._base=base;
+}
+/* ---------- satellites: the people around each subject ---------- */
+let hoverSat=null;
+{
+  const byHost={};
+  SAT.forEach(s=>{(byHost[s[0]]=byHost[s[0]]||[]).push(s);});
+  Object.values(byHost).forEach(list=>{
+    const n=list.length;
+    list.forEach((s,j)=>{
+      /* static: sweep the lower arc (right -> down -> left), clear of the pin/label above */
+      s._th=((n>1? j*(180/(n-1)) : 90))*Math.PI/180;
+      s._n=n;
+    });
+  });
+}
+function drawSats(){
+  for(const s of SAT){
+    const host=s[0];
+    const hpx=HGT[host]*scale;
+    if(hpx<4){s._sx=undefined;continue;}
+    const base=w2s(POS[host][0],POS[host][1]);
+    const R=HGT[host]*(1.15+Math.max(0,(s._n||1)-4)*0.13)*scale;   /* bigger crowds orbit wider */
+    const x=base.x+Math.cos(s._th)*R;
+    const y=base.y+Math.sin(s._th)*R*0.62;
+    if(x<-30||x>vw+30||y<-30||y>vh+30){s._sx=undefined;continue;}
+    const hov=hoverSat===s;
+    const r=Math.max(2.4,HGT[host]*0.14*scale)*(hov?1.45:1);
+    let al;
+    if(demoFilter&&SATGROUPS.includes(demoFilter.group))al=satDemoMatch(s)?1:0.05;
+    else al=alphaFor(host);
+    s._sx=x;s._sy=y;s._sr=r;
+    if(hov){
+      const col=hex(CAT[nodeById[host][2]]);
+      ctx.globalAlpha=al;
+      ctx.beginPath();ctx.arc(x,y,r,0,6.2832);
+      ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=10;ctx.fill();ctx.shadowBlur=0;
+      ctx.beginPath();ctx.arc(x,y,r*0.45,0,6.2832);ctx.fillStyle='#0b0f16';ctx.fill();
+    }else{
+      /* slow breathing halo — a soft light pulsing around each grey dot */
+      const pulse=0.5+0.5*Math.sin(tGlobal*0.8+s._th*7.3);
+      const hcol=hex(CAT[nodeById[host][2]]);
+      ctx.globalAlpha=al*(0.06+0.15*pulse);
+      ctx.beginPath();ctx.arc(x,y,r*(1.6+0.55*pulse),0,6.2832);
+      ctx.fillStyle=hcol;ctx.fill();
+      ctx.globalAlpha=al*0.62;
+      ctx.beginPath();ctx.arc(x,y,r,0,6.2832);
+      ctx.fillStyle='#7c8598';ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+}
+/* ---------- labels ---------- */
+const labelRects={};
+function drawLabel(a){
+  const id=a[0];
+  if(!a._head){delete labelRects[id];return;}
+  const hpx=HGT[id]*scale;
+  if(hpx<16&&P[id]<70){delete labelRects[id];return;}         /* zoomed out: only the powerful keep labels */
+  const fs=10.5+P[id]/100*4.5;
+  const x=a._head.x,y=a._head.y-a._headR-7;
+  ctx.font=`600 ${fs}px -apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
+  const w=ctx.measureText(a[1]).width;
+  ctx.globalAlpha=alphaFor(id)*(hpx<16?0.85:1);
+  ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  ctx.shadowColor='#000';ctx.shadowBlur=5;
+  ctx.fillStyle='#e9edf3';
+  ctx.fillText(a[1],x,y);
+  ctx.shadowBlur=0;ctx.globalAlpha=1;
+  labelRects[id]={x:x-w/2-4,y:y-fs-2,w:w+8,h:fs+8};
+}
+/* ---------- camera moves ---------- */
+let anim=null;
+function flyTo(x,y,s,dur){
+  anim={t0:performance.now(),dur:dur||900,
+    from:{x:camX,y:camY,s:scale},to:{x,y,s}};
+}
+const helpEl=document.getElementById('help');
+let helpShown=false;
+function openHelp(){helpEl.classList.add('show');}
+function closeHelp(){helpEl.classList.remove('show');}
+document.getElementById('helpb').addEventListener('click',openHelp);
+document.getElementById('helpx').addEventListener('click',closeHelp);
+helpEl.addEventListener('click',e=>{if(e.target===helpEl)closeHelp();});
+document.getElementById('zin').addEventListener('click',()=>flyTo(camX,camY,Math.min(7,scale*1.4),260));
+document.getElementById('zout').addEventListener('click',()=>flyTo(camX,camY,Math.max(0.03,scale/1.4),260));
+setTimeout(()=>{if(!helpShown){helpShown=true;openHelp();setTimeout(closeHelp,9000);}},5400);
+canvas.addEventListener('pointerdown',()=>{if(helpShown){helpShown=true;closeHelp();}},{once:true});
+document.getElementById('fitb').addEventListener('click',()=>{
+  clearSel();flyTo(FIT.x,FIT.y,FIT.s*0.92,900);
+});
+/* ---------- controls: roam & zoom ---------- */
+const pts=new Map();let movedPx=0,pinchD=0;
+function lxy(e){const r=root.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  pts.set(e.pointerId,lxy(e));
+  movedPx=0;anim=null;canvas.classList.add('drag');
+  endIntro(true);
+  if(pts.size===2){const p=[...pts.values()];pinchD=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]);}
+});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId)){hover(e);return;}
+  const prev=pts.get(e.pointerId);
+  pts.set(e.pointerId,lxy(e));
+  const dx=e.clientX-prev[0],dy=e.clientY-prev[1];
+  movedPx+=Math.abs(dx)+Math.abs(dy);
+  if(pts.size===1){
+    camX-=dx/scale;camY+=dy/(scale*YSQ);selTouched=true;
+  }else if(pts.size===2){
+    const p=[...pts.values()];
+    const d=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]);
+    const mx=(p[0][0]+p[1][0])/2,my=(p[0][1]+p[1][1])/2;
+    if(pinchD>0&&d>0){zoomAt(mx,my,d/pinchD);selTouched=true;}
+    pinchD=d;
+  }
+});
+function endPtr(e){
+  const wasClick=pts.size===1&&movedPx<8;
+  pts.delete(e.pointerId);
+  if(pts.size===0){canvas.classList.remove('drag');pinchD=0;}
+  if(wasClick&&e.type==='pointerup'){const[px,py]=lxy(e);pick(px,py);}
+}
+canvas.addEventListener('pointerup',endPtr);
+canvas.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);canvas.classList.remove('drag');});
+function zoomAt(sx,sy,f){
+  const before=s2w(sx,sy);
+  scale=Math.min(7,Math.max(0.03,scale*f));
+  const after=s2w(sx,sy);
+  camX+=before.x-after.x;camY+=before.y-after.y;
+}
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();anim=null;selTouched=true;endIntro(true);
+  let d=e.deltaY;if(e.deltaMode===1)d*=33;else if(e.deltaMode===2)d*=120;
+  const[wx,wy]=lxy(e);
+  zoomAt(wx,wy,Math.exp(Math.max(-200,Math.min(200,d))*-0.0012));
+},{passive:false});
+addEventListener('keydown',e=>{if(e.key==='Escape')clearSel();});
+/* ---------- picking: pure 2D distances, no raycasting ---------- */
+function distToSeg(px,py,x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1;
+  const l2=dx*dx+dy*dy;
+  let t=l2?((px-x1)*dx+(py-y1)*dy)/l2:0;
+  t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+function hitNode(sx,sy){
+  let best=null;
+  N.forEach(a=>{
+    const id=a[0];
+    if(!a._head)return;
+    const lr=labelRects[id];
+    if(lr&&sx>=lr.x&&sx<=lr.x+lr.w&&sy>=lr.y&&sy<=lr.y+lr.h){
+      if(!best||best.d>-15)best={id,d:-15,label:true};
+      return;
+    }
+    const dHead=Math.hypot(sx-a._head.x,sy-a._head.y)-a._headR;
+    const dTail=distToSeg(sx,sy,a._head.x,a._head.y,a._base.x,a._base.y)-Math.max(2.5,a._headR*0.35);
+    const d=Math.min(dHead,dTail);
+    if(d<9&&(!best||d<best.d))best={id,d,label:false};
+  });
+  return best;
+}
+function hitEdge(sx,sy){
+  let best=null;
+  edgeObjs.forEach(e=>{
+    if(!e.visible)return;
+    const g=quadGeom(e);
+    let md=1e9;
+    for(let i=0;i<=36;i++){
+      const p=quadPoint(g,i/36);
+      const d=Math.hypot(sx-p.x,sy-p.y);
+      if(d<md)md=d;
+    }
+    if(md<9&&(!best||md<best.d))best={e,d:md};
+  });
+  return best;
+}
+function hitSat(sx,sy){
+  let best=null,bd=1e9;
+  for(const s of SAT){
+    if(s._sx===undefined)continue;
+    if(HGT[s[0]]*scale<12)continue;   /* too small to be a separate target */
+    const d=Math.hypot(sx-s._sx,sy-s._sy);
+    const hr=Math.max(7,s._sr+3);
+    if(d<hr&&d<bd){best=s;bd=d;}
+  }
+  return best;
+}
+const tip=document.getElementById('tip');
+function hover(e){
+  const[hx,hy]=lxy(e);
+  const sat=hitSat(hx,hy);
+  hoverSat=sat;
+  if(sat){
+    canvas.classList.add('hover');
+    tip.style.display='block';tip.style.left=(hx+14)+'px';tip.style.top=(hy+12)+'px';
+    tip.innerHTML=`<b>${esc(sat[1])}</b><small>${esc(sat[2])} · ${esc(nodeById[sat[0]][1])}</small>`;
+    return;
+  }
+  const n=hitNode(hx,hy);
+  if(n){
+    const a=nodeById[n.id];
+    canvas.classList.add('hover');
+    tip.style.display='block';tip.style.left=(hx+14)+'px';tip.style.top=(hy+12)+'px';
+    tip.innerHTML=`<b>${esc(a[1])}</b><small>${CATN[a[2]]}</small>`;
+    return;
+  }
+  const h=hitEdge(hx,hy);
+  if(h){
+    const A=nodeById[h.e.a][1],B=nodeById[h.e.b][1];
+    canvas.classList.add('hover');
+    tip.style.display='block';tip.style.left=(hx+14)+'px';tip.style.top=(hy+12)+'px';
+    tip.innerHTML=`<b>${esc(A)} → ${esc(B)}</b><small>${esc(h.e.lb)} · click to inspect</small>`;
+    return;
+  }
+  canvas.classList.remove('hover');tip.style.display='none';
+}
+function pick(cx,cy){
+  tip.style.display='none';
+  const n=hitNode(cx,cy),sat=hitSat(cx,cy),h=hitEdge(cx,cy);
+  window.__lastPick={cx,cy,node:n?n.id:null,sat:sat?sat[1]:null,edge:h?(h.e.a+'-'+h.e.b):null,
+    nd:n?Math.round(n.d):null,ed:h?Math.round(h.d):null};
+  if(sat){showSat(sat);return;}            /* dots are small targets — they win over labels */
+  if(n&&n.label){select(n.id);return;}
+  if(n&&(!h||n.d<=h.d+2)){select(n.id);return;}
+  if(h){showEdge(h.e);return;}
+  clearSel();
+}
+/* ---------- panel, edge card ---------- */
+const panel=document.getElementById('panel');
+const controSec=document.getElementById('controSec');
+function showPanel(id){
+  const a=nodeById[id];
+  const[,label,cat,,detail,sources,wiki]=a;
+  document.getElementById('pname').textContent=label;
+  document.getElementById('pcat').textContent=CATN[cat];
+  document.getElementById('pcat').style.color=hex(CAT[cat]);
+  document.getElementById('pdetail').textContent=detail;
+  const tg=document.getElementById('ptags');
+  const dm=typeof DEMOG!=='undefined'?DEMOG[id]:null;
+  let th='';
+  if(dm){
+    th=`<span class="tg">${esc(dm[0])}</span><span class="tg">${esc(dm[1])}</span><span class="tg">${esc(dm[2])}</span>`;
+    if(dm[3])th+=`<span class="tg z">Zionist: ${esc(dm[3])}</span>`;
+    if(dm[4])th+=`<span class="tg f">WEF: ${esc(dm[4])}</span>`;
+    if(dm[5])th+=`<span class="tg f">Fabian: ${esc(dm[5])}</span>`;
+  }
+  if(typeof KISSED!=='undefined'&&KISSED[id])th+=`<span class="tg k">✓ KISSED THE WALL</span><span class="kissnote">${esc(KISSED[id])}</span>`;
+  tg.innerHTML=th;
+  document.getElementById('psrc').textContent=sources?('Sources: '+sources):'';
+  const img=document.getElementById('pimg');
+  img.style.backgroundImage='none';
+  img.textContent=label.split(/\s+/).map(w=>w[0]).slice(0,2).join('');
+  if(wiki){
+    fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(wiki))
+      .then(r=>r.ok?r.json():null)
+      .then(j=>{if(j&&j.thumbnail&&j.thumbnail.source&&sel===id){img.style.backgroundImage=`url("${j.thumbnail.source}")`;img.textContent='';}})
+      .catch(()=>{});
+  }
+  /* controversies — always visible, this is the point of the map */
+  const cs=(CONTRO[id]||[]);
+  if(cs.length){
+    controSec.innerHTML=`<h3 class="sec">Controversies &amp; reports</h3>`+
+      cs.map(([t,d])=>`<div class="citem"><b>${esc(t)}</b>${esc(d)}</div>`).join('');
+  }else{controSec.innerHTML='';}
+  const pc=document.getElementById('pconns');pc.innerHTML='';
+  adj.get(id).forEach(({o,cert,lb,ty})=>{
+    const other=nodeById[o];
+    const d=document.createElement('div');d.className='conn';
+    d.innerHTML=`<span class="edot" style="border-color:${hex(ET[ty])}"></span><div><b>${esc(other[1])}</b><div class="el">${esc(lb)} · ${ETN[ty].toLowerCase()} · ${CERTN[cert]}</div></div><span class="arr">→</span>`;
+    d.addEventListener('click',()=>select(o));
+    pc.appendChild(d);
+  });
+  panel.classList.add('open');panel.setAttribute('aria-hidden','false');
+}
+function closePanel(){panel.classList.remove('open');panel.setAttribute('aria-hidden','true');}
+function select(id){
+  if(!sel&&!selEdge){camBefore={x:camX,y:camY,s:scale};selTouched=false;}
+  sel=id;selEdge=null;demoFilter=null;
+  dock.querySelectorAll('.sub.on').forEach(x=>x.classList.remove('on'));
+  const nb=new Set([id]);adj.get(id).forEach(c=>nb.add(c.o));
+  dimSet.clear();N.forEach(a=>{if(!nb.has(a[0]))dimSet.add(a[0]);});
+  pulses.forEach(p=>{p.dimmed=!(p.edge.a===id||p.edge.b===id);});
+  ecard.classList.remove('open');
+  const s2=Math.max(FIT.s*1.7,Math.min(3.2,320/HGT[id]));
+  flyTo(POS[id][0]+230/s2,POS[id][1]-30/s2,s2);
+  showPanel(id);
+}
+function showSat(s){
+  const[host,name,role,detail,links,contro]=s;
+  const h=nodeById[host];
+  document.getElementById('pname').textContent=name;
+  document.getElementById('pcat').textContent=role+' · '+h[1];
+  document.getElementById('pcat').style.color=hex(CAT[h[2]]);
+  const stag=s[6];let sth='';
+  if(stag){if(stag.wef)sth+=`<span class="tg f">WEF: ${esc(stag.wef)}</span>`;if(stag.fabian)sth+=`<span class="tg f">Fabian: ${esc(stag.fabian)}</span>`;}
+  document.getElementById('ptags').innerHTML=sth;
+  const img=document.getElementById('pimg');
+  img.style.backgroundImage='none';
+  img.textContent=name.split(/\s+/).map(w=>w[0]).slice(0,2).join('');
+  document.getElementById('pdetail').textContent=detail;
+  document.getElementById('psrc').textContent='';
+  if(contro&&contro.length){
+    controSec.innerHTML=`<h3 class="sec">Controversies &amp; reports</h3>`+
+      contro.map(([t,d])=>`<div class="citem"><b>${esc(t)}</b>${esc(d)}</div>`).join('');
+  }else{controSec.innerHTML='';}
+  const pc=document.getElementById('pconns');pc.innerHTML='';
+  (links||[]).forEach(l=>{
+    const d=document.createElement('div');d.className='conn';d.style.cursor='default';
+    d.innerHTML=`<span class="edot" style="border-color:${hex(CAT[h[2]])}"></span><div><b>${esc(l)}</b></div>`;
+    pc.appendChild(d);
+  });
+  panel.classList.add('open');panel.setAttribute('aria-hidden','false');
+}
+const ecard=document.getElementById('ecard');
+function showEdge(e){
+  if(!sel&&!selEdge){camBefore={x:camX,y:camY,s:scale};selTouched=false;}
+  sel='__edge__';selEdge=e;demoFilter=null;
+  dock.querySelectorAll('.sub.on').forEach(x=>x.classList.remove('on'));
+  const{a,b,cert,lb,ty}=e;
+  const A=nodeById[a],B=nodeById[b];
+  ecard.querySelector('.eh').innerHTML=
+    `<span style="color:${hex(CAT[A[2]])}">${esc(A[1])}</span><span class="arrow">→</span><span style="color:${hex(CAT[B[2]])}">${esc(B[1])}</span>`;
+  ecard.querySelector('.et').innerHTML=
+    `<em style="border-color:${hex(ET[ty])}"></em>${ETN[ty]} · ${CERTN[cert]}`;
+  ecard.querySelector('.el2').textContent=lb;
+  const ba=document.getElementById('eviewa'),bb=document.getElementById('eviewb');
+  ba.textContent='View '+A[1];bb.textContent='View '+B[1];
+  ba.onclick=()=>select(a);bb.onclick=()=>select(b);
+  ecard.classList.add('open');
+  closePanel();
+  dimSet.clear();N.forEach(x=>{if(x[0]!==a&&x[0]!==b)dimSet.add(x[0]);});
+  pulses.forEach(p=>{p.dimmed=p.edge!==e;});
+}
+function clearSel(){
+  const cb=(!selTouched&&camBefore)?camBefore:null;
+  sel=null;selEdge=null;dimSet.clear();demoFilter=null;
+  camBefore=null;selTouched=false;
+  dock.querySelectorAll('.sub.on').forEach(x=>x.classList.remove('on'));
+  pulses.forEach(p=>{p.dimmed=false;});
+  closePanel();ecard.classList.remove('open');
+  if(cb)flyTo(cb.x,cb.y,cb.s,750);        /* zoom back out to where you were */
+}
+document.getElementById('pclose').addEventListener('click',clearSel);
+document.getElementById('eclose').addEventListener('click',clearSel);
+/* ---------- dock ---------- */
+const dock=document.getElementById('dock');
+{
+  const catCnt={};N.forEach(a=>catCnt[a[2]]=(catCnt[a[2]]||0)+1);
+  const etCnt={};E.forEach(e=>etCnt[e[4]]=(etCnt[e[4]]||0)+1);
+  let h='<div class="dockcta">THE KEY \u2014 click a <b>connection</b> or <b>people</b> row below to filter the web. Click a pin or a beam on the map for the full story.</div><h2>Subjects</h2>';
+  Object.keys(CAT).forEach(k=>{h+=`<div class="lg"><i style="background:${hex(CAT[k])}"></i>${CATN[k]}<span class="cnt">${catCnt[k]||0}</span></div>`;});
+  h+='<h2>Connections — click to filter</h2>';
+  Object.keys(ET).forEach(k=>{h+=`<div class="lg f" data-et="${k}"><em style="border-color:${hex(ET[k])}"></em>${ETN[k]}<span class="cnt">${etCnt[k]||0}</span></div>`;});
+  h+='<h2>People — click to filter</h2>';
+  const GROUPS=[["party","Party allegiance"],["zionist","Zionist affiliation"],["wef","WEF / Davos"],["fabian","Fabian Society"],["hnh","Hope Not Hate"],["heritage","Heritage"],["religion","Religion"]];
+  GROUPS.forEach(([g,label])=>{
+    const cnt={};
+    Object.values(DEMOG).forEach(d=>{const v=d[DEMOG_IDX[g]];if(v)cnt[v]=(cnt[v]||0)+1;});
+    if(SATGROUPS.includes(g))SAT.forEach(sat=>{const t=sat[6];const v=t&&t[g];if(v)cnt[v]=(cnt[v]||0)+1;});
+    const total=Object.values(cnt).reduce((a,b)=>a+b,0);
+    h+=`<div class="grp" data-g="${g}"><span class="tri">▸</span>${label}<span class="cnt">${total}</span></div>`;
+    h+=`<div class="gitems" data-g="${g}" style="display:none">`;
+    Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a.localeCompare(b)).forEach(v=>{
+      h+=`<div class="sub" data-g="${g}" data-v="${esc(v)}"><i></i>${esc(v)}<span class="cnt">${cnt[v]}</span></div>`;
+    });
+    h+='</div>';
+  });
+  dock.innerHTML=h;
+  dock.querySelectorAll('.lg.f').forEach(el=>{
+    el.addEventListener('click',()=>{
+      el.classList.toggle('off');
+      const off=new Set([...dock.querySelectorAll('.lg.f.off')].map(x=>x.dataset.et));
+      edgeObjs.forEach(l=>{l.visible=!off.has(l.ty);});
+    });
+  });
+  dock.querySelectorAll('.grp').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const items=dock.querySelector(`.gitems[data-g="${el.dataset.g}"]`);
+      const open=items.style.display!=='none';
+      items.style.display=open?'none':'block';
+      el.querySelector('.tri').textContent=open?'\u25b8':'\u25be';
+    });
+  });
+  dock.querySelectorAll('.sub').forEach(el=>{
+    el.addEventListener('click',()=>applyDemo(el.dataset.g,el.dataset.v,el));
+  });
+}
+function applyDemo(group,value,el){
+  if(demoFilter&&demoFilter.group===group&&demoFilter.value===value){
+    clearSel();return;
+  }
+  clearSel();
+  demoFilter={group,value};
+  el.classList.add('on');
+  pulses.forEach(p=>{p.dimmed=!(demoMatch(p.edge.a)||demoMatch(p.edge.b));});
+}
+document.getElementById('stats').textContent=`${N.length} nodes · ${E.length} connections`;
+/* ---------- render loop ---------- */
+let last=performance.now(),tGlobal=0,booted=false;
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-last)/1000);last=now;tGlobal+=dt;
+  if(anim){
+    const k=Math.min(1,(now-anim.t0)/anim.dur),e=1-Math.pow(1-k,3);
+    camX=anim.from.x+(anim.to.x-anim.from.x)*e;
+    camY=anim.from.y+(anim.to.y-anim.from.y)*e;
+    scale=anim.from.s+(anim.to.s-anim.from.s)*e;
+    if(k>=1)anim=null;
+  }
+  ctx.fillStyle='#000';ctx.fillRect(0,0,vw,vh);
+  drawStars(tGlobal);
+  drawRings();
+  drawLGroups();
+  edgeObjs.forEach(e=>{if(e.visible)drawEdge(e);});
+  drawPulses(dt);
+  for(const id in labelRects)delete labelRects[id];
+  N.forEach(drawPinNode);
+  drawSats();
+  N.forEach(drawLabel);
+  if(!booted){booted=true;const b=document.getElementById('boot');if(b)b.remove();}
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
