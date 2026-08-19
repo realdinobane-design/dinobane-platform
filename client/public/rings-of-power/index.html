@@ -212,7 +212,7 @@ function computeFit(){
 }
 const root=document.getElementById('root');
 function resize(){
-  dpr=Math.min(devicePixelRatio||1,2);
+  dpr=Math.min(devicePixelRatio||1,1.5);
   vw=root.clientWidth||innerWidth;vh=root.clientHeight||innerHeight;
   canvas.width=Math.round(vw*dpr);canvas.height=Math.round(vh*dpr);
   canvas.style.width=vw+'px';canvas.style.height=vh+'px';
@@ -340,6 +340,9 @@ function drawEdge(e){
   const g=quadGeom(e),col=hex(ET[e.ty]);
   const op=edgeAlpha(e);
   if(op<0.02)return;
+  const ex0=Math.min(g.A.x,g.B.x,g.mx)-10,ex1=Math.max(g.A.x,g.B.x,g.mx)+10;
+  const ey0=Math.min(g.A.y,g.B.y,g.my)-10,ey1=Math.max(g.A.y,g.B.y,g.my)+10;
+  if(ex1<-20||ex0>vw+20||ey1<-20||ey0>vh+20)return;   /* off-screen: skip both stroke passes */
   ctx.beginPath();ctx.moveTo(g.A.x,g.A.y);ctx.quadraticCurveTo(g.mx,g.my,g.B.x,g.B.y);
   /* halo pass */
   ctx.globalAlpha=op*0.28;ctx.lineWidth=6;ctx.strokeStyle=col;ctx.stroke();
@@ -370,6 +373,7 @@ function drawPulses(dt){
     const op=edgeAlpha(p.edge);
     if(op<0.1)continue;
     const g=quadGeom(p.edge),pt=quadPoint(g,p.t);
+    if(pt.x<-24||pt.x>vw+24||pt.y<-24||pt.y>vh+24)continue;
     const spr=pulseSprite(hex(ET[p.edge.ty])),sz=4.5*2.6*2;
     ctx.globalAlpha=Math.min(1,op+0.25);
     ctx.drawImage(spr,pt.x-sz/2,pt.y-sz/2,sz,sz);
@@ -399,6 +403,19 @@ function pumpPhotos(){
 }
 N.forEach(a=>{if(a[6])photoQ.push(a);});
 pumpPhotos();
+const glowSprites={};
+function glowSprite(catId){
+  let c=glowSprites[catId];
+  if(c)return c;
+  c=document.createElement('canvas');c.width=128;c.height=64;
+  const g=c.getContext('2d');
+  g.translate(64,32);g.scale(1,0.5);
+  const gr=g.createRadialGradient(0,0,1,0,0,62);
+  gr.addColorStop(0,hex(CAT[catId])+'66');gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr;g.beginPath();g.arc(0,0,62,0,6.2832);g.fill();
+  glowSprites[catId]=c;
+  return c;
+}
 function drawPinNode(a){
   const id=a[0],col=hex(CAT[a[2]]);
   const hpx=HGT[id]*scale;
@@ -409,11 +426,9 @@ function drawPinNode(a){
   const headR=hpx*0.34,head={x:base.x,y:base.y-hpx*0.72};
   const al=alphaFor(id);
   ctx.globalAlpha=al;
-  /* grounding glow on the glass */
-  const gg=ctx.createRadialGradient(base.x,base.y,1,base.x,base.y,hpx*0.5);
-  gg.addColorStop(0,col+'66');gg.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.save();ctx.translate(base.x,base.y);ctx.scale(1,0.42);
-  ctx.fillStyle=gg;ctx.beginPath();ctx.arc(0,0,hpx*0.5,0,6.2832);ctx.fill();ctx.restore();
+  /* grounding glow on the glass — baked sprite per category, stretched on draw */
+  const gs=glowSprite(a[2]);
+  ctx.drawImage(gs,base.x-hpx*0.5,base.y-hpx*0.21,hpx,hpx*0.42);
   /* tail */
   ctx.beginPath();
   ctx.moveTo(head.x-headR*0.62,head.y+headR*0.45);
@@ -509,22 +524,39 @@ function drawSats(){
 }
 /* ---------- labels ---------- */
 const labelRects={};
+const labelSprites={};
+function labelSprite(a){
+  let sp=labelSprites[a[0]];
+  if(sp)return sp;
+  const fs=10.5+P[a[0]]/100*4.5,SS=2;                 /* 2x supersample: stays crisp on retina */
+  const m=document.createElement('canvas').getContext('2d');
+  m.font=`600 ${fs*SS}px -apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
+  const w=Math.ceil(m.measureText(a[1]).width);
+  const c=document.createElement('canvas');
+  c.width=w+16*SS;c.height=Math.ceil(fs*SS)+10*SS;
+  const g=c.getContext('2d');
+  g.font=`600 ${fs*SS}px -apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
+  g.textAlign='center';g.textBaseline='alphabetic';
+  const cx=c.width/2,by=c.height-5*SS;
+  g.fillStyle='rgba(0,0,0,0.85)';                     /* baked "shadow": 8 dark offset copies */
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){if(dx||dy)g.fillText(a[1],cx+dx*SS,by+dy*SS);}
+  g.fillStyle='#e9edf3';
+  g.fillText(a[1],cx,by);
+  sp={c:c,w:w/SS,cw:c.width/SS,ch:c.height/SS,fs:fs};
+  labelSprites[a[0]]=sp;
+  return sp;
+}
 function drawLabel(a){
   const id=a[0];
   if(!a._head){delete labelRects[id];return;}
   const hpx=HGT[id]*scale;
   if(hpx<16&&P[id]<70){delete labelRects[id];return;}         /* zoomed out: only the powerful keep labels */
-  const fs=10.5+P[id]/100*4.5;
+  const sp=labelSprite(a);
   const x=a._head.x,y=a._head.y-a._headR-7;
-  ctx.font=`600 ${fs}px -apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
-  const w=ctx.measureText(a[1]).width;
   ctx.globalAlpha=alphaFor(id)*(hpx<16?0.85:1);
-  ctx.textAlign='center';ctx.textBaseline='alphabetic';
-  ctx.shadowColor='#000';ctx.shadowBlur=5;
-  ctx.fillStyle='#e9edf3';
-  ctx.fillText(a[1],x,y);
-  ctx.shadowBlur=0;ctx.globalAlpha=1;
-  labelRects[id]={x:x-w/2-4,y:y-fs-2,w:w+8,h:fs+8};
+  ctx.drawImage(sp.c,x-sp.cw/2,y-sp.ch+5,sp.cw,sp.ch);
+  ctx.globalAlpha=1;
+  labelRects[id]={x:x-sp.w/2-4,y:y-sp.fs-2,w:sp.w+8,h:sp.fs+8};
 }
 /* ---------- camera moves ---------- */
 let anim=null;
