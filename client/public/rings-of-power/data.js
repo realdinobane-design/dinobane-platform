@@ -176,8 +176,14 @@ const E=[
 ["grooming","labour","dash","whipped the 364\u2013111 vote killing the Jan 2025 inquiry amendment, then U-turned","law"],
 ["grooming","khan","dash","'no indication of rape gangs in London' \u2014 the Met is now reviewing 9,000 cases","law"],
 ["grooming","tories","dash","demanded an inquiry in opposition; in power left every Jay/IICSA recommendation unimplemented","law"],
+["tories","zahawitax","dash","he was its chairman — sacked by Sunak (Jan 2023) after the hidden HMRC penalty emerged","law"],
+["gaza_doc","ofcom","dash","Ofcom ruled the pulled film a 'serious breach' — 'materially misleading' (Oct 2025) — and ordered a prime-time apology statement","law"],
+["cashhonours","lubner","solid","Blair's chief fundraiser — arrested three times in the probe; never charged","law"],
+["ofcom","farage","dot","his four-nights-a-week show rides the 'current affairs' loophole Ofcom declined to close (Oct 2025)","law"],
+["tories","lebedev","dash","ennobled by its leader; sits in the Lords to this day","law"],
+["johnson","covidcontracts","dash","the VIP lane later ruled unlawful ran on his watch","law"],
 ["expenses","labour","dash","its MPs among those jailed; the Speaker fell","law"],
-["cashhonours","blair","dash","questioned by police as PM; his fundraiser Lord Levy arrested twice","law"],
+["cashhonours","blair","dash","questioned by police as PM; his fundraiser Lord Levy arrested three times","law"],
 ["partygate","tories","dash","126 fines issued in its buildings, incl. the PM","law"],
 ["phonehack","tories","dash","Coulson went from its newsroom to Cameron's spin chief \u2014 then prison","law"],
 ["campbell","blair","solid","Blair's spin chief 1997–2003 — the Iraq dossier era","work"],
@@ -315,6 +321,22 @@ blair:["White Briton","Christian","Labour (former PM)","Yes","WEF agenda contrib
 burnham:["White Briton","Christian (Catholic)","Labour","","",""],
 khan:["Pakistani heritage","Muslim","Labour","","WEF agenda contributor",""],
 mahmood:["Pakistani heritage (Mirpur, Kashmir)","Muslim","Labour","","",""]
+};
+/* ---------- editorial alignment: globalist / civnat / nationalist (this map's own classification, not party labels) ---------- */
+const CAMP={
+hester:"Globalist",gibb:"Globalist",lubner:"Globalist",vince:"Globalist",sainsbury:"Globalist",
+quadrature:"Globalist",mansour:"Globalist",chandler:"Globalist",singer:"Globalist",ashcroft:"Globalist",
+chernukhin:"Globalist",ellison:"Globalist",fink:"Globalist",thiel:"Globalist",mittal:"Globalist",
+murdoch:"Globalist",bbc:"Globalist",sky:"Globalist",lbc:"Globalist",jc:"Globalist",
+urbanscoop:"Globalist",aljazeera:"Globalist",tories:"Globalist",labour:"Globalist",unions:"Globalist",
+wef:"Globalist",fabian:"Globalist",hnh:"Globalist",israel_lobby:"Globalist",israel_state:"Globalist",
+uae:"Globalist",qatar:"Globalist",pakistan:"Globalist",islam:"Globalist",mb:"Globalist",
+blair:"Globalist",mandelson:"Globalist",campbell:"Globalist",brown:"Globalist",archer:"Globalist",
+epstein:"Globalist",khan:"Globalist",mahmood:"Globalist",burnham:"Globalist",johnson:"Globalist",
+marshall:"Civnat",tabor:"Civnat",harborne:"Civnat",reform:"Civnat",farage:"Civnat",
+tice:"Civnat",yusuf:"Civnat",jenrick:"Civnat",zahawi:"Civnat",braverman:"Civnat",
+gbnews:"Civnat",talk:"Civnat",spectator:"Civnat",telegraph:"Civnat",musk:"Civnat",
+robinson:"Nationalist",utk:"Nationalist",lowe:"Nationalist",restore:"Nationalist",cottrell:"Nationalist",bannon:"Nationalist"
 };
 
 /* "Kissed the wall": documented free / funded trips to Israel (lobby- or state-paid).

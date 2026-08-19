@@ -22,7 +22,7 @@ const NAV_LINKS: { href: string; label: string; icon: any; memberOnly?: boolean;
   { href: "/", label: "Home", icon: null },
   { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
-  { href: "/rings-of-power/index.html", label: "Rings Of Power", icon: Network, external: true },
+  { href: "/rings-of-power/index.html", label: "UK Power Map", icon: Network, external: true },
   { href: "/timelines", label: "Timelines", icon: BookMarked, memberOnly: true },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
