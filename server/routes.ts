@@ -24,6 +24,101 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 const PRICE_ID = process.env.STRIPE_PRICE_ID || "price_1TAtUxLgaM5ScSUDmOEucYog";
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+type StripeCustomerMatch = {
+  customerId: string | null;
+  subscriptions: Stripe.Subscription[];
+};
+
+async function listLiveSubscriptions(customerId: string): Promise<Stripe.Subscription[]> {
+  if (!stripe) return [];
+  const [active, trialing] = await Promise.all([
+    stripe.subscriptions.list({ customer: customerId, status: "active", limit: 20 }),
+    stripe.subscriptions.list({ customer: customerId, status: "trialing", limit: 20 }),
+  ]);
+  return [...active.data, ...trialing.data];
+}
+
+// Find the best Stripe customer for an email. Prefer one with a live subscription,
+// but still return the first non-deleted customer so checkout does not create duplicates.
+async function findStripeCustomerByEmail(email: string): Promise<StripeCustomerMatch> {
+  if (!stripe) return { customerId: null, subscriptions: [] };
+  const customers = await stripe.customers.list({ email, limit: 100 });
+  let firstCustomerId: string | null = null;
+
+  for (const customer of customers.data) {
+    if ((customer as any).deleted) continue;
+    if (!firstCustomerId) firstCustomerId = customer.id;
+    const subscriptions = await listLiveSubscriptions(customer.id);
+    if (subscriptions.length > 0) {
+      return { customerId: customer.id, subscriptions };
+    }
+  }
+
+  return { customerId: firstCustomerId, subscriptions: [] };
+}
+
+async function linkStripeRecordsToUser(customerId: string, subscriptions: Stripe.Subscription[], userId: number) {
+  if (!stripe) return { customerUpdated: false, subscriptionsUpdated: 0 };
+  let customerUpdated = false;
+  let subscriptionsUpdated = 0;
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+    if (!customer.deleted && customer.metadata?.userId !== String(userId)) {
+      await stripe.customers.update(customerId, { metadata: { userId: String(userId) } });
+      customerUpdated = true;
+    }
+  } catch (e: any) {
+    console.warn(`[stripe-link] customer metadata update failed for ${customerId}: ${e.message}`);
+  }
+
+  for (const subscription of subscriptions) {
+    if (subscription.metadata?.userId === String(userId)) continue;
+    try {
+      await stripe.subscriptions.update(subscription.id, { metadata: { userId: String(userId) } });
+      subscriptionsUpdated++;
+    } catch (e: any) {
+      console.warn(`[stripe-link] subscription metadata update failed for ${subscription.id}: ${e.message}`);
+    }
+  }
+
+  return { customerUpdated, subscriptionsUpdated };
+}
+
+// Resolve webhook events safely when an account was deleted and recreated: an old
+// metadata userId must never prevent us from falling back to the customer email.
+async function resolveStripeUser(metadataUserId: unknown, customerId?: string | null, fallbackEmail?: string | null) {
+  let email = fallbackEmail || null;
+
+  if (customerId && stripe) {
+    try {
+      const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+      if (!customer.deleted && customer.email) email = customer.email;
+    } catch (e: any) {
+      console.warn(`[stripe-link] customer lookup failed for ${customerId}: ${e.message}`);
+    }
+  }
+
+  const parsedUserId = parseInt(String(metadataUserId || "0"));
+  if (parsedUserId) {
+    const candidate = await storage.getUserById(parsedUserId);
+    if (candidate && (!email || candidate.email.toLowerCase() === email.toLowerCase())) {
+      if (customerId && candidate.stripeCustomerId !== customerId) {
+        return storage.updateStripeCustomerId(candidate.id, customerId);
+      }
+      return candidate;
+    }
+  }
+
+  if (!email) return undefined;
+  const user = await storage.getUserByEmail(email);
+  if (user && customerId && user.stripeCustomerId !== customerId) {
+    return storage.updateStripeCustomerId(user.id, customerId);
+  }
+  return user;
+}
+
 // ─── SHARED EMAIL ASSETS ──────────────────────────────────────────────────────
 // Pre-load logo once at startup; used by all email templates via CID attachment
 const EMAIL_LOGO_PATH = require('path').join(__dirname, '../client/public/brand/email-logo.jpg');
@@ -613,21 +708,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const color = colors[Math.floor(Math.random() * colors.length)];
 
       // ── STRIPE PRE-PAYMENT CHECK ─────────────────────────────────────────────
-      // If this email already has an active Stripe subscription (paid before
-      // registering, or paid via a direct link), grant membership immediately.
+      // If this email already has a live Stripe subscription (paid before
+      // registering, or their site account was deleted), restore membership immediately.
       let preGrantMember = false;
       let preGrantCustomerId: string | null = null;
+      let preGrantSubscriptions: Stripe.Subscription[] = [];
       if (stripe) {
         try {
-          const existingCustomers = await stripe.customers.list({ email: body.email, limit: 1 });
-          if (existingCustomers.data.length > 0) {
-            const cus = existingCustomers.data[0];
-            const activeSubs = await stripe.subscriptions.list({ customer: cus.id, status: "active", limit: 1 });
-            if (activeSubs.data.length > 0) {
-              preGrantMember = true;
-              preGrantCustomerId = cus.id;
-              console.log(`[register] pre-payment detected for ${body.email} — granting membership on registration`);
-            }
+          const match = await findStripeCustomerByEmail(body.email);
+          if (match.customerId && match.subscriptions.length > 0) {
+            preGrantMember = true;
+            preGrantCustomerId = match.customerId;
+            preGrantSubscriptions = match.subscriptions;
+            console.log(`[register] pre-payment detected for ${body.email} — granting membership on registration`);
           }
         } catch (e: any) {
           console.error("[register] stripe pre-check failed:", e.message);
@@ -646,9 +739,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
         stripeCustomerId: preGrantCustomerId,
       });
 
-      // Link userId into Stripe customer metadata if pre-granted
+      // Link the recreated account back into Stripe customer and subscription metadata.
       if (preGrantMember && preGrantCustomerId && stripe) {
-        stripe.customers.update(preGrantCustomerId, { metadata: { userId: String(user.id) } }).catch(() => {});
+        linkStripeRecordsToUser(preGrantCustomerId, preGrantSubscriptions, user.id).catch(() => {});
       }
 
       // Send welcome email immediately for pre-granted members (they've already paid)
@@ -1576,14 +1669,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
 
     try {
-      // Get or create Stripe customer
+      // Get or create Stripe customer. Prefer a matching customer that already has
+      // a live subscription; this recovers accounts that were deleted and recreated.
       let customerId = user.stripeCustomerId;
+      let liveSubscriptions: Stripe.Subscription[] = [];
       if (!customerId) {
-        // Check if a Stripe customer already exists for this email (prevents duplicates)
-        const existing = await stripe.customers.list({ email: user.email, limit: 1 });
-        if (existing.data.length > 0) {
-          customerId = existing.data[0].id;
-        } else {
+        const match = await findStripeCustomerByEmail(user.email);
+        customerId = match.customerId;
+        liveSubscriptions = match.subscriptions;
+
+        if (!customerId) {
           const customer = await stripe.customers.create({
             email: user.email,
             name: user.displayName,
@@ -1592,22 +1687,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
           customerId = customer.id;
         }
         await storage.updateStripeCustomerId(user.id, customerId);
+      } else {
+        liveSubscriptions = await listLiveSubscriptions(customerId);
       }
 
       // ── DUPLICATE PAYMENT GUARD ──────────────────────────────────────────────
-      // If this customer already has an active subscription, do NOT create a new
-      // checkout session. Instead, self-heal by granting membership immediately.
-      const activeSubs = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "active",
-        limit: 1,
-      });
-      if (activeSubs.data.length > 0) {
-        // They already paid — fix their account right now
+      // If this customer already has a live subscription, do NOT create a new
+      // checkout session. Instead, self-heal the account and Stripe metadata.
+      if (liveSubscriptions.length > 0) {
         await storage.updateUserMembership(user.id, true);
+        await linkStripeRecordsToUser(customerId, liveSubscriptions, user.id);
         sendWelcomeEmail(user.email, user.displayName).catch(() => {});
         notifyAdminNewMember(user.email, user.displayName).catch(() => {});
-        console.log(`[checkout] duplicate guard triggered — auto-granted membership to userId ${user.id} (existing sub: ${activeSubs.data[0].id})`);
+        console.log(`[checkout] duplicate guard triggered — auto-granted membership to userId ${user.id} (existing sub: ${liveSubscriptions[0].id})`);
         return res.status(400).json({
           error: "already_subscribed",
           message: "You already have an active subscription. Your membership has been activated — please refresh the page.",
@@ -1673,93 +1765,79 @@ export function registerRoutes(httpServer: Server, app: Express) {
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          let userId = parseInt(session.subscription_data?.metadata?.userId || "0");
-          // Fallback: look up user by customer email if userId not in metadata
-          if (!userId && session.customer_details?.email) {
-            const userByEmail = await storage.getUserByEmail(session.customer_details.email);
-            if (userByEmail) userId = userByEmail.id;
-          }
-          // Second fallback: look up by Stripe customer email
-          if (!userId && session.customer && typeof session.customer === "string") {
-            try {
-              const customer = await stripe!.customers.retrieve(session.customer) as Stripe.Customer;
-              if (customer && !customer.deleted && customer.email) {
-                const userByEmail = await storage.getUserByEmail(customer.email);
-                if (userByEmail) userId = userByEmail.id;
+          const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id || null;
+          const user = await resolveStripeUser(
+            (session as any).subscription_data?.metadata?.userId,
+            customerId,
+            session.customer_details?.email,
+          );
+
+          if (user) {
+            await storage.updateUserMembership(user.id, true);
+
+            if (customerId) {
+              try {
+                const liveSubscriptions = await listLiveSubscriptions(customerId);
+                await linkStripeRecordsToUser(customerId, liveSubscriptions, user.id);
+              } catch (e: any) {
+                console.warn(`[webhook] Stripe metadata repair failed for userId ${user.id}: ${e.message}`);
               }
-            } catch (e) { console.error("[webhook] customer lookup failed:", e); }
-          }
-          if (userId) {
-            await storage.updateUserMembership(userId, true);
-            const webhookUser = await storage.getUserById(userId);
-            if (webhookUser) {
+
               // Auto-cancel any duplicate subscriptions — keep only the oldest active one
-              if (stripe && webhookUser.stripeCustomerId) {
-                try {
-                  const allSubs = await stripe.subscriptions.list({
-                    customer: webhookUser.stripeCustomerId,
-                    status: "active",
-                    limit: 10,
-                  });
-                  if (allSubs.data.length > 1) {
-                    // Keep oldest (last in array), cancel the rest
-                    const sorted = allSubs.data.sort((a, b) => a.created - b.created);
-                    for (const dup of sorted.slice(1)) {
-                      await stripe.subscriptions.cancel(dup.id);
-                      console.log(`[webhook] auto-cancelled duplicate subscription ${dup.id} for userId ${userId}`);
-                    }
+              try {
+                const allSubs = await stripe.subscriptions.list({
+                  customer: customerId,
+                  status: "active",
+                  limit: 10,
+                });
+                if (allSubs.data.length > 1) {
+                  const sorted = allSubs.data.sort((a, b) => a.created - b.created);
+                  for (const dup of sorted.slice(1)) {
+                    await stripe.subscriptions.cancel(dup.id);
+                    console.log(`[webhook] auto-cancelled duplicate subscription ${dup.id} for userId ${user.id}`);
                   }
-                } catch (e: any) {
-                  console.warn(`[webhook] duplicate sub cleanup failed: ${e.message}`);
                 }
+              } catch (e: any) {
+                console.warn(`[webhook] duplicate sub cleanup failed: ${e.message}`);
               }
-              sendWelcomeEmail(webhookUser.email, webhookUser.displayName).catch(() => {});
-              notifyAdminNewMember(webhookUser.email, webhookUser.displayName).catch(() => {});
             }
-            console.log(`[webhook] checkout.session.completed — granted membership to userId ${userId}`);
+
+            sendWelcomeEmail(user.email, user.displayName).catch(() => {});
+            notifyAdminNewMember(user.email, user.displayName).catch(() => {});
+            console.log(`[webhook] checkout.session.completed — granted membership to userId ${user.id}`);
           } else {
-            console.warn("[webhook] checkout.session.completed — could not resolve userId, session:", session.id);
+            console.warn("[webhook] checkout.session.completed — could not resolve user, session:", session.id);
           }
           break;
         }
         case "customer.subscription.deleted":
         case "customer.subscription.paused": {
           const sub = event.data.object as Stripe.Subscription;
-          let userId = parseInt(sub.metadata?.userId || "0");
-          // Fallback: look up by Stripe customer email
-          if (!userId && sub.customer && typeof sub.customer === "string") {
-            try {
-              const customer = await stripe!.customers.retrieve(sub.customer) as Stripe.Customer;
-              if (customer && !customer.deleted && customer.email) {
-                const userByEmail = await storage.getUserByEmail(customer.email);
-                if (userByEmail) userId = userByEmail.id;
-              }
-            } catch (e) { console.error("[webhook] customer lookup failed:", e); }
-          }
-          if (userId) {
+          const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id || null;
+          const user = await resolveStripeUser(sub.metadata?.userId, customerId);
+
+          if (user) {
             // Grace period: keep access for 30 days, then revoke
             const expiry = new Date();
             expiry.setDate(expiry.getDate() + 30);
-            await storage.setMembershipExpiry(userId, expiry);
-            console.log(`[webhook] subscription cancelled for userId ${userId} — access until ${expiry.toISOString()}`);
+            await storage.setMembershipExpiry(user.id, expiry);
+            console.log(`[webhook] subscription cancelled for userId ${user.id} — access until ${expiry.toISOString()}`);
+          } else {
+            console.warn(`[webhook] could not resolve cancelled subscription ${sub.id}`);
           }
           break;
         }
         case "customer.subscription.updated": {
           const sub = event.data.object as Stripe.Subscription;
-          let userId = parseInt(sub.metadata?.userId || "0");
-          // Fallback: look up by Stripe customer email
-          if (!userId && sub.customer && typeof sub.customer === "string") {
-            try {
-              const customer = await stripe!.customers.retrieve(sub.customer) as Stripe.Customer;
-              if (customer && !customer.deleted && customer.email) {
-                const userByEmail = await storage.getUserByEmail(customer.email);
-                if (userByEmail) userId = userByEmail.id;
-              }
-            } catch (e) { console.error("[webhook] customer lookup failed:", e); }
-          }
+          const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id || null;
+          const user = await resolveStripeUser(sub.metadata?.userId, customerId);
           const active = sub.status === "active" || sub.status === "trialing";
-          if (userId) await storage.updateUserMembership(userId, active);
+
+          if (user) {
+            await storage.updateUserMembership(user.id, active);
+          } else {
+            console.warn(`[webhook] could not resolve updated subscription ${sub.id}`);
+          }
           break;
         }
       }
@@ -2295,7 +2373,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       SELECT id, username, email, display_name as "displayName", avatar_initials as "avatarInitials",
         avatar_color as "avatarColor", avatar_url as "avatarUrl",
         is_member as "isMember", member_since as "memberSince", created_at as "createdAt",
-        last_seen as "lastSeen"
+        stripe_customer_id as "stripeCustomerId", last_seen as "lastSeen"
       FROM users ORDER BY created_at ASC
     `);
     return res.json(rows.rows);
@@ -2396,6 +2474,93 @@ export function registerRoutes(httpServer: Server, app: Express) {
       console.log(`[admin cleanup] deleted stale non-member account: ${u.email} (userId ${u.id})`);
     }
     return res.json({ deleted, message: `Removed ${deleted} unpaid account(s) older than 24h.` });
+  });
+
+  // POST /api/admin/repair-member-links — reconcile site accounts with live Stripe subscriptions
+  // Safe repair only: grants missing membership/customer links and updates Stripe metadata.
+  // It never creates charges, creates subscriptions, cancels subscriptions, or revokes members.
+  app.post("/api/admin/repair-member-links", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    if (!stripe) return res.status(503).json({ error: "Payments not configured" });
+
+    const allUsers = await storage.getAllUsers();
+    const repaired: Array<{ id: number; email: string; customerId: string; fixed: string[] }> = [];
+    const needsReview: Array<{ id: number; email: string; reason: string }> = [];
+    const errors: Array<{ id: number; email: string; error: string }> = [];
+    let alreadyLinked = 0;
+    let noLiveSubscription = 0;
+
+    const emailCounts = new Map<string, number>();
+    for (const user of allUsers) {
+      const key = user.email.toLowerCase();
+      emailCounts.set(key, (emailCounts.get(key) || 0) + 1);
+    }
+    const duplicateEmails = Array.from(emailCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([email, count]) => ({ email, count }));
+
+    for (const user of allUsers) {
+      try {
+        const match = await findStripeCustomerByEmail(user.email);
+
+        if (!match.customerId || match.subscriptions.length === 0) {
+          if (user.isMember) {
+            needsReview.push({
+              id: user.id,
+              email: user.email,
+              reason: "Member account has no active or trialing Stripe subscription at this email.",
+            });
+          } else {
+            noLiveSubscription++;
+          }
+          continue;
+        }
+
+        const fixed: string[] = [];
+        if (!user.isMember) {
+          await storage.updateUserMembership(user.id, true);
+          fixed.push("membership restored");
+        }
+        if (user.stripeCustomerId !== match.customerId) {
+          await storage.updateStripeCustomerId(user.id, match.customerId);
+          fixed.push("Stripe customer linked");
+        }
+
+        const linkResult = await linkStripeRecordsToUser(match.customerId, match.subscriptions, user.id);
+        if (linkResult.customerUpdated) fixed.push("Stripe customer account link updated");
+        if (linkResult.subscriptionsUpdated > 0) {
+          fixed.push(`${linkResult.subscriptionsUpdated} Stripe subscription link${linkResult.subscriptionsUpdated === 1 ? "" : "s"} updated`);
+        }
+
+        if (fixed.length > 0) {
+          repaired.push({ id: user.id, email: user.email, customerId: match.customerId, fixed });
+        } else {
+          alreadyLinked++;
+        }
+      } catch (e: any) {
+        errors.push({ id: user.id, email: user.email, error: e.message || "Repair failed" });
+      }
+
+      // Be gentle with Stripe's API when scanning many users.
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const message = `Checked ${allUsers.length} account${allUsers.length === 1 ? "" : "s"}: repaired ${repaired.length}, already linked ${alreadyLinked}, need review ${needsReview.length}.`;
+    console.log(`[admin repair] ${message} by ${check.adminUser.email}`);
+
+    return res.json({
+      ok: errors.length === 0,
+      scanned: allUsers.length,
+      repaired,
+      repairedCount: repaired.length,
+      alreadyLinked,
+      noLiveSubscription,
+      needsReview,
+      duplicateEmails,
+      errors,
+      message,
+    });
   });
 
   // GET /api/admin/users/:id/profile — full profile for a single user (admin only)

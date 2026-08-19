@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Crown, Trash2, ShieldOff, Loader2, Lock, Users, Search, BadgeCheck, Eraser } from "lucide-react";
+import { Crown, Trash2, ShieldOff, Loader2, Lock, Users, Search, BadgeCheck, Eraser, Link2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import {
@@ -29,10 +29,23 @@ interface AdminUser {
   isMember: boolean;
   memberSince: string | null;
   createdAt: string;
+  lastSeen: string | null;
   avatarInitials: string;
   avatarColor: string;
   avatarUrl?: string | null;
   stripeCustomerId: string | null;
+}
+
+interface RepairResult {
+  scanned: number;
+  repairedCount: number;
+  alreadyLinked: number;
+  noLiveSubscription: number;
+  message: string;
+  repaired: Array<{ id: number; email: string; customerId: string; fixed: string[] }>;
+  needsReview: Array<{ id: number; email: string; reason: string }>;
+  duplicateEmails: Array<{ email: string; count: number }>;
+  errors: Array<{ id: number; email: string; error: string }>;
 }
 
 type ConfirmAction =
@@ -62,6 +75,7 @@ function AdminUsersInner() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [confirm, setConfirm] = useState<ConfirmAction>(null);
+  const [repairResult, setRepairResult] = useState<RepairResult | null>(null);
 
   const { data: users = [], isLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -83,6 +97,21 @@ function AdminUsersInner() {
     },
     onError: (e: Error) => {
       toast({ title: "Cleanup failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const repairMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/repair-member-links", {});
+      return res.json();
+    },
+    onSuccess: (data: RepairResult) => {
+      setRepairResult(data);
+      qc.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Member link repair complete", description: data.message });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Repair failed", description: e.message, variant: "destructive" });
     },
   });
 
@@ -149,7 +178,7 @@ function AdminUsersInner() {
   const members = filtered.filter(u => u.isMember);
   const nonMembers = filtered.filter(u => !u.isMember);
 
-  const isPending = cancelMutation.isPending || deleteMutation.isPending || grantMutation.isPending || cleanupMutation.isPending;
+  const isPending = cancelMutation.isPending || deleteMutation.isPending || grantMutation.isPending || cleanupMutation.isPending || repairMutation.isPending;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -177,6 +206,18 @@ function AdminUsersInner() {
           <Button
             size="sm"
             variant="outline"
+            className="gap-1.5 text-xs text-red-300 border-red-800/50 hover:bg-red-950/20 hover:text-red-200"
+            onClick={() => repairMutation.mutate()}
+            disabled={repairMutation.isPending}
+            title="Restore missing membership and Stripe links for accounts with active subscriptions"
+            data-testid="button-repair-member-links"
+          >
+            {repairMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+            Repair Member Links
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             className="gap-1.5 text-xs text-zinc-400 border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
             onClick={() => cleanupMutation.mutate()}
             disabled={cleanupMutation.isPending}
@@ -188,6 +229,82 @@ function AdminUsersInner() {
           </Button>
         </div>
       </div>
+
+      {repairResult && (
+        <div className="mb-6 bg-card border border-red-800/30 rounded-sm p-4" data-testid="panel-repair-results">
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+            <div>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Link2 size={14} className="text-red-400" /> Repair results
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">{repairResult.message}</p>
+            </div>
+            <div className="flex gap-3 text-xs text-muted-foreground">
+              <span><span className="text-green-400 font-bold">{repairResult.repairedCount}</span> repaired</span>
+              <span><span className="text-white font-bold">{repairResult.alreadyLinked}</span> already linked</span>
+              <span><span className="text-yellow-500 font-bold">{repairResult.needsReview.length}</span> need review</span>
+            </div>
+          </div>
+
+          {repairResult.repaired.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">Repaired</p>
+              <div className="space-y-1">
+                {repairResult.repaired.slice(0, 8).map(item => (
+                  <p key={item.id} className="text-xs text-muted-foreground">
+                    <span className="text-white">{item.email}</span> — {item.fixed.join(", ")}
+                  </p>
+                ))}
+                {repairResult.repaired.length > 8 && (
+                  <p className="text-xs text-muted-foreground/60">+ {repairResult.repaired.length - 8} more</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {repairResult.needsReview.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-bold text-yellow-500 uppercase tracking-wider mb-2">Needs review</p>
+              <div className="space-y-1">
+                {repairResult.needsReview.slice(0, 8).map(item => (
+                  <p key={item.id} className="text-xs text-muted-foreground">
+                    <span className="text-white">{item.email}</span> — {item.reason}
+                  </p>
+                ))}
+                {repairResult.needsReview.length > 8 && (
+                  <p className="text-xs text-muted-foreground/60">+ {repairResult.needsReview.length - 8} more</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {repairResult.duplicateEmails.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2">Duplicate account emails</p>
+              <div className="space-y-1">
+                {repairResult.duplicateEmails.slice(0, 8).map(item => (
+                  <p key={item.email} className="text-xs text-muted-foreground">
+                    <span className="text-white">{item.email}</span> — {item.count} accounts
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {repairResult.errors.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">Errors</p>
+              <div className="space-y-1">
+                {repairResult.errors.slice(0, 8).map(item => (
+                  <p key={item.id} className="text-xs text-muted-foreground">
+                    <span className="text-white">{item.email}</span> — {item.error}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-6">
@@ -392,6 +509,11 @@ function UserRow({
           {user.isMember && (
             <span className="flex items-center gap-1 text-xs text-yellow-500 font-semibold bg-yellow-950/30 border border-yellow-800/30 px-1.5 py-0.5 rounded-sm">
               <Crown size={9} /> Member
+            </span>
+          )}
+          {user.isMember && (
+            <span className={`flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-sm border ${user.stripeCustomerId ? "text-green-400 bg-green-950/20 border-green-800/30" : "text-red-400 bg-red-950/20 border-red-800/30"}`}>
+              <Link2 size={9} /> {user.stripeCustomerId ? "Stripe linked" : "No Stripe link"}
             </span>
           )}
         </div>
