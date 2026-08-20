@@ -5,7 +5,7 @@ const N=[
 ["murdoch","Rupert Murdoch","media",0,"For 50 years the most powerful unelected man in Britain: his papers (Sun, Times) have claimed to decide elections ('It's The Sun Wot Won It', 1992) and every PM since Thatcher has courted him. His outlets swung behind Brexit and Boris Johnson. Phone hacking by his tabloids — including a murdered schoolgirl's voicemail — forced the closure of the News of the World and the Leveson Inquiry, yet no senior executive was jailed. Why it matters: he is the template for billionaire media power over democracy, and the phone-hacking scandal shows how long that power operated outside the law.","Leveson Inquiry; Guardian","Rupert Murdoch"],
 ["harborne","Christopher Harborne","money",0,"A reclusive Thailand-based British billionaire (aviation, defence and crypto — a large shareholder in Tether/Bitfinex) who gave around £20m to the Brexit Party/Reform in 2019–23, then ~$12m (£9m) in 2025 — the largest donation by a living person in UK history. He sued to keep his name off Reform's register and lost. Reform remains a company effectively controlled by Farage rather than a member-owned party. Why it matters: one offshore crypto billionaire is the financial foundation of the UK's fastest-growing party, and fought in court to stay anonymous while doing it.","Electoral Commission; Guardian; openDemocracy","Christopher Harborne"],
 ["gibb","RedBird IMI / Sheikh Mansour","money",0,"The vehicle — fronted by former CNN chief Jeff Zucker, funded by International Media Investments, ultimately Sheikh Mansour bin Zayed Al Nahyan, UAE vice-president and owner of Manchester City — that agreed in November 2023 to buy the Telegraph and Spectator for £1.2bn by repaying the Barclay family's debts. Parliament responded by banning foreign-state ownership of British newspapers (2024), killing the deal; the Telegraph later went to RedBird Capital, the Spectator to Paul Marshall. Why it matters: an absolute monarchy came within weeks of owning the Conservative party's newspaper — and only legislation, not the market or the regulators, stopped it.","Guardian; FT; DCMS","Telegraph Media Group"],
-["tabor","Sir Michael Tabor","money",0,"Billionaire bookmaker — built the Arthur Prince betting-shop chain and sold it for £27m in 1995 — and one of the world's most successful racehorse owners. A long-time Conservative donor. His son Ashley Tabor-King founded Global, the commercial radio giant that owns LBC — the station that gave Nigel Farage his nightly platform for years. Why it matters: a gambling fortune now sits, via the next generation, behind one of the loudest broadcast platforms of the populist right.","Guardian; Companies House","Michael Tabor"],
+["tabor","Sir Michael Tabor","money",0,"Billionaire bookmaker (Arthur Prince betting shops, sold for £27m in 1995) and racehorse owner. He is the owner of LBC — the station that gave Nigel Farage his nightly radio platform for years — and put $60m into launching GB News. Why it matters: the two loudest broadcast platforms of the populist right both trace back to one gambling billionaire's chequebook.","Guardian; Companies House","Michael Tabor"],
 ["reform","Reform UK","party",1,"Britain's fastest-growing party (polling first through 2025–26, five MPs) — and legally not a normal party at all: it is a private company, Reform 2025 Ltd, whose only directors are Nigel Farage and Zia Yusuf. Farage held over 75% control ('person of significant control') until February 2025. Its money: ~£20m from crypto billionaire Christopher Harborne plus a stream of six-figure gifts; the Israeli Ministry of Foreign Affairs paid £50,000 in March 2025 to fly a Reform delegation (Richard Tice) to Israel, and the party launched a 'Jewish Alliance' affiliate in February 2026. In January 2026 it absorbed Nadhim Zahawi, Robert Jenrick and Suella Braverman from the Conservatives. Why it matters: an insurgent 'anti-establishment' party that is owned by its leader, financed by offshore billionaires, courted by a foreign government, and increasingly staffed by the establishment it attacks.","Companies House; Electoral Commission; Guardian; Israeli MFA register","Reform UK"],
 ["tories","Conservative Party","party",1,"The party of government for 14 years (2010–24), now in opposition and losing MPs to Reform. Its funding model: mega-donors. Frank Hester has given £15m+; Lord Ashcroft ~£10m historically; the 'cash for honours' pattern is documented — 15 of the party's last 16 treasurers (each giving £3m+) were offered peerages. Russian-born donor Alexander Temerko and Lubov Chernukhin (wife of a former Putin minister, £2m+) were welcomed through the Boris Johnson era. Why it matters: a small circle of billionaires and foreign-linked donors has had structural purchase on the party that governed Britain for most of a generation.","Electoral Commission; Guardian; Sunday Times","Conservative Party (UK)"],
 ["labour","Labour Party","party",1,"In government since 2024 \u2014 Starmer, ground down by the Mandelson and Rayner scandals and catastrophic May 2026 local-election losses to Reform, was forced out and replaced in July 2026 by Andy Burnham, whose route back ran through a Makerfield by-election vacated for him by Josh Simons. Funded by trade unions (Unite etc. give millions and expect policy in return) and increasingly by business: Lord Sainsbury (~£8m historically), Quadrature Capital (£4m in 2024). Blair-era Labour took £1m from Formula 1's Bernie Ecclestone then exempted F1 from the tobacco advertising ban; the 2006 cash-for-honours scandal saw police arrest Blair's fundraiser Lord Levy. Starmer's government has already lost Angela Rayner (stamp duty) and seen Lord Mandelson arrested (Feb 2026) over Epstein-linked leaks. Why it matters: the 'change' government runs on the same donor machinery as its predecessors.","Electoral Commission; BBC; Guardian","Labour Party (UK)"],
@@ -19,7 +19,7 @@ const N=[
 ["chandler","Christopher Chandler","money",1,"New Zealand-born billionaire, founder of the Legatum Group (Dubai-based), which funds the Legatum Institute — the think tank credited with shaping the hard-Brexit agenda from inside Whitehall's networks. In 2018 MPs cited MI6-sourced claims about his past business ties to Russia; he sued for libel and won apologies. Legatum's money is offshore and its influence (trade policy 'Legatum model') was vast 2016–19. Why it matters: offshore billionaire money built the intellectual case for Brexit while its source was, for a time, a security question in Parliament.","Guardian; BBC; High Court records","Christopher Chandler"],
 ["israel_lobby","Pro-Israel lobby","lobby",1,"A network of groups embedded in every major party: Conservative Friends of Israel (CFI — once claimed 80% of Tory MPs as members), Labour Friends of Israel, the Board of Deputies, BICOM, and affiliated 'friends' groups inside Reform (Jewish Alliance, 2026) and UKIP historically. Al Jazeera's undercover film 'The Lobby' (2017) recorded an Israeli embassy officer discussing 'taking down' a minister (Alan Duncan) and funding MPs' groups; Priti Patel resigned in 2017 after undeclared meetings with Israeli officials. In March 2025 Israel's Foreign Ministry paid £50,000 to bring a Reform delegation to Israel. Why it matters: this is the most institutionalised foreign-interest lobby in British politics, operating openly inside all parties — the question is never existence, but degree of influence.","Al Jazeera 'The Lobby' (2017); Israeli MFA donor register; Guardian","Lobbying in the United Kingdom"],
 ["bbc","BBC","media",1,"The state broadcaster, funded by the licence fee and governed by a board whose chairman and several members are effectively government appointees. Board member Robbie Gibb (ex-Theresa May spin chief, GB News co-founder) is accused by staff of steering coverage; the BBC refuses to call Hamas 'terrorists' in its own voice while platforming government framing on Gaza. Why it matters: whoever controls Downing Street has structural leverage over the country's most trusted news source.","BBC; Guardian; Spectator","BBC"],
-["gbnews","GB News","media",1,"A right-wing opinion channel launched June 2021 with ~£60m of start-up money, originally backed by US media giant Discovery, the Dubai-based Legatum group and hedge-fund boss Paul Marshall — Marshall is now co-owner. It pays Nigel Farage a reported £400k–£1m a year to present while he is an MP and party leader, and has employed multiple serving MPs as presenters. Ruled in breach of Ofcom impartiality rules repeatedly (14+ investigations). Why it matters: it is a political party's media arm operating as a licensed news channel — with the party's leader on the payroll.","Ofcom; Guardian; Electoral Commission","GB News"],
+["gbnews","GB News","media",1,"A right-wing opinion channel launched June 2021 with $60m+ from Sir Michael Tabor, Paul Marshall and (initially) Legatum-linked money. It pays Nigel Farage a reported £400k–£1m a year to present while he is an MP and party leader, and has employed multiple serving MPs as presenters. Ruled in breach of Ofcom impartiality rules repeatedly (14+ investigations). Why it matters: it is a political party's media arm operating as a licensed news channel — with the party's leader on the payroll.","Ofcom; Guardian; Electoral Commission","GB News"],
 ["telegraph","The Telegraph","media",1,"The Conservatives' house newspaper for 170 years, whose £1.2bn takeover by UAE-backed RedBird IMI in 2023 was blocked by a new law banning foreign-state newspaper ownership. Long the pipeline between Tory donors, think tanks and front pages. Its 2024–25 election coverage was openly aligned with the party its owner was funding. Why it matters: 'broadsheet respectability' and party apparatus have never been separate here — and the attempted owner was the Abu Dhabi vice-president himself.","Guardian; FT","The Daily Telegraph"],
 ["restore","Restore Britain","party",2,"Rupert Lowe's political vehicle after his March 2025 expulsion from Reform: he and aide Charlie Downs were smeared as 'nazis and antisemites' (Downs over an old tweet; Lowe over his rhetoric) at the moment they broke with Farage. Restore is the only significant right-wing party without a 'Friends of Israel'-style affiliate. Why it matters: the pattern is consistent — right-wing figures who split from the Farage/Zionist-aligned structure are instantly branded beyond the pale.","Guardian; BBC","Rupert Lowe"],
 ["farage","Nigel Farage","person",1,"Leader of Reform UK and the most consequential British politician never to hold ministerial office: drove Brexit through UKIP and the Brexit Party, now leads the polls. Simultaneously: party leader, MP for Clacton, and a reported £400k–£1m-a-year presenter on GB News. Controlled Reform as a company (75%+ 'person of significant control' until Feb 2025; still one of two directors). Was debanked by Coutts in 2023 in a scandal that cost the NatWest CEO her job. In January 2026 he executed a reverse takeover of the Tory right — Zahawi, Jenrick, Braverman all defected to him within weeks. Why it matters: he sits at the junction of billionaire money (Harborne, Tabor, Marshall), media (GB News) and now the ex-Tory establishment — while selling himself as the outsider.","BBC; Guardian; Companies House","Nigel Farage"],
@@ -91,7 +91,8 @@ const E=[
 ["harborne","reform","solid","£20m+ incl. record £9m gift","money"],
 ["gibb","telegraph","solid","agreed £1.2bn takeover 2023, blocked by law 2024","own"],
 ["uae","gibb","solid","IMI = Sheikh Mansour's state vehicle","state"],
-["tabor","lbc","dash","son Ashley Tabor-King's Global owns it","personal"],
+["tabor","lbc","solid","owner","own"],
+["tabor","gbnews","solid","$60m launch funding","money"],
 ["tories","reform","dash","Jan 2026 defection cascade","party"],
 ["israel_lobby","reform","solid","Jewish Alliance affiliate; £50k Israeli MFA-funded delegation","state"],
 ["israel_lobby","tories","solid","CFI: most Tory MPs historically","state"],
@@ -229,7 +230,7 @@ marshall:[["Riot-time tweets (Aug 2024)","Boosted far-right accounts and 'mass d
 murdoch:[["Phone hacking","His tabloids ran industrial-scale illegal interception for years; he closed the News of the World to save his Sky bid and called his appearance before MPs 'the most humble day of my life'. Nobody senior went to prison."],["Dominion settlement ($787.5m, 2023)","Fox News paid the largest defamation settlement in US history after its own executives' messages showed they knew the stolen-election claims they aired were false — the internal proof that his outlets broadcast known lies for audience share."]],
 harborne:[["Anonymity lawsuit","Sued to stop the Electoral Commission naming him as Reform's donor — and lost. A man giving record sums to shape British politics fought in court for the right to do it secretly."],["Crypto fortune","His wealth rests on Bitfinex/Tether, the stablecoin repeatedly fined and investigated (US CFTC, NY Attorney General) over its reserves and its use in market manipulation. The foundation of Reform's funding is offshore crypto money."]],
 gibb:[["Foreign-state media ownership bid","The takeover would have made the UAE — an absolute monarchy that jails critics — the ultimate owner of the Conservative party's newspaper. Parliament legislated to ban foreign-state newspaper ownership specifically to stop it."],["Blocked, not withdrawn","The deal only died because the law changed. Everything about it was acceptable to the sellers and the buyers until Parliament said no."]],
-tabor:[["Gambling fortune, media platforms","A fortune built on betting shops; his son Ashley Tabor-King founded Global, which owns LBC — the station that gave Farage a nightly platform for years. The populist right's 'voice of the people' is a bookmaking family's portfolio."]],
+tabor:[["Gambling fortune, political platforms","A fortune built on betting shops now owns the microphones — LBC — and helped launch GB News. The populist right's 'voice of the people' is a bookmaker's portfolio."]],
 reform:[["A company, not a party","Reform 2025 Ltd has two directors — Farage and Yusuf. Members had no vote on the leader until a constitution was adopted in 2025. The 'democratic insurgency' is a private firm."],["Farage's 75% control","Companies House listed Farage as controlling 75%+ of the Brexit Party/Reform until February 2025, when the entry was removed — the filing says he retains the power to appoint a majority of the executive."],["Foreign-government-funded travel","Israel's Ministry of Foreign Affairs paid £50,000 to fly Reform figures to Israel in March 2025 — a foreign state openly cultivating Britain's fastest-growing party."],["Brexit Party Ltd struck off","The party's previous corporate shell was compulsorily struck off at Companies House in 2022 while Richard Tice was a director."]],
 tories:[["Cash for honours pattern","Fifteen of the party's last sixteen treasurers — each having given £3m+ — were offered peerages. No one calls it a sale; everyone can read the price list."],["Chernukhin money kept","The party refused to return £2m+ from the wife of a former Putin minister even after the invasion of Ukraine."],["14 years of scandals","Expenses-era survivors, Partygate, PPE VIP lane, Westferry, Zahawi's taxes — the pattern documented node by node on this map."]],
 labour:[["Inquiry vote U-turn","Whipped its MPs to defeat the January 2025 amendment for a national grooming inquiry 364\u2013111 \u2014 Starmer called the campaign a \u2018bandwagon\u2019 \u2014 then ordered exactly that inquiry five months later, after the Casey audit."],["Cash for honours (2006–07)","Police arrested Blair's fundraiser Lord Levy; Blair was questioned as a witness. Secret loans were converted to donations after the fact. No charges — and no real reform followed."],["Mandelson arrested (Feb 2026)","Lord Mandelson — sacked as ambassador to Washington in Sept 2025 over his Epstein emails — was arrested on suspicion of misconduct in public office over alleged leaks of government material to Epstein while Business Secretary. Bailed pending investigation."],["Rayner resignation (Sept 2025)","The Deputy PM resigned after the standards adviser found she breached the ministerial code over a £40,000 stamp-duty underpayment on her Hove flat."],["Ecclestone £1m / F1 exemption","Blair's Labour took £1m from Bernie Ecclestone, then exempted Formula 1 from the tobacco advertising ban. The donation was eventually returned — after the exemption."]],
@@ -426,211 +427,3 @@ const SAT=[
 ["tories","Mohamed Amersi","Telecoms tycoon & donor","Nearly £525,000 to the Conservatives since 2018, including £10,000 each to Johnson's and Gove's 2019 leadership bids. Advised Telia on a 2010 deal with Gulnara Karimova that US authorities later called a bribe (Pandora Papers); his defamation claim against ex-MP Charlotte Leslie was struck out by the High Court in 2023.",["Conservative Party — donor since 2018"],[["Pandora Papers","Named in the 2021 leak as an adviser on the Telia–Takilant deal; his representatives said he acted only in a limited advisory capacity and was never a suspect."]]]]
 
 const LGROUPS=[["THE BLAIR MACHINE",["blair","mandelson","campbell"]],["THE TECH BROS",["ellison","thiel","fink","mittal"]],["THE EPSTEIN WEB",["epstein","bannon","robinson"]],["THE REFORM DEFECTORS",["jenrick","zahawi","braverman"]]];
-
-
-/* ================= DEEP-DIVE ADDITIONS (Aug 2026) =================
-   Every item below was research-verified against named sources before
-   inclusion; items that could not be verified were excluded. */
-
-N.push(
-["wallace","Ben Wallace","person",1,"Defence Secretary 2019–23, the longest-serving in the role for a generation, and a leadership contender before standing down. His MoD's February 2022 spreadsheet breach exposed the details of 18,714 Afghans who had applied for relocation — and rather than tell Parliament, he personally applied for the injunction that became the first contra mundum superinjunction ever granted to a British government (September 2023), gagging the press and MPs for 23 months while a secret scheme (ARR / Operation Rubific) brought or earmarked ~24,000 Afghans for Britain at a projected ~£850m. When the gag was lifted in July 2025 he said he made 'no apology' and rejected the word cover-up. Why it matters: a serving minister used the courts to hide a catastrophic state failure — and a secret mass-relocation programme — from the public paying for it.","High Court; Hansard; Independent; Full Fact","Ben Wallace"],
-["afghanleak","Afghan data breach & superinjunction","scandal",3,"February 2022: an MoD official emailed a spreadsheet outside a secure system containing the personal details of 18,714 Afghans who had applied to escape the Taliban (over 33,000 rows including family members). The breach was discovered in August 2023 when names surfaced on Facebook. The government's response was not disclosure but silence: a superinjunction granted 1 September 2023 — the first contra mundum order in British legal history — gagging eight media organisations and even MPs. A secret scheme (ARR / Operation Rubific) then relocated or earmarked ~24,000 Afghans at a projected cost of ~£850m. The injunction was lifted on 15 July 2025 by Labour's John Healey; the total Afghan resettlement bill is put at £5.5–6bn. Why it matters: the state used a secret court order to hide its own failure — and a covert migration programme — from the electorate for nearly two years.","High Court; PA; Independent; Full Fact; Hansard","Afghan data breach superinjunction"]
-);
-
-E.push(
-["wallace","afghanleak","solid","his MoD's breach; he personally sought the superinjunction","law"],
-["tories","afghanleak","dash","press and Parliament gagged for 23 months on its watch","law"],
-["johnson","afghanleak","dot","PM when the breach happened (Feb 2022)","law"],
-["labour","afghanleak","dash","ran the secret relocation route for a year before lifting the gag (Jul 2025)","law"],
-["jenrick","afghanleak","dash","oversaw the relocation scheme; opposed bringing those exposed","law"],
-["wallace","tories","solid","Defence Secretary 2019–23","work"]
-);
-
-DEMOG.wallace=["White Briton","Not public","Conservative (former Defence Secretary)","","",""];
-CAMP.wallace="Globalist";
-
-CONTRO.wallace=[
-["The superinjunction","He personally applied for the injunction (25 August 2023) that became the first contra mundum superinjunction ever granted to a British government — gagging eight media organisations and Parliament itself for 23 months. 'I make no apology,' he said when it was lifted."],
-["'Not a cover-up'","He accepted 'complete responsibility' for the breach but rejected the word cover-up — while a secret scheme relocating ~24,000 Afghans at a projected ~£850m ran hidden from the public and most MPs."]];
-
-CONTRO.afghanleak=[
-["The numbers","18,714 applicants exposed (33,000+ rows); discovered via Facebook in August 2023; gagged from 1 September 2023 to 15 July 2025; ~24,000 people brought or earmarked under the secret ARR scheme at ~£850m — with total Afghan resettlement costed at £5.5–6bn."],
-["The earlier warning","The ICO fined the MoD £350,000 in September 2021 for a previous email breach exposing Afghan interpreters' details — on Wallace's watch, five months before the far larger leak."]];
-
-CONTRO.johnson=(CONTRO.johnson||[]).concat([
-["The 23,000 deaths finding","The Covid-19 Inquiry (November 2025) concluded the first lockdown came 'too little, too late' — locking down one week earlier than 23 March 2020 could have avoided roughly 23,000 first-wave deaths. Johnson presided over the delay and rejected calls to act sooner."],
-["The Pincher cover-up","Appointed Chris Pincher deputy chief whip despite having been personally briefed about an upheld misconduct complaint, then denied knowing until Lord McDonald publicly contradicted No 10 (5 July 2022). The ministerial resignations that followed forced him out within days."]]);
-
-CONTRO.zahawi=(CONTRO.zahawi||[]).concat([
-["The Farage reversal","In 2015 he wrote that Farage's comments were 'offensive and racist' and that he would be 'frightened to live in a country run by' him. In January 2026 he joined Reform declaring Britain 'really does need Nigel Farage as prime minister'."]]);
-
-CONTRO.jenrick=(CONTRO.jenrick||[]).concat([
-["Towns Fund favouritism","Newark — in his own constituency — received £25m despite ranking 270th on the deprivation list; he approved funding for Jake Berry's seat while Berry approved his. The cross-party Public Accounts Committee concluded (Nov 2020) that 'the selection process was not impartial'."],
-["The SAS claim","In an October 2024 campaign video he claimed 'our special forces are killing, rather than capturing terrorists' because lawyers warned the European Court would free them — a claim former armed-forces ministers called wrong and unsupported. He doubled down."]]);
-
-CONTRO.braverman=(CONTRO.braverman||[]).concat([
-["The Manston crisis","On her watch around 4,000 people — including children — were held for weeks at a processing centre built for 1,600 short-term stays; disease outbreaks and families sleeping on floors followed. She was accused of refusing to book additional hotels and of ignoring legal warnings, which she denied."],
-["The Rwanda 'dream'","Called it her 'dream' to see an asylum flight leave for Kigali and championed a scheme under which claims would never be heard in Britain. The Supreme Court ruled the policy unanimously unlawful (Nov 2023)."]]);
-
-CONTRO.farage=(CONTRO.farage||[]).concat([
-["EU allowance docked","The European Parliament docked him roughly €40,000 (2018) after finding parliamentary-assistant funds had been spent on UKIP work rather than EU duties. He disputed the finding but could not produce the required evidence."],
-["17 standards breaches","The Parliamentary Commissioner found (Jan 2026) he had broken the MPs' code 17 times, registering £384,064 of outside earnings late — GB News, Direct Bullion, Cameo, Google. He apologised; the breaches were treated as inadvertent."],
-["The undeclared £5m gift","Accepted £5m from Reform donor Christopher Harborne in April 2024 without declaring it; the standards commissioner opened an investigation in May 2026. He resigned his Clacton seat mid-probe and won the resulting by-election (Aug 2026). No final finding yet."]]);
-
-CONTRO.tice=(CONTRO.tice||[]).concat([
-["Leave.EU law-breaking","Co-founded and financed Leave.EU, fined £66,000 by the Electoral Commission (2018) for referendum offences including inaccurate spending returns; its chief executive was separately fined."],
-["Climate denial platform","Calls CO2 'plant food' and 'not a pollutant', and net zero 'net stupid zero' — claims climate scientists and fact-checkers have flagged as straightforwardly misleading."],
-["Donations under police investigation","The Met is investigating donations connected to his fundraising company Britain Means Business after an Electoral Commission referral; by July 2026 two people had been interviewed under caution. No charges."]]);
-
-CONTRO.yusuf=(CONTRO.yusuf||[]).concat([
-["Deportation Command","Launched Reform's mass-deportation programme (Feb 2026): a 24,000-place detention estate and removals of up to 288,000 people a year, declaring Britain was being 'invaded'."],
-["DOGE threats","His 'DOGE' unit demanded rapid access to council systems and warned employees that refusal to cooperate could be gross misconduct — prompting privacy, whistleblowing and civil-service-neutrality alarms (2025)."],
-["'Credit' for Tommy Robinson","Said Robinson 'deserves some credit' for grooming-gangs campaigning (Sep 2025) — renewed mainstream recognition for a repeatedly convicted far-right activist, while claiming to distance Reform from his methods."]]);
-
-CONTRO.lowe=(CONTRO.lowe||[]).concat([
-["The harassment finding","A KC-led investigation commissioned by his own party found 'credible evidence' (2025) that he had harassed two female staff members. He denied wrongdoing and complained he had not been shown the evidence."],
-["The charity-rowers panic","Posted that 'dinghies' of migrants were coming into Great Yarmouth 'RIGHT NOW' (Aug 2025) — the vessels were charity rowers raising money for motor-neurone-disease research. He apologised and donated £1,000."],
-["'Millions will have to go'","Launching Restore Britain (2026), he wrote that 'millions' who had arrived in recent years 'will have to go home' — the removal of settled foreign residents as a platform."]]);
-
-CONTRO.cottrell=(CONTRO.cottrell||[]).concat([
-["The donation-source probe","Reporting (Jul 2026) showed he transferred more than $2m to his mother shortly before her donations to Reform and Tice's Britain Means Business; both were interviewed under caution as police examined whether the true donor had been concealed. No charges."]]);
-
-CONTRO.archer=(CONTRO.archer||[]).concat([
-["The Anglia shares affair","Bought 50,000 Anglia Television shares through an intermediary shortly before a takeover announcement, after his wife had attended confidential board discussions — a reported £77,000 profit. The DTI investigated but brought no charge."]]);
-
-CONTRO.tories=(CONTRO.tories||[]).concat([
-["Windrush","Its hostile-environment measures wrongly classified long-settled British residents as illegal immigrants; the NAO found at least 164 were wrongly detained or removed, and the Wendy Williams review (2020) found 'institutional ignorance and thoughtlessness' bordering on institutional racism."],
-["The mini-Budget crash","The Truss government's £45bn unfunded tax package (Sep 2022) collapsed sterling and the gilt market, pulled thousands of mortgage products, and forced the Bank of England into a £65bn emergency intervention."]]);
-
-CONTRO.reform=(CONTRO.reform||[]).concat([
-["The racism purges","Withdrew support from at least 11 candidates during the 2024 election over alleged racist or extremist comments; undercover footage caught a canvasser using a racial slur about Rishi Sunak and suggesting migrants be used for 'target practice'. Essex Police assessed the footage."],
-["The sums that don't add up","Its 2024 manifesto promised ~£90bn of annual tax cuts against claimed savings the IFS dismantled — even 'extremely optimistic' growth assumptions left the sums failing to add up."],
-["Funding under criminal investigation","The Met opened a donor-concealment investigation (Feb 2025) after an Electoral Commission referral; by July 2026 it covered £500,000 from Fiona Cottrell and funds routed through Britain Means Business, with two people interviewed under caution and no arrests."]]);
-
-CONTRO.blair=(CONTRO.blair||[]).concat([
-["The open-borders blueprint","His own adviser Andrew Neather revealed (2009) that mass immigration under New Labour had been a deliberate policy to 'rub the Right's noses in diversity'; Cabinet Office files released in December 2024 confirmed ministers knew the scale and chose not to act."]]);
-
-CONTRO.brown=(CONTRO.brown||[]).concat([
-["The pensions raid","His 1997 abolition of dividend tax credits quietly stripped around £5bn a year from pension funds — the decision later blamed for hollowing out Britain's final-salary pension system."],
-["'Bigoted woman'","Caught on a live microphone (2010) dismissing Gillian Duffy, a pensioner asking about immigration, as 'a bigoted woman' — the mask-slip that defined the gap between the party and its voters."]]);
-
-CONTRO.mandelson=(CONTRO.mandelson||[]).concat([
-["Vetting refused, then overruled","Security vetting objections to his Washington ambassador appointment were overridden so he could take the post — months before the Epstein emails forced his sacking and, later, his arrest."]]);
-
-CONTRO.burnham=(CONTRO.burnham||[]).concat([
-["Mid Staffs","As Health Secretary he resisted calls for a full public inquiry into the Mid Staffordshire hospital scandal — up to 1,200 excess deaths — granting only limited inquiries until the incoming government ordered the full Francis Inquiry."],
-["GMP's hidden crimes","On his watch as mayor, Greater Manchester Police went into special measures after it emerged around 80,000 crimes a year had gone unrecorded — including domestic-abuse cases closed without investigation."],
-["Installed without an election","Became prime minister on 20 July 2026 through a parliamentary succession without facing the country — inheriting a £24bn hole in the public finances (NIESR) and immediately rowing back his own spending promises."]]);
-
-CONTRO.khan=(CONTRO.khan||[]).concat([
-["Knife crime","Knife crime in the capital rose sharply on his watch — up around 38% on Met/ONS figures since 2016 — while he insisted London was getting safer. The gap between the claim and the statistics became a defining attack line."]]);
-
-CONTRO.vince=(CONTRO.vince||[]).concat([
-["Post Office Horizon","Business Secretary while the Horizon prosecutions machinery ground on; he later admitted he 'hadn't the faintest idea' what the company his department owned was doing to hundreds of subpostmasters."],
-["The Royal Mail fire sale","Sold Royal Mail in 2013 at a flotation price the National Audit Office said undervalued it — roughly £1bn left on the table for taxpayers while priority investors flipped the shares."],
-["'Faces were white'","Warned his own party (2018) that its problem was that 'the faces were white' — identity politics from a man who had spent five years in the coalition cabinet."]]);
-
-CONTRO.sainsbury=(CONTRO.sainsbury||[]).concat([
-["The record Remain bankroll","Poured £8m into the Remain campaign and became the Lib Dems' biggest ever donor; the Electoral Commission later levied record fines over referendum-era spending returns. His philanthropy, his parties, his rules."]]);
-
-CONTRO.fabian=(CONTRO.fabian||[]).concat([
-["The founders' eugenics","The society's early luminaries — Shaw, the Webbs — openly advocated eugenic programmes; Shaw mused on film about gas chambers for the 'unfit'. The modern society prefers not to mention it."],
-["The blueprint","Its 2023 'Lawful and Fair' report laid out the migration-policy architecture that the Mahmood Home Office later adopted nearly wholesale — the quiet policy machine writing tomorrow's laws today."]]);
-
-CONTRO.hnh=(CONTRO.hnh||[]).concat([
-["The acid-attack tweet","Director Nick Lowles tweeted (Aug 2024) that a Muslim woman had been attacked with acid in Middlesbrough — it never happened. He apologised, but the false claim had already spread during a week of riots."],
-["Lawfare that backfired","Its litigation and campaign operations against Farage and others have repeatedly collapsed or been disowned — each failure converted into fundraising material for its targets."],
-["The union bankroll","Bankrolled by major trade unions, it functions as the movement's deniable research-and-attack operation against the right while keeping a respectable front."]]);
-
-CONTRO.unions=(CONTRO.unions||[]).concat([
-["The strike wave","The 2022–23 strike wave they coordinated cost the economy an estimated £5bn and cancelled hundreds of thousands of operations and appointments — leverage extracted from the public and repaid in above-inflation pay deals."],
-["Winter of Discontent","The template: 1978–79, when union power left rubbish uncollected and the dead unburied, destroyed the Callaghan government and delivered eighteen years of Thatcherism."]]);
-
-CONTRO.labour=(CONTRO.labour||[]).concat([
-["The winter fuel cut","One of its first acts (Jul 2024) was stripping the winter fuel payment from ~10 million pensioners to plug a claimed 'black hole' — while finding money for above-inflation public-sector pay deals. Partially reversed after the electoral backlash."],
-["The Chagos deal","Agreed to hand the Chagos Islands to Mauritius and pay for the privilege — later costings put the lifetime bill in the tens of billions — over the objections of many Chagossians themselves."]]);
-
-CONTRO.harborne=(CONTRO.harborne||[]).concat([
-["The undeclared £5m gift","Gave Nigel Farage £5m personally in April 2024 — months before Farage entered Parliament — which went undeclared; the standards commissioner opened an investigation in May 2026."]]);
-
-CONTRO.ashcroft=(CONTRO.ashcroft||[]).concat([
-["Paradise Papers","The 2017 leak revealed a £341m offshore trust structure — the peer who had promised to take up UK tax residence for his seat kept his fortune beyond HMRC's reach."]]);
-
-CONTRO.chernukhin=(CONTRO.chernukhin||[]).concat([
-["The Kerimov link","FinCEN-files and Pandora Papers reporting connected an $8m payment into her network to companies linked to sanctioned Russian billionaire Suleiman Kerimov. She denies any connection."]]);
-
-CONTRO.quadrature=(CONTRO.quadrature||[]).concat([
-["Election-eve £4m","Its £4m donation to Labour was timed to land just before declaration requirements would bite. A Cayman-structured quant fund with fossil-fuel and arms holdings, bankrolling the party of 'change'."]]);
-
-CONTRO.mansour=(CONTRO.mansour||[]).concat([
-["The Russia connection","His Mantrac Vostok venture did business in Russia, and he settled a tax dispute with HMRC for $3.85m. The £5m donation, the treasurer's job and the knighthood followed each other briskly."]]);
-
-CONTRO.bbc=(CONTRO.bbc||[]).concat([
-["The Trump Panorama splice","A Panorama edit spliced two parts of Trump's January 6 speech to appear as a single incitement; the exposé forced the resignations of Director-General Tim Davie and news CEO Deborah Turness (Nov 2025) and a $10bn lawsuit from Trump."],
-["The Gaza documentary breach","Ofcom found (Oct 2025) the BBC committed a 'serious breach' by broadcasting a Gaza documentary narrated by the son of a Hamas official without disclosing the connection."]]);
-
-CONTRO.murdoch=(CONTRO.murdoch||[]).concat([
-["The Sun's first admission","Settling Prince Harry's claim (Jan 2025), News Group admitted for the first time that The Sun — not just the dead News of the World — had engaged in unlawful intrusion, and apologised."]]);
-
-CONTRO.gbnews=(CONTRO.gbnews||[]).concat([
-["The £100,000 fine","Ofcom fined it £100,000 over the Rishi Sunak 'People's Forum' — a serving prime minister allowed to present an unchallenged programme in an election year."],
-["The misogyny and the slur","Laurence Fox's on-air rant about a female journalist drew 8,867 complaints; presenter Josh Howie's on-air slur drew around 73,000 — two of the most-complained-about broadcasts of the decade."]]);
-
-CONTRO.telegraph=(CONTRO.telegraph||[]).concat([
-["The fabricated case study","IPSO ruled (Feb 2026) it had published a fabricated £345,000 school-fees case study attacking Labour's VAT policy — invented detail presented as reporting."],
-["'Significantly misleading'","IPSO found its Muslim Brotherhood coverage significantly misleading; the paper holds the worst upheld-complaints record of any national title."]]);
-
-CONTRO.lbc=(CONTRO.lbc||[]).concat([
-["'Final solution'","Katie Hopkins tweeted a call for a 'final solution' after the Manchester Arena bombing (2017); LBC announced her departure days later — after years of giving her the platform."]]);
-
-CONTRO.sky=(CONTRO.sky||[]).concat([
-["Hacking its own sources","Admitted in 2012 that it had authorised a journalist to hack into private emails — claiming the public-interest defence. The regulator accepted it; the precedent stood."]]);
-
-CONTRO.talk=(CONTRO.talk||[]).concat([
-["The Barghouti interview","An interview platforming a Palestinian militant leader drew 17,351 Ofcom complaints; earlier lapses included an on-air C-word breach and a temporary YouTube ban over Covid misinformation."]]);
-
-CONTRO.aljazeera=(CONTRO.aljazeera||[]).concat([
-["Fabricated testimony","Its flagship Shifa Hospital coverage relied on testimony later exposed as fabricated; the network is banned in Israel and has been banned by several Arab states over its output."],
-["State broadcaster, 'independent' voice","Funded by Qatar's ruling family, its US arm AJ+ registered under FARA as a foreign agent — while the network presents itself in Britain as independent journalism."]]);
-
-CONTRO.israel_state=(CONTRO.israel_state||[]).concat([
-["Forged British passports","Mossad's 2010 assassination of Mahmoud al-Mabhouh in Dubai used forged UK passports; Britain expelled an Israeli diplomat over the abuse of its citizens' identities."]]);
-
-CONTRO.israel_lobby=(CONTRO.israel_lobby||[]).concat([
-["Duncan's diaries","Former minister Sir Alan Duncan recorded Conservative Friends of Israel lobbying to block his government appointment — 'entrenched espionage', he called the lobby's reach. A cabinet-level insider confirming the machinery in his own words."],
-["£133k of trips","More than £133,000 in all-expenses Israel trips for MPs since October 2023; the Electoral Commission was asked (Jan 2026) to investigate Labour Friends of Israel's declarations."]]);
-
-CONTRO.uae=(CONTRO.uae||[]).concat([
-["The Quiller dossiers","Spinwatch revealed (2018) that Abu Dhabi paid lobbying shop Quiller to compile dossiers smearing British critics — journalists, MPs, academics — as Brotherhood sympathisers."]]);
-
-CONTRO.qatar=(CONTRO.qatar||[]).concat([
-["€3m in cash — in bags","A Qatari prince handed Prince Charles €3m in cash — in carrier bags and a suitcase — for his charities (revealed 2022). Legal, said Clarence House; the optics were not."],
-["The £28m pipeline","Qatar Charity UK channelled ~£28m through the Nectar Trust into British projects and mosques — soft-power infrastructure buying goodwill across the country."]]);
-
-CONTRO.pakistan=(CONTRO.pakistan||[]).concat([
-["The Rotherham pattern","The Jay report (2014) documented ~1,400 children abused in Rotherham, largely by men of Pakistani heritage; the Casey audit (2025) found the same pattern — 64% of Rotherham suspects — while officials looked away for fear of being called racist."],
-["The hitman","Gohir Khan was jailed for life (2022) for a plot to murder an exiled Pakistani blogger in the Netherlands — a contract killing traced back to Pakistan, run through Britain."]]);
-
-CONTRO.islam=(CONTRO.islam||[]).concat([
-["The Istanbul Declaration","The MCB's deputy secretary-general signed the 2009 Istanbul Declaration advocating attacks on foreign naval forces; government cut ties. In 2023 the MCB's chosen MoD chaplain had his role stripped over extremism concerns."],
-["Trojan Horse","The Clarke report (2014) confirmed a coordinated Islamist push to take over Birmingham schools — governors installed, curriculums bent, dissenting teachers driven out."]]);
-
-CONTRO.wef=(CONTRO.wef||[]).concat([
-["'We penetrate the cabinets'","Schwab's own boast (2017): the Forum's Young Global Leaders 'penetrate the cabinets' of nations. Britain's Davos attendees now include much of the cabinet."],
-["Starmer's Davos preference","Asked in 2023 to choose between Westminster and Davos, Keir Starmer chose Davos — 'because Westminster is too constrained'. The electorate came second on his own list."]]);
-
-CONTRO.ellison=(CONTRO.ellison||[]).concat([
-["'On their best behaviour'","Told investors (Sep 2024) that AI surveillance will mean 'citizens will be on their best behaviour' — the man funding British policy institutes describes a panopticon as a selling point."]]);
-
-CONTRO.fink=(CONTRO.fink||[]).concat([
-["The Osborne door","Hired the former Chancellor at £650,000 a year straight from the Treasury; BlackRock's LDI funds then sat at the centre of the 2022 gilt crisis that nearly collapsed Britain's pensions."]]);
-
-CONTRO.thiel=(CONTRO.thiel||[]).concat([
-["The unminuted meeting","Met Johnson and Cummings in Downing Street (2019) with no minutes taken; 32 UK government hires later, the Science Committee called Palantir's NHS access 'an unacceptable point of weakness' (Jun 2026)."]]);
-
-CONTRO.musk=(CONTRO.musk||[]).concat([
-["The $100m dangling","Held talks at Mar-a-Lago (Dec 2024) about a reported $100m donation to Reform — enough to tilt a British election — before falling out with Farage and floating a new party instead."],
-["'Fight back or die'","Addressed the UTK rally by video link (Sep 2025) telling Britons to 'fight back or die', and branded minister Jess Phillips a 'rape genocide apologist' — a foreign billionaire inciting Britain's streets."]]);
-
-CONTRO.bannon=(CONTRO.bannon||[]).concat([
-["Cambridge Analytica","Was vice-president of the firm that harvested 87 million Facebook profiles to psychographically target voters — the machine behind the 2016 upsets, built on British data."]]);
