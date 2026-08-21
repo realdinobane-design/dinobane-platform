@@ -216,15 +216,6 @@
   footer .cols{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap}
   footer a{color:var(--muted)}
 
-  /* ---- modal ---- */
-  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:300;padding:24px}
-  .modal-bg.open{display:flex}
-  .modal{background:var(--bg2);border:1px solid #3a3a40;border-radius:14px;max-width:430px;width:100%;padding:34px;box-shadow:0 30px 80px rgba(0,0,0,.7)}
-  .modal h3{font-family:"Archivo Black";text-transform:uppercase;font-size:21px;margin-bottom:8px}
-  .modal p{color:var(--muted);font-size:14px;margin-bottom:20px}
-  .modal input{width:100%;background:var(--bg);border:1px solid #3a3a40;border-radius:6px;padding:14px 15px;color:var(--ink);font-size:15px;font-family:Inter;margin-bottom:12px}
-  .modal .demo-note{margin-top:16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
-  .modal .close{float:right;background:none;border:0;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
 </style>
 </head>
 <body>
@@ -242,7 +233,10 @@
       <a href="/app/#/community">Community</a>
       <a href="videos.html">Videos</a>
     </nav>
-    <a class="btn btn-yellow" href="/app/#/membership">Join Now</a>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn btn-ghost" href="/app/#/login">Sign in</a>
+      <a class="btn btn-yellow" href="/app/#/membership">Join Now</a>
+    </div>
   </div>
 </header>
 
@@ -261,10 +255,10 @@
         <span class="chip"><span class="dot"></span> New episode every day · Investigations · Timelines · UK Power Map</span>
         <h1 class="display">They hope<br>you won't<br><span class="accent">look closer.</span><br><span style="font-size:.55em;color:var(--muted)">We already did.</span></h1>
         <p class="lede">The policies, the price tags, and the people paying for it — documented daily, sourced line by line. The timeline gives you the event. The power map gives you the person behind it.</p>
-        <form class="emailgate" onsubmit="event.preventDefault(); openModal('free');">
-          <input type="email" required placeholder="you@email.com" aria-label="Email">
-          <button class="btn btn-yellow btn-lg" type="submit">Send me a free video</button>
-          <small>Enter your email and we'll send you a private link to a free video from the Vault. Unsubscribe anytime.</small>
+        <form class="emailgate" onsubmit="sendFreeVideo(event)">
+          <input type="email" id="heroEmail" required placeholder="you@email.com" aria-label="Email">
+          <button class="btn btn-yellow btn-lg" type="submit" id="freeVideoBtn">Send me a free video</button>
+          <small id="freeVideoMsg">Enter your email and we'll send you a private link to a free video from the Vault. Unsubscribe anytime.</small>
         </form>
       </div>
     </div>
@@ -278,7 +272,7 @@
     <h2 class="display">Watch one.<br>It's on the house.</h2>
     <p class="sub">The Vault is my favourite videos I've ever made, all in one place. Members get the lot — drop your email in above and we'll send you a private link to one, free.</p>
     <div class="sample-grid">
-      <div class="player" onclick="openModal('free')" role="button" aria-label="Get this week’s Vault pick">
+      <div class="player" onclick="focusFreeVideo()" role="button" aria-label="Get this week’s Vault pick">
         <img src="img/orig/featured_video_thumb.jpg" alt="This week’s Vault pick">
         <span class="free-tag">Free via email link</span>
         <div class="playbtn"><svg width="26" height="26" viewBox="0 0 24 24" fill="#111"><path d="M8 5v14l11-7z"/></svg></div>
@@ -518,6 +512,7 @@
         <a href="videos.html" style="display:block;text-decoration:none;padding:3px 0">Videos</a>
       </div>
       <div><b style="color:var(--ink);display:block;margin-bottom:8px">Members</b>
+        <a href="/app/#/login" style="display:block;text-decoration:none;padding:3px 0">Sign in</a>
         <a href="/app/#/community" style="display:block;text-decoration:none;padding:3px 0">Community</a>
         <a href="/app/#/membership" style="display:block;text-decoration:none;padding:3px 0">Membership</a>
       </div>
@@ -526,19 +521,6 @@
   </div>
 </footer>
 
-<!-- MODAL -->
-<div class="modal-bg" id="modalbg" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <button class="close" onclick="closeModal()">×</button>
-    <h3 id="modalTitle">Join DinoBane</h3>
-    <p id="modalSub">Create your account — takes 20 seconds.</p>
-    <input type="text" placeholder="Your name">
-    <input type="email" placeholder="you@email.com">
-    <button class="btn btn-yellow btn-lg w-full" onclick="alert('Demo: this is where the secure checkout / account creation handoff would happen.')">Continue →</button>
-    <div class="demo-note">⚠️ Mockup demo: no real account or payment here. In production this step creates the account server-side and hands off to the payment provider — the paywall is enforced on the server, not in the browser.</div>
-  </div>
-</div>
-
 <script src="powermap-data.js"></script>
 <script src="person-popup.js"></script>
 <script>
@@ -546,18 +528,40 @@
   const t = document.getElementById('ticker');
   t.innerHTML += t.innerHTML;
 
-  const titles = {
-    free:  ["Your free Vault video", "Enter your email and we'll send you a private link to a free video from the Vault. No card, no account."],
-    reader:["Join as Reader", "£5/month. Create your account, then checkout."],
-    member:["Become a Member", "£9/month. Create your account, then secure checkout."]
-  };
-  function openModal(kind){
-    const [tt,s] = titles[kind] || titles.member;
-    document.getElementById('modalTitle').textContent = tt;
-    document.getElementById('modalSub').textContent = s;
-    document.getElementById('modalbg').classList.add('open');
+  async function sendFreeVideo(ev){
+    ev.preventDefault();
+    const email = document.getElementById('heroEmail').value.trim();
+    const btn = document.getElementById('freeVideoBtn');
+    const msg = document.getElementById('freeVideoMsg');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const r = await fetch('/api/free-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        msg.textContent = 'Done — check your inbox for a private link to your free video (check spam too).';
+        msg.style.color = '#9ae29a';
+        btn.textContent = 'Sent ✓';
+        document.getElementById('heroEmail').value = '';
+      } else {
+        msg.textContent = d.error || 'Something went wrong — try again in a moment.';
+        msg.style.color = '#ff8a8a';
+        btn.disabled = false; btn.textContent = 'Send me a free video';
+      }
+    } catch (e) {
+      msg.textContent = 'Network error — try again in a moment.';
+      msg.style.color = '#ff8a8a';
+      btn.disabled = false; btn.textContent = 'Send me a free video';
+    }
   }
-  function closeModal(){ document.getElementById('modalbg').classList.remove('open'); }
+  function focusFreeVideo(){
+    const el = document.getElementById('heroEmail');
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(() => el.focus(), 500);
+  }
   function pickNode(){
     document.getElementById('dossier').scrollIntoView({behavior:'smooth', block:'nearest'});
   }

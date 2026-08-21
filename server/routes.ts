@@ -240,6 +240,24 @@ async function ensureVerificationTokensTable() {
 }
 ensureVerificationTokensTable();
 
+// ─── FREE VIDEO TOKEN STORE ─────────────────────────────────────────────────
+// Private links emailed from the landing-page gate; each unlocks one free
+// Vault video for a signed-out visitor. DB-backed so links survive restarts.
+async function ensureFreeVideoTokensTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS free_video_tokens (
+        token TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+    await pool.query(`DELETE FROM free_video_tokens WHERE expires_at < now()`);
+  } catch (e: any) { console.warn("[free-video] table setup failed:", e.message); }
+}
+ensureFreeVideoTokensTable();
+
 async function ensureAppSettingsTable() {
   try {
     await pool.query(`
@@ -2978,6 +2996,109 @@ export function registerRoutes(httpServer: Server, app: Express) {
       avatarInitials: "T",
     });
     return res.json({ ok: true, action: "created", id: user.id });
+  });
+
+  // ─── FREE VAULT VIDEO (landing-page email gate) ────────────────────────────
+  // POST /api/free-video — visitor drops their email, we email a private link.
+  app.post("/api/free-video", async (req, res) => {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+      return res.status(400).json({ error: "Enter a valid email address." });
+    }
+    if (!resend) return res.status(503).json({ error: "Email service isn't configured yet — try again later." });
+    const token = crypto.randomBytes(24).toString("hex");
+    const expiresMs = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+    try {
+      await pool.query(
+        `INSERT INTO free_video_tokens (token, email, expires_at)
+         VALUES ($1, $2, to_timestamp($3 / 1000.0))
+         ON CONFLICT (token) DO NOTHING`,
+        [token, email, expiresMs]
+      );
+    } catch (e: any) {
+      console.error("[free-video] token store failed:", e.message);
+      return res.status(500).json({ error: "Something went wrong — try again in a moment." });
+    }
+    const appUrl = process.env.VITE_APP_URL || "https://dinobane.com";
+    const watchUrl = `${appUrl}/free-video.html?token=${token}`;
+    const title = (await storage.getSetting("free_video_title")) || "This week's Vault pick";
+    const html = emailWrapper(`
+      ${emailHeader("Your free video")}
+      <tr>
+        <td style="padding:28px 28px 8px;">
+          <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;">${title}</h2>
+          <p style="margin:0;font-size:14px;color:#aaa;line-height:1.7;">
+            You asked, here it is — one free video from the Vault, on the house.
+            Your private link stays live for 7 days.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="padding:20px 28px 28px;">
+          <a href="${watchUrl}" style="display:inline-block;background:#cc2a2a;color:#fff;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:15px 36px;text-decoration:none;border-radius:2px;">Watch it now &rarr;</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 28px 24px;">
+          <p style="margin:0;font-size:12px;color:#666;line-height:1.6;">
+            Button not working? Paste this into your browser:<br/>
+            <a href="${watchUrl}" style="color:#cc2a2a;text-decoration:none;word-break:break-all;">${watchUrl}</a>
+          </p>
+        </td>
+      </tr>
+      ${emailFooter(`&copy; 2026 DinoBane. You're receiving this because you requested a free video at <a href="${appUrl}" style="color:#555;text-decoration:none;">dinobane.com</a>. No account was created and you won't be emailed again unless you ask.`)}
+    `);
+    try {
+      await resend.emails.send({
+        from: "DinoBane <noreply@dinobane.com>",
+        to: email,
+        subject: "Your free DinoBane video — private link inside",
+        html,
+        attachments: logoAttachment(),
+      });
+      console.log(`[free-video] link sent to ${email}`);
+    } catch (e: any) {
+      console.error(`[free-video] send failed for ${email}:`, e.message);
+      return res.status(502).json({ error: "Couldn't send the email — try again in a moment." });
+    }
+    return res.json({ ok: true });
+  });
+
+  // GET /api/free-video/verify?token= — validate a private link, hand back the video.
+  app.get("/api/free-video/verify", async (req, res) => {
+    const token = String(req.query.token || "");
+    if (!token) return res.status(400).json({ error: "invalid_token" });
+    let row: any;
+    try {
+      const r = await pool.query(
+        `SELECT EXTRACT(EPOCH FROM expires_at)*1000 AS expires_ms
+         FROM free_video_tokens WHERE token=$1`,
+        [token]
+      );
+      row = r.rows[0];
+    } catch (e: any) {
+      console.warn("[free-video] verify lookup failed:", e.message);
+      return res.status(500).json({ error: "server_error" });
+    }
+    if (!row) return res.status(404).json({ error: "invalid_token" });
+    const expires = Math.floor(parseFloat(row.expires_ms));
+    if (expires < Date.now()) return res.status(410).json({ error: "expired" });
+    const url = await storage.getSetting("free_video_url");
+    if (!url) return res.status(503).json({ error: "not_ready" });
+    const title = (await storage.getSetting("free_video_title")) || "This week's Vault pick";
+    return res.json({ ok: true, title, url, expiresAt: expires });
+  });
+
+  // POST /api/admin/free-video — choose which video the email gate gives away.
+  // Body: { url: "https://… (R2 or YouTube)", title: "…" }
+  app.post("/api/admin/free-video", async (req, res) => {
+    const check = await requireAdmin(req, res);
+    if (!check.ok) return;
+    const { url, title } = req.body as { url?: string; title?: string };
+    if (!url || !/^https?:\/\//.test(url)) return res.status(400).json({ error: "Provide a valid video URL" });
+    await storage.setSetting("free_video_url", url);
+    await storage.setSetting("free_video_title", (title || "").slice(0, 140));
+    return res.json({ ok: true, url, title: title || "" });
   });
 
   // POST /api/media/presign — generate a pre-signed URL for direct browser-to-R2 upload

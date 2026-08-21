@@ -58,3 +58,37 @@ redirect to `/`) remains as a backup.
 
 Same as before — Railway, NIXPACKS: `npm run build`, `npm start`. Nothing new
 is required in env vars.
+
+## v.16 — Sign-in on landing + real free-video email gate (2026-08-21)
+
+**Fixes two live bugs reported after v.14 deploy:**
+
+1. **No way to sign in from the landing page.** Signed-out members hitting
+   dinobane.com had no login entry point. Added a "Sign in" button to the
+   landing header (next to Join Now) and a "Sign in" link in the footer
+   Members column. Both go to `/app/#/login`.
+
+2. **"Send me a free video" was a leftover mockup demo modal.** Removed the
+   fake modal (including the "Mockup demo / paywall" disclaimer and the
+   demo alert). The email gate is now real, end to end:
+   - `POST /api/free-video` — validates the email, mints a 7-day token
+     (new `free_video_tokens` table, auto-created at startup), and sends a
+     branded Resend email with a private link: `/free-video.html?token=…`
+   - `GET /api/free-video/verify?token=…` — validates the link and returns
+     the video URL + title
+   - `POST /api/admin/free-video` (admin only) — choose which video the
+     gate gives away. Body: `{"url": "https://…", "title": "…"}`
+     (R2 public URL or YouTube link both work). Until you set this, the
+     watch page tells visitors the video is being uploaded.
+   - `client/public/free-video.html` — branded watch page for the private
+     link: plays mp4/R2 files or embeds YouTube, handles invalid/expired
+     links, and funnels viewers to membership.
+
+   To set the free video after deploy (logged in as admin, grab your
+   `dinobane_sid` cookie):
+   ```bash
+   curl -X POST https://dinobane.com/api/admin/free-video \
+     -H "Content-Type: application/json" \
+     -H "Cookie: dinobane_sid=YOUR_SESSION_ID" \
+     -d '{"url":"https://YOUR-R2-URL/video.mp4","title":"This week'"'"'s Vault pick"}'
+   ```
