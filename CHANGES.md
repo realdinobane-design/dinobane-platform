@@ -150,3 +150,12 @@ is required in env vars.
 - Every price label in the app updated £5 → £4.99: membership, register, login, home, home-v2, community, media-vault, profile, app-nav, v2-shell, welcome-email automation text.
 - No tiers anywhere: access control remains `isMember` only; no tier column, no gating between members.
 - **ACTION REQUIRED on deploy:** create the £4.99/month price in Stripe and set `STRIPE_PRICE_ID` on Railway — the hardcoded fallback is still the old £5 price, so without the env var checkout would charge £5. Existing £5 subscribers keep their current plan until they cancel/re-subscribe (Stripe never reprices a live subscription automatically) — your call whether to migrate them.
+
+## v.23 — 2026-08-21
+**Power Map funnel: timed free preview + intro polish.**
+- Free preview: non-members get 2 minutes of full map access, starting the moment the "How to read the map" guide is closed (or when the intro ends if the guide is suppressed). Countdown chip bottom-left ("Free preview · 1:47 left"). When it ends the map locks behind a subscribe card (unlimited map + Vault + news/timelines + community, £4.99/month CTA + sign-in link for logged-out members). The lock persists (localStorage) — refreshing doesn't reset it.
+- Members are never timed or locked: checked live against /api/auth/me (same-origin session cookie).
+- Guide popup gains a "Don't show this again" tickbox (localStorage `upm_nointro`) — works for everyone, members included.
+- Intro sequence rebuilt: the zoom starts immediately (was a 3.4s freeze), creeping very slowly and accelerating (ease-in cubic), landing on the standard view exactly as the title finishes fading (~4.2s).
+- Title overlay readability: dark radial backdrop behind the title plus layered shadows on title and strapline — no longer lost against the glowing web.
+- Trial length is one constant (TRIAL_SECONDS in rings-of-power/index.html) if it ever needs tuning.

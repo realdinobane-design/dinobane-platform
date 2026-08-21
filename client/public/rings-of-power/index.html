@@ -16,10 +16,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.
 #cv.drag{cursor:grabbing}
 #cv.hover{cursor:pointer}
 #boot{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:#000;color:#98a2b3;font-size:14px;letter-spacing:.4px}
-#intro{position:absolute;inset:0;z-index:35;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity 1.2s ease}
+#intro{position:absolute;inset:0;z-index:35;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity 1.2s ease;background:radial-gradient(ellipse 62% 46% at 50% 50%,rgba(0,0,0,.78) 0%,rgba(0,0,0,.42) 48%,rgba(0,0,0,0) 76%)}
 #intro.show{opacity:1}
-#introT{font-family:'Clash Display','Arial Black',sans-serif;font-weight:700;font-size:clamp(38px,6.5vw,88px);letter-spacing:.14em;text-transform:uppercase;color:#f5f7fa;text-shadow:0 0 42px rgba(210,30,30,.55),0 0 120px rgba(210,30,30,.25);white-space:nowrap}
-#introS{font-family:'Satoshi','Inter',system-ui,sans-serif;font-weight:500;font-size:12.5px;letter-spacing:3.2px;text-transform:uppercase;color:#9aa3b5;margin-top:12px}
+#introT{font-family:'Clash Display','Arial Black',sans-serif;font-weight:700;font-size:clamp(38px,6.5vw,88px);letter-spacing:.14em;text-transform:uppercase;color:#f5f7fa;text-shadow:0 3px 16px rgba(0,0,0,.95),0 1px 5px rgba(0,0,0,.9),0 0 42px rgba(210,30,30,.55),0 0 120px rgba(210,30,30,.25);white-space:nowrap}
+#introS{font-family:'Satoshi','Inter',system-ui,sans-serif;font-weight:500;font-size:12.5px;letter-spacing:3.2px;text-transform:uppercase;color:#b9c1d1;margin-top:12px;text-shadow:0 2px 10px rgba(0,0,0,.95),0 1px 3px rgba(0,0,0,.9)}
 #errbox{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:50;max-width:520px;background:#2a1014;border:1px solid #ff4757;color:#ffd7dc;padding:16px 20px;border-radius:10px;font-size:13px;display:none}
 header{position:absolute;top:0;left:0;right:0;z-index:7;height:56px;display:flex;align-items:center;gap:16px;padding:0 16px;background:rgba(10,10,10,.95);border-bottom:1px solid #242424;backdrop-filter:blur(8px)}
 #brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:#fff;flex-shrink:0}
@@ -57,6 +57,22 @@ button.chip:hover{border-color:var(--mut)}
 .hrow b{flex:0 0 86px;color:#f87171;font-size:11px;letter-spacing:1.6px;padding-top:2px}
 .hrow em{font-style:normal;color:var(--tx);font-weight:600}
 #helpx{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer}
+#noshow{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);color:var(--mut);font-size:12px;cursor:pointer;user-select:none}
+#noshow input{accent-color:#f7e017;cursor:pointer}
+#trialchip{position:fixed;left:14px;bottom:14px;z-index:25;background:rgba(13,17,26,.92);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12px;letter-spacing:.4px;color:var(--mut)}
+#trialchip b{color:#f7e017;font-weight:700}
+#lock{position:fixed;inset:0;z-index:45;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.62);backdrop-filter:blur(6px)}
+#lock.show{display:flex}
+#lockcard{max-width:480px;width:calc(100% - 48px);background:rgba(13,17,26,.96);border:1px solid var(--line);border-radius:16px;padding:30px 30px 26px;box-shadow:0 24px 80px rgba(0,0,0,.65);text-align:center}
+#lockcard h2{margin:0 0 10px;font-size:16px;letter-spacing:3px;color:var(--tx)}
+#lockcard p{margin:0 0 14px;color:var(--mut);font-size:13px;line-height:1.6}
+#lockcard ul{list-style:none;margin:0 0 20px;padding:0;text-align:left;display:inline-block}
+#lockcard li{color:var(--tx);font-size:13px;padding:4px 0 4px 22px;position:relative}
+#lockcard li::before{content:"\2605";position:absolute;left:0;color:#f7e017;font-size:11px;top:7px}
+.lockcta{display:block;background:#f7e017;color:#000;font-weight:900;font-size:14px;letter-spacing:.6px;text-decoration:none;padding:13px 18px;border-radius:8px;text-transform:uppercase}
+.lockcta:hover{background:#fff200}
+.locksub{display:inline-block;margin-top:14px;color:var(--mut);font-size:12px;text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:1px}
+.locksub:hover{color:var(--tx)}
 #helpx:hover{color:var(--tx)}
 #hint{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:4;color:#9aa3b5;font-size:12.5px;letter-spacing:.2px;background:rgba(13,17,26,.55);border:1px solid var(--line);padding:7px 16px;border-radius:20px;backdrop-filter:blur(8px);white-space:nowrap}
 @media (max-width:820px){#hint{display:none}}
@@ -195,6 +211,19 @@ h3.sec{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--
   <div class="hrow"><b>EXPLORE</b><span>Click any <em>pin</em> for its full profile and controversies · click a <em>beam</em> for that connection · <em>grey dots</em> are the people around a subject — click them too</span></div>
   <div class="hrow"><b>FILTER</b><span>The key on the left filters the web: click any subject, connection or people row — alignment (globalist / civnat / nationalist), party, religion, Zionist, WEF, Fabian, Hope Not Hate, heritage</span></div>
   <div class="hrow"><b>THE RINGS</b><span>The closer to the centre, the more raw power. Every ring works the next ring out as its proxies. Dashed circles on the rings are <b>local groups</b> — people and groups that work closely together.</span></div>
+  <label id="noshow"><input type="checkbox" id="noshowbox"> Don't show this again</label>
+</div></div>
+<div id="lock"><div id="lockcard">
+  <h2>FREE PREVIEW ENDED</h2>
+  <p>The full map — every name, every link, every dossier — is for members, along with everything else:</p>
+  <ul>
+    <li>Unlimited UK Power Map access</li>
+    <li>The Vault — every video, ad-free</li>
+    <li>Rolling news, timelines &amp; deep dives</li>
+    <li>Community — a direct line to me</li>
+  </ul>
+  <a class="lockcta" href="https://dinobane.com/app/#/membership">Become a Member — £4.99/month</a>
+  <a class="locksub" href="https://dinobane.com/app/#/login">Already a member? Sign in</a>
 </div></div>
 <div id="hint">drag to pan · scroll to zoom · click a pin, a beam or a grey dot · <b>?</b> for the guide</div>
 <div id="tip"></div>
@@ -318,8 +347,11 @@ function endIntro(jump){
 {
   camX=FIT.x; camY=FIT.y; scale=FIT.s*0.32;     /* zoomed right out — the whole web glows like a single pulsing light */
   setTimeout(()=>{const iv=document.getElementById('intro');if(iv)iv.classList.add('show');},250);
-  setTimeout(()=>endIntro(false),3000);         /* title holds, then fades */
-  setTimeout(()=>flyTo(FIT.x,FIT.y,FIT.s*0.92,4400),3400);  /* …and we dive in until the map fills the screen */
+  setTimeout(()=>endIntro(false),3000);         /* title holds, then fades (1.2s transition → gone by 4.2s) */
+  /* the dive kicks in STRAIGHT AWAY — barely creeping at first, accelerating,
+     and landing on the normal view exactly as the title finishes fading away */
+  requestAnimationFrame(()=>{anim={t0:performance.now(),dur:4200,ease:'in',
+    from:{x:FIT.x,y:FIT.y,s:FIT.s*0.32},to:{x:FIT.x,y:FIT.y,s:FIT.s*0.92}};});
 }
 /* ---------- stars: deep space behind the glass, parallax drift ---------- */
 const stars=[];
@@ -722,14 +754,62 @@ function flyTo(x,y,s,dur){
 }
 const helpEl=document.getElementById('help');
 let helpShown=false;
+function noIntro(){try{return localStorage.getItem('upm_nointro')==='1';}catch(e){return false;}}
 function openHelp(){helpEl.classList.add('show');}
-function closeHelp(){helpEl.classList.remove('show');}
+function closeHelp(){
+  helpEl.classList.remove('show');
+  const cb=document.getElementById('noshowbox');
+  if(cb&&cb.checked){try{localStorage.setItem('upm_nointro','1');}catch(e){}}
+  startTrialCountdown();   /* free preview: the clock starts when the guide closes */
+}
 document.getElementById('helpb').addEventListener('click',openHelp);
 document.getElementById('helpx').addEventListener('click',closeHelp);
 helpEl.addEventListener('click',e=>{if(e.target===helpEl)closeHelp();});
+
+/* ---------- free preview: non-members get 2 minutes once the guide closes ---------- */
+const TRIAL_SECONDS=120;
+let trialStarted=false,trialLeft=0,trialTimer=null,trialMember=false,trialLocked=false;
+function lockMap(){
+  if(trialLocked||trialMember)return; trialLocked=true;
+  try{localStorage.setItem('upm_trial_used','1');}catch(e){}
+  const l=document.getElementById('lock'); if(l)l.classList.add('show');
+  const c=document.getElementById('trialchip'); if(c)c.remove();
+}
+function tickTrial(){
+  if(trialMember){clearInterval(trialTimer);const c=document.getElementById('trialchip');if(c)c.remove();return;}
+  trialLeft--;
+  const c=document.getElementById('trialchip');
+  if(c){const m=Math.floor(Math.max(0,trialLeft)/60),ss=Math.max(0,trialLeft)%60;
+    c.innerHTML='Free preview · <b>'+m+':'+String(ss).padStart(2,'0')+'</b> left';}
+  if(trialLeft<=0){clearInterval(trialTimer);lockMap();}
+}
+function startTrialCountdown(){
+  if(trialStarted||trialMember||trialLocked)return;
+  try{if(localStorage.getItem('upm_trial_used')==='1'){lockMap();return;}}catch(e){}
+  trialStarted=true; trialLeft=TRIAL_SECONDS;
+  const c=document.createElement('div'); c.id='trialchip'; document.body.appendChild(c);
+  tickTrial(); trialTimer=setInterval(tickTrial,1000);
+}
+/* members: no timer, no lock, ever. Non-members who already burned the preview
+   stay locked; if the guide is suppressed the clock starts when the intro ends. */
+fetch('/api/auth/me').then(r=>r.ok?r.json():null).then(u=>{
+  if(u&&u.isMember){
+    trialMember=true;
+    if(trialTimer)clearInterval(trialTimer);
+    const c=document.getElementById('trialchip'); if(c)c.remove();
+    const l=document.getElementById('lock'); if(l)l.classList.remove('show');
+    return;
+  }
+  try{if(localStorage.getItem('upm_trial_used')==='1'){lockMap();return;}}catch(e){}
+  if(noIntro())setTimeout(startTrialCountdown,4600);
+}).catch(()=>{
+  /* API unreachable — still honour a burned preview */
+  try{if(localStorage.getItem('upm_trial_used')==='1'){lockMap();return;}}catch(e){}
+  if(noIntro())setTimeout(startTrialCountdown,4600);
+});
 document.getElementById('zin').addEventListener('click',()=>flyTo(camX,camY,Math.min(7,scale*1.4),260));
 document.getElementById('zout').addEventListener('click',()=>flyTo(camX,camY,Math.max(0.03,scale/1.4),260));
-setTimeout(()=>{if(!helpShown){helpShown=true;openHelp();setTimeout(closeHelp,9000);}},8600);
+setTimeout(()=>{if(!helpShown&&!noIntro()){helpShown=true;openHelp();setTimeout(closeHelp,9000);}},8600);
 canvas.addEventListener('pointerdown',()=>{if(helpShown){helpShown=true;closeHelp();}},{once:true});
 document.getElementById('fitb').addEventListener('click',()=>{
   clearSel();flyTo(FIT.x,FIT.y,FIT.s*0.92,900);
@@ -1284,7 +1364,7 @@ function loop(now){
   }
   if(hoverEvt){hover(hoverEvt);hoverEvt=null;}
   if(anim){
-    const k=Math.min(1,(now-anim.t0)/anim.dur),e=1-Math.pow(1-k,3);
+    const k=Math.min(1,(now-anim.t0)/anim.dur),e=anim.ease==='in'?k*k*k:1-Math.pow(1-k,3);
     camX=anim.from.x+(anim.to.x-anim.from.x)*e;
     camY=anim.from.y+(anim.to.y-anim.from.y)*e;
     scale=anim.from.s+(anim.to.s-anim.from.s)*e;
