@@ -222,14 +222,14 @@
 
 <header>
   <div class="wrap nav">
-    <a class="logo" href="#">
+    <a class="logo" href="/">
       <img src="img/orig/logo.png" alt="DinoBane" style="height:34px;width:auto">
     </a>
     <nav class="navlinks">
       <a href="/app/#/media-vault">The Vault</a>
       <a href="/app/#/news">News</a>
       <a href="/app/#/timelines">Timeline</a>
-      <a href="powermap.html">Power Map</a>
+      <a href="/rings-of-power/">Power Map</a>
       <a href="/app/#/community">Community</a>
       <a href="videos.html">Videos</a>
     </nav>
@@ -296,15 +296,15 @@
     <h2 class="display">The whole story. In order.<br>With the names attached.</h2>
     <p class="sub">Not headlines, not hot takes — the full chronological record of how we got here. Every event dated, every claim sourced, and every name in the text is a live link: click it and that person's file opens — bio, affiliations, money, controversies. Nobody else builds the news this way.</p>
     <div class="stories">
-      <div class="story">
+      <a class="story" href="/app/#/long-march" style="text-decoration:none;color:inherit;display:block;cursor:pointer">
         <div class="st-img"><img src="img/orig/main_story_thumb.jpg" alt="The Long March dossier"></div>
         <div class="st-body">
           <h4>The Long March</h4>
           <p>Fifty years, four acts, one playbook — how a fringe theory became Whitehall doctrine. Most people can't name the year it started. The dates are in here.</p>
-          <div class="st-meta"><span>4 acts, cross-linked</span><span style="color:var(--yellow)">Start here</span></div>
+          <div class="st-meta"><span>4 acts, cross-linked</span><span style="color:var(--yellow)">Start here →</span></div>
         </div>
-      </div>
-      <div class="story locked-card">
+      </a>
+      <a class="story locked-card" href="/app/#/membership" style="text-decoration:none;color:inherit;display:block;cursor:pointer">
         <span class="lock-tag">🔒 Members</span>
         <div class="st-img"><img src="img/orig/sidebar_thumb_01.jpg" alt="Starmer dossier"></div>
         <div class="st-body">
@@ -312,8 +312,8 @@
           <p>From McLibel barrister to Downing Street — every scandal logged in order, every name in it linked to its power-map file. Thirty-eight events. Most of them weren't on the news.</p>
           <div class="st-meta"><span>38 events, cross-linked</span><span>Members only</span></div>
         </div>
-      </div>
-      <div class="story locked-card">
+      </a>
+      <a class="story locked-card" href="/app/#/membership" style="text-decoration:none;color:inherit;display:block;cursor:pointer">
         <span class="lock-tag">🔒 Members</span>
         <div class="st-img"><img src="img/orig/article_featured_image.jpg" alt="Farage dossier"></div>
         <div class="st-body">
@@ -321,7 +321,7 @@
           <p>The man who has burned three parties to keep one career warm. Thirty-nine events and counting — every backer and associate one click from their own file.</p>
           <div class="st-meta"><span>39 events, cross-linked</span><span>Members only</span></div>
         </div>
-      </div>
+      </a>
     </div>
   </section>
 
@@ -331,11 +331,11 @@
     <h2 class="display">The news never sleeps.<br>Neither does this.</h2>
     <p class="sub">A rolling aggregator of the stories that matter, updated around the clock — with the angle the headlines bury.</p>
     <div class="wire">
-      <div class="w-row"><span class="w-time">4 min</span><span class="w-tag">POLITICS</span><span class="w-head">Whip's office "unaware" of donation filings — third time this year</span></div>
-      <div class="w-row"><span class="w-time">22 min</span><span class="w-tag">MONEY</span><span class="w-head">Defence contractor lobbying spend doubles ahead of procurement vote</span></div>
-      <div class="w-row"><span class="w-time">1 hr</span><span class="w-tag">MEDIA</span><span class="w-head">Ofcom ruling lands: channel keeps licence, again</span></div>
-      <div class="w-row w-locked"><span class="w-time">2 hr</span><span class="w-tag">ANALYSIS</span><span class="w-head">Why the "emergency" clause wasn't an emergency</span><span class="w-lock">🔒 Members</span></div>
-      <div class="w-row w-locked"><span class="w-time">3 hr</span><span class="w-tag">FOLLOW-UP</span><span class="w-head">The peerage timeline doesn't add up — full breakdown</span><span class="w-lock">🔒 Members</span></div>
+      <a class="w-row" href="/app/#/news" style="text-decoration:none;color:inherit"><span class="w-time">4 min</span><span class="w-tag">POLITICS</span><span class="w-head">Whip's office "unaware" of donation filings — third time this year</span></a>
+      <a class="w-row" href="/app/#/news" style="text-decoration:none;color:inherit"><span class="w-time">22 min</span><span class="w-tag">MONEY</span><span class="w-head">Defence contractor lobbying spend doubles ahead of procurement vote</span></a>
+      <a class="w-row" href="/app/#/news" style="text-decoration:none;color:inherit"><span class="w-time">1 hr</span><span class="w-tag">MEDIA</span><span class="w-head">Ofcom ruling lands: channel keeps licence, again</span></a>
+      <a class="w-row w-locked" href="/app/#/news" style="text-decoration:none;color:inherit"><span class="w-time">2 hr</span><span class="w-tag">ANALYSIS</span><span class="w-head">Why the "emergency" clause wasn't an emergency</span><span class="w-lock">🔒 Members</span></a>
+      <a class="w-row w-locked" href="/app/#/news" style="text-decoration:none;color:inherit"><span class="w-time">3 hr</span><span class="w-tag">FOLLOW-UP</span><span class="w-head">The peerage timeline doesn't add up — full breakdown</span><span class="w-lock">🔒 Members</span></a>
     </div>
   </section>
 
@@ -391,7 +391,7 @@
   <section id="powermap">
     <div class="kicker">The Power Map</div>
     <h2 class="display">Who actually calls the shots</h2>
-    <p class="sub">A reference library disguised as a map: 94 players, 118 connections, every one sourced — who they are, who they're affiliated with, who finances them. The research that would take you weeks is already done, and every name in every timeline lands here. <a href="powermap.html" style="color:var(--yellow)">Open the full map →</a></p>
+    <p class="sub">A reference library disguised as a map: 94 players, 118 connections, every one sourced — who they are, who they're affiliated with, who finances them. The research that would take you weeks is already done, and every name in every timeline lands here. <a href="/rings-of-power/" style="color:var(--yellow)">Open the full map →</a></p>
     <div class="powermap">
       <div class="mapbox">
         <svg viewBox="0 0 560 395" aria-label="Power map">
@@ -507,7 +507,7 @@
         <a href="/app/#/timelines" style="display:block;text-decoration:none;padding:3px 0">Timelines</a>
       </div>
       <div><b style="color:var(--ink);display:block;margin-bottom:8px">The tools</b>
-        <a href="powermap.html" style="display:block;text-decoration:none;padding:3px 0">Power Map</a>
+        <a href="/rings-of-power/" style="display:block;text-decoration:none;padding:3px 0">Power Map</a>
         <a href="powermap-flat.html" style="display:block;text-decoration:none;padding:3px 0">Power Map — Flat</a>
         <a href="videos.html" style="display:block;text-decoration:none;padding:3px 0">Videos</a>
       </div>

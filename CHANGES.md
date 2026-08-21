@@ -92,3 +92,31 @@ is required in env vars.
      -H "Cookie: dinobane_sid=YOUR_SESSION_ID" \
      -d '{"url":"https://YOUR-R2-URL/video.mp4","title":"This week'"'"'s Vault pick"}'
    ```
+
+## v.17 — Flat map rebuilt + every CTA wired + free video live (2026-08-21)
+
+1. **powermap-flat.html rebuilt from scratch** in the teaser style (flat,
+   dark, labelled nodes on concentric rings) using the original map's own
+   colour system — node types: money #2f9bff / media #f472b6 / party
+   #ff4757 / lobby #b16bff / person #f5f7fa / scandal #ffb020; edge kinds:
+   money #ffd166 / own #2ee6cf / work #7bf59a / party #ff5c5c / state
+   #c98bff / personal #93a0b8 / law #ff8f4d. No locked or greyed nodes.
+   Ring = power tier (size + label weight), satellites = small dots with
+   connectors, labels appear when you hover the parent. Hover focuses a
+   node's web; click opens their file; search box; scroll-zoom + drag-pan;
+   legend. Header links to the full interactive map at /rings-of-power/.
+
+2. **Every landing CTA wired.** Fixed: logo (was href="#"), Long March
+   "Start here" card (was plain text, now opens the dossier), locked
+   Starmer/Farage cards (now click through to membership), all five
+   rolling-news rows (now open Rolling News), all "Power Map" links
+   (nav, footer, "Open the full map" — now point at the real map,
+   /rings-of-power/). powermap.html removed (superseded).
+
+3. **Free video now serves "Are You Ready".** GET /api/free-video/verify
+   falls back to the Vault video matching "are you ready" when no admin
+   override is set — emailed links play the video instead of the
+   holding page. Admin override endpoint unchanged.
+
+4. Cleaned the v.13 dump leftovers out of client/public/rings-of-power/
+   (folder now matches the original five files).

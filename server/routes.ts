@@ -3083,10 +3083,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!row) return res.status(404).json({ error: "invalid_token" });
     const expires = Math.floor(parseFloat(row.expires_ms));
     if (expires < Date.now()) return res.status(410).json({ error: "expired" });
-    const url = await storage.getSetting("free_video_url");
+    let url = await storage.getSetting("free_video_url");
+    let title = await storage.getSetting("free_video_title");
+    if (!url) {
+      // Default: the "Are You Ready" video from the Vault (media table).
+      try {
+        const v = await pool.query(
+          `SELECT name, data_url FROM media
+           WHERE type='video' AND lower(name) LIKE '%are%you%ready%'
+           ORDER BY id DESC LIMIT 1`
+        );
+        if (v.rows[0]) { url = v.rows[0].data_url; title = title || v.rows[0].name; }
+      } catch (e: any) { console.warn("[free-video] media fallback failed:", e.message); }
+    }
     if (!url) return res.status(503).json({ error: "not_ready" });
-    const title = (await storage.getSetting("free_video_title")) || "This week's Vault pick";
-    return res.json({ ok: true, title, url, expiresAt: expires });
+    return res.json({ ok: true, title: title || "This week's Vault pick", url, expiresAt: expires });
   });
 
   // POST /api/admin/free-video — choose which video the email gate gives away.
