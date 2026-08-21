@@ -120,3 +120,13 @@ is required in env vars.
 
 4. Cleaned the v.13 dump leftovers out of client/public/rings-of-power/
    (folder now matches the original five files).
+
+## v.18 — Working rules + repo housekeeping (2026-08-21)
+
+1. **README.md added** — the rulebook for building on this site: brand
+   palette and fonts, the power map's colour system (CAT/ET), voice and
+   content red lines, architecture map, the /app/#/ URL rule, the
+   build/verify/handover workflow, and the known traps (v.13 accident,
+   root-hash links, session middleware scope, no mockup UI in production).
+2. **Repo root cleaned** — removed the v.13 dump leftovers: `app/`,
+   `standalone-preview/`, `data.js.bak`, `plan.md`, `READ-ME-FIRST.txt`.
