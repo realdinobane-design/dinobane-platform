@@ -94,7 +94,7 @@ export default function RegisterPage() {
           </div>
           <div className="bg-card border border-border rounded-sm p-6 text-left space-y-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Click the link in the email to verify your account. Once verified, you'll be redirected to complete your membership payment of <span className="text-white font-semibold">£5/month</span>.
+              Click the link in the email to verify your account. Once verified, you'll be redirected to complete your membership payment of <span className="text-white font-semibold">£4.99/month</span>.
             </p>
             <p className="text-xs text-muted-foreground">
               Didn't get the email? Check your spam folder. The link expires in 24 hours.
@@ -141,7 +141,7 @@ export default function RegisterPage() {
         <div className="bg-card border border-border rounded-sm p-8 space-y-6">
           {/* Membership banner */}
           <div className="bg-primary/10 border border-primary/30 rounded-sm p-3 text-center">
-            <p className="text-xs text-primary font-bold uppercase tracking-wider">Members Community — £5/month</p>
+            <p className="text-xs text-primary font-bold uppercase tracking-wider">Members Community — £4.99/month</p>
             <p className="text-xs text-muted-foreground mt-0.5">Create your account, verify your email, then join</p>
           </div>
 

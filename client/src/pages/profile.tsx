@@ -531,7 +531,7 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-white">DinoBane Members Community</p>
-                <p className="text-xs text-muted-foreground mt-0.5">£5 / month · Active{memberSinceDate ? ` since ${memberSinceDate}` : ""}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">£4.99 / month · Active{memberSinceDate ? ` since ${memberSinceDate}` : ""}</p>
               </div>
               <span className="text-xs bg-green-950/40 text-green-400 border border-green-800/40 px-2 py-0.5 rounded-sm font-semibold shrink-0">Active</span>
             </div>
@@ -550,7 +550,7 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm text-muted-foreground">You're on a free account.</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Join for £5/month to access the community.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Join for £4.99/month to access the community.</p>
             </div>
             <Link href="/membership">
               <Button size="sm" className="bg-red-700 hover:bg-red-600 text-white gap-1.5 shrink-0" data-testid="button-join-from-profile">

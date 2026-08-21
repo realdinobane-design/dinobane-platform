@@ -235,7 +235,7 @@ export function V2Shell({
                   className="group inline-flex items-center gap-3 rounded-full px-8 py-4 bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 text-black font-extrabold tracking-tight shadow-[0_18px_55px_-10px_rgba(245,200,66,0.65)] hover:scale-[1.03] transition-all"
                 >
                   <Crown size={20} />
-                  Subscribe — £5 / month
+                  Subscribe — £4.99 / month
                   <ArrowRight
                     size={18}
                     className="group-hover:translate-x-1 transition-transform"
@@ -386,7 +386,7 @@ export function V2SectionHeading({
 /* ─── Reusable members-only CTA block ─────────────────────────────────── */
 export function V2MembersOnlyCTA({
   label = "Subscribe now to unlock",
-  caption = "£5 / month · Cancel any time",
+  caption = "£4.99 / month · Cancel any time",
 }: {
   label?: string;
   caption?: string;

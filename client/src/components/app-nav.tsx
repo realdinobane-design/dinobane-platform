@@ -131,7 +131,7 @@ export function AppNav() {
                     data-testid="button-subscribe-member"
                   >
                     <Crown size={12} />
-                    Subscribe — £5/mo
+                    Subscribe — £4.99/mo
                   </Button>
                 </Link>
               )}
@@ -284,7 +284,7 @@ export function AppNav() {
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-bold text-yellow-400 mt-1"
             >
-              <Crown size={15} /> Subscribe — £5/month
+              <Crown size={15} /> Subscribe — £4.99/month
             </Link>
           )}
         </div>

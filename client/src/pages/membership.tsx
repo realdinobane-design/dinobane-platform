@@ -107,7 +107,7 @@ export default function MembershipPage() {
             Join the <span className="text-primary">DinoBane</span> Community
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            One £5/month membership unlocks the sourced files, the Vault and the private community. Create an account, verify your email, pay securely with Stripe — access switches on when you return.
+            One £4.99/month membership unlocks everything — the sourced files, the Vault and the private community. Create an account, verify your email, pay securely with Stripe — access switches on when you return.
           </p>
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function MembershipPage() {
             <div className="mb-6">
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Monthly membership</p>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black text-foreground font-display">£5</span>
+                <span className="text-5xl font-black text-foreground font-display">£4.99</span>
                 <span className="text-muted-foreground">/ month</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">Cancel any time from your billing dashboard</p>
@@ -189,7 +189,7 @@ export default function MembershipPage() {
                   data-testid="button-checkout"
                 >
                   <CreditCard className="h-4 w-4 mr-2" />
-                  {checkoutMutation.isPending ? "Opening checkout..." : "Join for £5/month"}
+                  {checkoutMutation.isPending ? "Opening checkout..." : "Join for £4.99/month"}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
                   Secure payment via Stripe · Cancel any time
@@ -202,7 +202,7 @@ export default function MembershipPage() {
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-widest py-6 text-base"
                     data-testid="button-join"
                   >
-                    Join for £5/month
+                    Join for £4.99/month
                   </Button>
                 </Link>
                 <p className="text-xs text-muted-foreground text-center">
@@ -237,7 +237,7 @@ export default function MembershipPage() {
             <div className="bg-card border border-border rounded-sm p-4 mt-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">Billing & Cancellation</p>
               <ul className="space-y-2 text-xs text-muted-foreground">
-                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> £5 GBP per month, renewing monthly until you cancel</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> £4.99 GBP per month, renewing monthly until you cancel</li>
                 <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Stripe handles checkout, card details, invoices and cancellation</li>
                 <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> After payment, Stripe brings you back here and access turns on automatically</li>
                 <li className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-primary shrink-0" /> Use “Manage / Cancel Subscription” for card changes, invoices or cancellation</li>

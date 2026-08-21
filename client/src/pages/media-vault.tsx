@@ -105,7 +105,7 @@ function MembersOnlyLock() {
       <p className="text-xs text-zinc-600 mb-8">Upload images, store video clips, and share media with the community.</p>
       <Link href="/membership">
         <Button className="bg-[#cc2a2a] hover:bg-[#b02222] text-white font-bold uppercase tracking-wider px-8 py-2.5 text-sm gap-2" data-testid="button-join-vault">
-          <Crown size={14} /> Join for £5/month
+          <Crown size={14} /> Join for £4.99/month
         </Button>
       </Link>
     </div>

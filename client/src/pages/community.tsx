@@ -527,12 +527,12 @@ function GatePage({ isMember }: { isMember?: boolean }) {
             Private channels, @mentions, link sharing — no algorithms, no censorship.
           </p>
           <p className="text-4xl font-black text-white mb-8">
-            £5 <span className="text-zinc-500 text-lg font-normal">/ month</span>
+            £4.99 <span className="text-zinc-500 text-lg font-normal">/ month</span>
           </p>
           <div className="flex flex-col items-center gap-3">
             <Link href="/membership">
               <Button size="lg" className="bg-[#cc2a2a] hover:bg-red-600 text-white font-black px-8 gap-2 h-12" data-testid="button-upgrade-community">
-                <Crown size={16} /> Join Now — £5/mo
+                <Crown size={16} /> Join Now — £4.99/mo
               </Button>
             </Link>
             <p className="text-xs text-zinc-600">Cancel anytime · No contracts</p>

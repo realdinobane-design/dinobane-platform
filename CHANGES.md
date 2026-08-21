@@ -143,3 +143,10 @@ is required in env vars.
 - Embedded user objects in community messages, replies, media comments, DM history, DM send responses and DM conversation lists included the full users row — bcrypt password hash, email address and Stripe customer ID went out to any logged-in member's browser. All now pass through `toSafeUser()` (server/storage.ts) which strips `password`, `email`, `stripeCustomerId`. Admin-only endpoints unchanged (still full records, admins only).
 - New route: `DELETE /api/dm/message/:id` — a sender can delete their own DM; admins can delete any. Enables DM moderation and test cleanup.
 - Includes v.19 (blank /app fix) — deploy this, not v.19.
+
+## v.22 — 2026-08-21
+**Single flat membership: £4.99/month, everyone gets everything. (Owner decision — supersedes the v.21 tier experiment, which was never deployed.)**
+- Landing page: two tier cards replaced with one "Member — £4.99/month" card listing the full feature set.
+- Every price label in the app updated £5 → £4.99: membership, register, login, home, home-v2, community, media-vault, profile, app-nav, v2-shell, welcome-email automation text.
+- No tiers anywhere: access control remains `isMember` only; no tier column, no gating between members.
+- **ACTION REQUIRED on deploy:** create the £4.99/month price in Stripe and set `STRIPE_PRICE_ID` on Railway — the hardcoded fallback is still the old £5 price, so without the env var checkout would charge £5. Existing £5 subscribers keep their current plan until they cancel/re-subscribe (Stripe never reprices a live subscription automatically) — your call whether to migrate them.

@@ -2654,7 +2654,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         {
           id: "welcome",
           name: "Welcome Email",
-          description: "Sent automatically when someone subscribes and pays their first £5.",
+          description: "Sent automatically when someone subscribes and pays their first £4.99.",
           trigger: "Automatic — on successful Stripe payment",
           schedule: null,
           nextSend: null,

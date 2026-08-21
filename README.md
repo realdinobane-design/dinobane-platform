@@ -168,3 +168,11 @@ client/
   would…" notes. If a backend piece is missing, build it — the infra for
   email (Resend), tokens, media (R2), and settings already exists; extend
   those patterns.
+
+---
+
+## Pricing rule (settled v.22 — do not change without the owner)
+
+- ONE membership, £4.99/month, flat. No tiers. Every member gets everything: news, timelines, articles, the Vault, community, power map dossiers.
+- The price lives in TWO kinds of places that must always agree: every UI label (landing.html, membership.tsx, home*.tsx, app-nav, v2-shell, profile, login, register, community, media-vault) and the Stripe price object itself (`STRIPE_PRICE_ID` on Railway — create/edit prices in the Stripe dashboard, never hardcode a new price ID into the repo default).
+- Access control is `isMember` only. There is no tier column and no feature gating between members — never reintroduce one without an explicit owner request.

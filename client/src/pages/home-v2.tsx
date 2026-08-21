@@ -527,7 +527,7 @@ export default function HomeV2Page() {
                   className="gap-2 font-bold h-12 px-6 border-yellow-400/40 hover:bg-yellow-400/10 text-yellow-200 hover:text-yellow-100"
                   data-testid="button-hero-subscribe"
                 >
-                  <Crown size={18} /> Subscribe — £5/mo
+                  <Crown size={18} /> Subscribe — £4.99/mo
                 </Button>
               </Link>
             )}
@@ -797,7 +797,7 @@ export default function HomeV2Page() {
                 />
               </Link>
               <p className="text-[11px] text-zinc-500 uppercase tracking-widest mt-3">
-                £5 / month · Cancel any time
+                £4.99 / month · Cancel any time
               </p>
             </div>
           )}
@@ -927,7 +927,7 @@ export default function HomeV2Page() {
                   className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold h-12 px-8 gap-2"
                   data-testid="button-v2-subscribe"
                 >
-                  Subscribe — £5/month
+                  Subscribe — £4.99/month
                   <ArrowRight size={16} />
                 </Button>
               </Link>
@@ -1038,7 +1038,7 @@ export default function HomeV2Page() {
                 className="group inline-flex items-center gap-3 rounded-full px-8 py-4 bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 text-black font-extrabold tracking-tight shadow-[0_18px_55px_-10px_rgba(245,200,66,0.65)] hover:scale-[1.03] transition-all"
               >
                 <Crown size={20} />
-                Subscribe — £5 / month
+                Subscribe — £4.99 / month
                 <ArrowRight
                   size={18}
                   className="group-hover:translate-x-1 transition-transform"

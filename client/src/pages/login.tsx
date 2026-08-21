@@ -113,7 +113,7 @@ export default function LoginPage() {
         <p className="text-center text-sm text-muted-foreground mt-2">
           Not a member?{" "}
           <Link href="/membership" className="text-primary hover:underline font-semibold">
-            Join for £5/mo
+            Join for £4.99/mo
           </Link>
         </p>
       </div>

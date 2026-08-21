@@ -87,7 +87,7 @@ export default function HomePage() {
             {!user?.isMember && (
               <Link href="/membership">
                 <Button size="lg" variant="outline" className="gap-2 font-bold border-white/20 hover:bg-white/10 text-white" data-testid="button-hero-join">
-                  <Crown size={18} /> Join the Community — £5/mo
+                  <Crown size={18} /> Join the Community — £4.99/mo
                 </Button>
               </Link>
             )}
@@ -193,7 +193,7 @@ export default function HomePage() {
             </div>
             <div>
               <p className="font-semibold text-sm text-white">Members Community</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Private channels, @mentions, link sharing. £5/month. No algorithms, no censorship.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Private channels, @mentions, link sharing. £4.99/month. No algorithms, no censorship.</p>
             </div>
           </div>
           <div className="flex items-start gap-4 py-4 sm:py-0 sm:px-8">
@@ -261,7 +261,7 @@ export default function HomePage() {
               <p className="text-zinc-400 max-w-md mx-auto mb-6">
                 Private channels. @mentions. Shared links. No censorship. No algorithm. Just people who want the truth.
               </p>
-              <p className="text-2xl font-black text-white mb-6">£5 <span className="text-zinc-400 text-base font-normal">/ month</span></p>
+              <p className="text-2xl font-black text-white mb-6">£4.99 <span className="text-zinc-400 text-base font-normal">/ month</span></p>
               <Link href={user ? "/membership" : "/register"}>
                 <Button size="lg" className="bg-red-700 hover:bg-red-600 text-white font-bold px-10 gap-2" data-testid="button-cta-join">
                   <Crown size={18} /> Become a Member
