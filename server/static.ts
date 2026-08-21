@@ -14,6 +14,20 @@ export function serveStatic(app: Express) {
   const ONE_YEAR_SECONDS = 31536000;
   const ONE_HOUR_SECONDS = 3600;
 
+  // The SPA shell is served at "/", "/app" and unknown fallbacks — inject an
+  // absolute base so every relative URL in it resolves from the site root.
+  const spaHtml = (() => {
+    try {
+      const html = fs.readFileSync(path.resolve(distPath, "index.html"), "utf8");
+      return html.includes('<base ') ? html : html.replace("<head>", '<head><base href="/">');
+    } catch { return null; }
+  })();
+  const sendSpa = (res: express.Response) => {
+    res.setHeader("Cache-Control", "no-cache");
+    if (spaHtml) return res.type("html").send(spaHtml);
+    return res.sendFile(path.resolve(distPath, "index.html"));
+  };
+
   app.use(
     express.static(distPath, {
       index: false,
@@ -54,8 +68,7 @@ export function serveStatic(app: Express) {
       if (sid) {
         const row = await pool.query("SELECT user_id FROM sessions WHERE sid=$1", [sid]);
         if (row.rows[0]?.user_id) {
-          res.setHeader("Cache-Control", "no-cache");
-          return res.sendFile(path.resolve(distPath, "index.html"));
+          return sendSpa(res);
         }
       }
     } catch {
@@ -65,15 +78,9 @@ export function serveStatic(app: Express) {
     return res.sendFile(path.resolve(distPath, "landing.html"));
   });
 
-  // The member app — always served, never gated. Deep links look like /app/app/#/news.
-  app.get("/app", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache");
-    return res.sendFile(path.resolve(distPath, "index.html"));
-  });
+  // The member app — always served, never gated. Deep links look like /app/#/news.
+  app.get("/app", (_req, res) => sendSpa(res));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("/{*path}", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache");
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
+  // fall through to the SPA if the file doesn't exist
+  app.use("/{*path}", (_req, res) => sendSpa(res));
 }

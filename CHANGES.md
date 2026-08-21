@@ -130,3 +130,16 @@ is required in env vars.
    root-hash links, session middleware scope, no mockup UI in production).
 2. **Repo root cleaned** — removed the v.13 dump leftovers: `app/`,
    `standalone-preview/`, `data.js.bak`, `plan.md`, `READ-ME-FIRST.txt`.
+
+## v.19 — 2026-08-21
+**CRITICAL FIX: entire /app was blank on live (Sign in, Register, all member pages).**
+- Root cause: `vite.config.ts` had `base: "./"` — built index.html referenced assets relatively (`./assets/index-*.js`). At `/` they resolved fine; at `/app` they resolved to `/app/assets/...` → 404 → SPA catch-all served index.html as text/html → browser blocked the module scripts → blank page. Any URL under /app was dead for everyone.
+- Fix 1: `base: "/"` in vite.config.ts — built assets now referenced absolutely.
+- Fix 2: `server/static.ts` — cached SPA shell with `<base href="/">` injected (`sendSpa`), used by `/` (member branch), `/app` and the catch-all, so deep links can never break asset resolution again even if a relative ref slips through.
+- Verified in build output: `src="/assets/index-*.js"`, `src="/powermap-data.js"` (absolute).
+
+## v.20 — 2026-08-21
+**Security: stop leaking credentials in API responses + DM deletion.**
+- Embedded user objects in community messages, replies, media comments, DM history, DM send responses and DM conversation lists included the full users row — bcrypt password hash, email address and Stripe customer ID went out to any logged-in member's browser. All now pass through `toSafeUser()` (server/storage.ts) which strips `password`, `email`, `stripeCustomerId`. Admin-only endpoints unchanged (still full records, admins only).
+- New route: `DELETE /api/dm/message/:id` — a sender can delete their own DM; admins can delete any. Enables DM moderation and test cleanup.
+- Includes v.19 (blank /app fix) — deploy this, not v.19.

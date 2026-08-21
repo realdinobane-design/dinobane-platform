@@ -12,6 +12,16 @@ import {
   type BlockedUser, type Report,
 } from "@shared/schema";
 
+// ─── SAFE USER ────────────────────────────────────────────────────────────────
+// Fields that must NEVER leave the server inside embedded user objects
+// (messages, DMs, conversation lists). Password hashes, emails and Stripe
+// customer IDs are server-only. Admin endpoints return full users separately.
+export type SafeUser = Omit<User, "password" | "email" | "stripeCustomerId">;
+export function toSafeUser(u: User): SafeUser {
+  const { password: _p, email: _e, stripeCustomerId: _s, ...safe } = u;
+  return safe;
+}
+
 // ─── INTERFACE ────────────────────────────────────────────────────────────────
 export interface IStorage {
   createUser(data: InsertUser): Promise<User>;
@@ -25,11 +35,11 @@ export interface IStorage {
   updateUserProfile(id: number, data: { displayName?: string; avatarInitials?: string; avatarColor?: string; avatarUrl?: string | null; password?: string }): Promise<User>;
   getAllUsers(): Promise<User[]>;
 
-  getMessages(channel: string): Promise<(Message & { user: User })[]>;
-  getMessagesByUser(userId: number): Promise<(Message & { user: User })[]>;
-  getReplies(parentId: number): Promise<(Message & { user: User })[]>;
+  getMessages(channel: string): Promise<(Message & { user: SafeUser })[]>;
+  getMessagesByUser(userId: number): Promise<(Message & { user: SafeUser })[]>;
+  getReplies(parentId: number): Promise<(Message & { user: SafeUser })[]>;
   getReplyCount(parentId: number): Promise<number>;
-  createMessage(data: InsertMessage): Promise<Message & { user: User }>;
+  createMessage(data: InsertMessage): Promise<Message & { user: SafeUser }>;
   deleteMessage(id: number): Promise<void>;
 
   getArticles(): Promise<Article[]>;
@@ -46,8 +56,8 @@ export interface IStorage {
   // Bulk stats — single query for all media items
   getAllMediaStats(userId: number): Promise<Record<number, { likeCount: number; commentCount: number; liked: boolean }>>;
   // Media comments
-  getMediaComments(mediaId: number): Promise<(MediaComment & { user: User })[]>;
-  createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: User }>;
+  getMediaComments(mediaId: number): Promise<(MediaComment & { user: SafeUser })[]>;
+  createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: SafeUser }>;
   deleteMediaComment(id: number, userId: number, isAdmin: boolean): Promise<void>;
   getArticleById(id: number): Promise<Article | undefined>;
   createArticle(data: InsertArticle): Promise<Article>;
@@ -57,13 +67,15 @@ export interface IStorage {
   setSetting(key: string, value: string): Promise<void>;
 
   // Private DMs
-  getDmHistory(userA: number, userB: number): Promise<(PrivateMessage & { from: User; to: User })[]>;
-  sendDm(fromId: number, toId: number, content: string): Promise<PrivateMessage & { from: User; to: User }>;
+  getDmHistory(userA: number, userB: number): Promise<(PrivateMessage & { from: SafeUser; to: SafeUser })[]>;
+  sendDm(fromId: number, toId: number, content: string): Promise<PrivateMessage & { from: SafeUser; to: SafeUser }>;
   markDmsRead(fromId: number, toId: number): Promise<void>;
   getUnreadDmCount(userId: number): Promise<number>;
   getDmEmailSentToday(fromId: number, toId: number): Promise<boolean>;
   recordDmEmailSent(fromId: number, toId: number): Promise<void>;
-  getDmConversations(userId: number): Promise<{ partnerId: number; partner: User; lastMessage: PrivateMessage; unread: number }[]>;
+  getDmConversations(userId: number): Promise<{ partnerId: number; partner: SafeUser; lastMessage: PrivateMessage; unread: number }[]>;
+  getDmById(id: number): Promise<PrivateMessage | undefined>;
+  deleteDm(id: number): Promise<void>;
 
   // Reactions
   getReactions(messageId?: number, dmId?: number): Promise<MessageReaction[]>;
@@ -152,7 +164,7 @@ class DrizzleStorage implements IStorage {
     return db.select().from(users);
   }
 
-  async getMessages(channel: string): Promise<(Message & { user: User })[]> {
+  async getMessages(channel: string): Promise<(Message & { user: SafeUser })[]> {
     // Only return top-level posts (no parentId). Single query with join —
     // previously loaded every user in the DB just to zip names onto messages.
     const rows = await db
@@ -164,10 +176,10 @@ class DrizzleStorage implements IStorage {
 
     return rows
       .filter(r => r.user)
-      .map(r => ({ ...r.message, user: r.user! }));
+      .map(r => ({ ...r.message, user: toSafeUser(r.user!) }));
   }
 
-  async getMessagesByUser(userId: number): Promise<(Message & { user: User })[]> {
+  async getMessagesByUser(userId: number): Promise<(Message & { user: SafeUser })[]> {
     // Returns ALL messages (top-level + replies) by a specific user, across all channels
     const rows = await db
       .select()
@@ -181,10 +193,10 @@ class DrizzleStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return [];
 
-    return rows.map(m => ({ ...m, user }));
+    return rows.map(m => ({ ...m, user: toSafeUser(user) }));
   }
 
-  async getReplies(parentId: number): Promise<(Message & { user: User })[]> {
+  async getReplies(parentId: number): Promise<(Message & { user: SafeUser })[]> {
     // Single join query — see getMessages.
     const rows = await db
       .select({ message: messages, user: users })
@@ -195,7 +207,7 @@ class DrizzleStorage implements IStorage {
 
     return rows
       .filter(r => r.user)
-      .map(r => ({ ...r.message, user: r.user! }));
+      .map(r => ({ ...r.message, user: toSafeUser(r.user!) }));
   }
 
   async getReplyCount(parentId: number): Promise<number> {
@@ -206,10 +218,10 @@ class DrizzleStorage implements IStorage {
     return row?.count ?? 0;
   }
 
-  async createMessage(data: InsertMessage): Promise<Message & { user: User }> {
+  async createMessage(data: InsertMessage): Promise<Message & { user: SafeUser }> {
     const [msg] = await db.insert(messages).values(data).returning();
     const [user] = await db.select().from(users).where(eq(users.id, msg.userId));
-    return { ...msg, user };
+    return { ...msg, user: toSafeUser(user) };
   }
 
   async deleteMessage(id: number): Promise<void> {
@@ -335,7 +347,7 @@ class DrizzleStorage implements IStorage {
   }
 
   // ─── Media comments ───────────────────────────────────────────────────────
-  async getMediaComments(mediaId: number): Promise<(MediaComment & { user: User })[]> {
+  async getMediaComments(mediaId: number): Promise<(MediaComment & { user: SafeUser })[]> {
     // Single join query — previously did one getUserById per comment.
     const rows = await db
       .select({ comment: mediaComments, user: users })
@@ -346,13 +358,13 @@ class DrizzleStorage implements IStorage {
 
     return rows
       .filter(r => r.user)
-      .map(r => ({ ...r.comment, user: r.user! }));
+      .map(r => ({ ...r.comment, user: toSafeUser(r.user!) }));
   }
 
-  async createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: User }> {
+  async createMediaComment(data: { mediaId: number; userId: number; content: string }): Promise<MediaComment & { user: SafeUser }> {
     const [comment] = await db.insert(mediaComments).values(data).returning();
     const user = await this.getUserById(data.userId);
-    return { ...comment, user: user! };
+    return { ...comment, user: toSafeUser(user!) };
   }
 
   async deleteMediaComment(id: number, userId: number, isAdmin: boolean): Promise<void> {
@@ -388,14 +400,23 @@ class DrizzleStorage implements IStorage {
       .where(sql`${users.id} IN (${userA}, ${userB})`);
     const userMap: Record<number, any> = {};
     for (const u of bothUsers) userMap[u.id] = u;
-    return rows.map(r => ({ ...r, from: userMap[r.fromId], to: userMap[r.toId] }));
+    return rows.map(r => ({ ...r, from: toSafeUser(userMap[r.fromId]), to: toSafeUser(userMap[r.toId]) }));
   }
 
   async sendDm(fromId: number, toId: number, content: string) {
     const [msg] = await db.insert(privateMessages).values({ fromId, toId, content }).returning();
     const [from] = await db.select().from(users).where(eq(users.id, fromId));
     const [to] = await db.select().from(users).where(eq(users.id, toId));
-    return { ...msg, from, to };
+    return { ...msg, from: toSafeUser(from), to: toSafeUser(to) };
+  }
+
+  async getDmById(id: number): Promise<PrivateMessage | undefined> {
+    const [msg] = await db.select().from(privateMessages).where(eq(privateMessages.id, id));
+    return msg;
+  }
+
+  async deleteDm(id: number): Promise<void> {
+    await db.delete(privateMessages).where(eq(privateMessages.id, id));
   }
 
   async markDmsRead(fromId: number, toId: number): Promise<void> {
@@ -445,7 +466,7 @@ class DrizzleStorage implements IStorage {
     return partnerIds.map(pid => {
       const convoMessages = rows.filter(r => r.fromId === pid || r.toId === pid);
       const unread = convoMessages.filter(r => r.toId === userId && !r.readAt).length;
-      return { partnerId: pid, partner: partnerMap[pid], lastMessage: convoMessages[0], unread };
+      return { partnerId: pid, partner: toSafeUser(partnerMap[pid]), lastMessage: convoMessages[0], unread };
     });
   }
 

@@ -2305,6 +2305,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
     return res.json(msg);
   });
 
+  // DELETE /api/dm/message/:id — sender (or admin) can delete a DM
+  app.delete("/api/dm/message/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const msg = await storage.getDmById(id);
+    if (!msg) return res.status(404).json({ error: "Message not found" });
+    const me = await storage.getUserById(req.session.userId);
+    const isAdmin = !!me && ADMIN_EMAILS.has(me.email);
+    if (msg.fromId !== req.session.userId && !isAdmin) {
+      return res.status(403).json({ error: "You can only delete your own messages" });
+    }
+    await storage.deleteDm(id);
+    return res.json({ ok: true });
+  });
+
   // POST /api/admin/dm/clear-throttle — admin clears DM email throttle records
   app.post("/api/admin/dm/clear-throttle", async (req, res) => {
     const check = await requireAdmin(req, res);
