@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Power Map — DinoBane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0c; --bg2:#121216; --bg3:#18181d; --ink:#f0ede4; --muted:#9b978c;
+    --line:#26262c; --red:#e5484d; --yellow:#f7e017;
+    --c-money:#e8b94a; --c-media:#5aa9e6; --c-party:#e5484d;
+    --c-person:#b18cff; --c-lobby:#4fc38a; --c-scandal:#ff8a5c;
+    --panel-w:400px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;overflow:hidden}
+  button{font-family:Inter;cursor:pointer}
+
+  /* ---------- header ---------- */
+  header{height:56px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--line);background:rgba(10,10,12,.92);position:relative;z-index:60}
+  header img.logo{height:28px}
+  header .title{font-family:"Archivo Black";font-size:14px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+  header .title em{color:var(--red);font-style:normal}
+  header .spacer{flex:1}
+  .hbtn{background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 14px;font-size:13px;font-weight:600;transition:border-color .15s}
+  .hbtn:hover{border-color:var(--yellow)}
+  .hbtn.active{background:var(--yellow);color:#111;border-color:var(--yellow)}
+  .hbtn.icon{padding:8px 11px}
+  @media(max-width:640px){ header .title{display:none} }
+
+  /* ---------- stage / map ---------- */
+  #stage{position:absolute;inset:56px 0 0 0;overflow:hidden;touch-action:none}
+  #map{width:100%;height:100%;display:block;cursor:grab}
+  #map.dragging{cursor:grabbing}
+  .edge{stroke-opacity:.28;transition:stroke-opacity .2s}
+  .edge.hl{stroke-opacity:.95}
+  .edge.dim{stroke-opacity:.06}
+  .node{cursor:pointer}
+  .node .hit{fill:transparent}
+  .node .vis{transition:transform .18s ease;transform-box:fill-box;transform-origin:center}
+  .node:hover .vis{transform:scale(1.45)}
+  .node text{pointer-events:none;font-family:Inter;fill:#d8d4c8;text-anchor:middle;paint-order:stroke;stroke:#0a0a0c;stroke-width:3px}
+  .node.sel .ring-c{stroke:var(--yellow);stroke-width:2.5;opacity:1}
+  .node.dim{opacity:.18}
+  .ring-c{opacity:0;transition:opacity .15s}
+  .sat{cursor:pointer}
+  .sat .vis{transition:transform .18s ease;transform-box:fill-box;transform-origin:center}
+  .sat:hover .vis{transform:scale(1.6)}
+  .sat text{pointer-events:none;font-family:Inter;fill:#a8a49a;text-anchor:middle;font-size:9px;paint-order:stroke;stroke:#0a0a0c;stroke-width:3px;opacity:0;transition:opacity .15s}
+  .sat:hover text,.sat.lit text{opacity:1}
+  .satlink{stroke:#3a3a42;stroke-width:1;stroke-dasharray:2 4}
+  .ring-guide{fill:none;stroke:#1c1c22;stroke-width:1;stroke-dasharray:3 6}
+
+  /* ---------- key / legend drawer ---------- */
+  #key{position:absolute;top:14px;left:14px;width:248px;max-height:calc(100% - 28px);overflow:auto;background:rgba(14,14,17,.94);border:1px solid var(--line);border-radius:12px;padding:16px;z-index:30;backdrop-filter:blur(8px);transition:transform .25s ease}
+  #key h3{font-family:"Archivo Black";font-size:12px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;color:var(--muted)}
+  #key .krow{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px;font-size:13px;cursor:pointer}
+  #key .krow:hover{background:var(--bg3)}
+  #key .krow.off{opacity:.35}
+  #key .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+  #key .count{margin-left:auto;color:var(--muted);font-size:11.5px}
+  #key .ksep{border-top:1px solid var(--line);margin:10px 0}
+  #key .enote{font-size:11.5px;color:var(--muted);line-height:1.5}
+  #key .eline{display:inline-block;width:18px;height:0;border-top:2px solid #888;vertical-align:middle;margin-right:8px}
+  @media(max-width:1023px){
+    #key{top:auto;left:12px;right:12px;bottom:12px;width:auto;max-height:46vh;transform:translateY(calc(100% + 16px))}
+    #key.open{transform:translateY(0)}
+  }
+  @media(min-width:1024px){
+    #key.closed{transform:translateX(calc(-100% - 20px))}
+  }
+
+  /* ---------- detail panel ---------- */
+  #panel{position:absolute;top:0;right:0;bottom:0;width:var(--panel-w);max-width:100vw;background:var(--bg2);border-left:1px solid var(--line);z-index:40;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.25,1)}
+  #panel.open{transform:translateX(0)}
+  #panel .p-head{padding:20px 20px 14px;border-bottom:1px solid var(--line);flex-shrink:0}
+  #panel .p-type{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:5px;margin-bottom:10px}
+  #panel h2{font-family:"Archivo Black";font-size:21px;text-transform:uppercase;line-height:1.1;padding-right:30px}
+  #panel .p-sub{color:var(--muted);font-size:12.5px;margin-top:6px}
+  #panel .p-close{position:absolute;top:16px;right:16px;background:var(--bg3);border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:8px;font-size:16px}
+  #panel .p-close:hover{color:var(--ink);border-color:var(--yellow)}
+  .p-tabs{display:flex;gap:2px;padding:0 12px;border-bottom:1px solid var(--line);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+  .p-tab{background:none;border:0;color:var(--muted);font-size:12px;font-weight:600;padding:12px 10px;white-space:nowrap;border-bottom:2px solid transparent;transition:color .15s}
+  .p-tab:hover{color:var(--ink)}
+  .p-tab.on{color:var(--yellow);border-bottom-color:var(--yellow)}
+  #panel .p-body{flex:1;overflow-y:auto;padding:18px 20px 30px;overscroll-behavior:contain}
+  .sec{margin-bottom:22px}
+  .sec-label{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .sec-label::after{content:"";flex:1;height:1px;background:var(--line)}
+  .fact{display:flex;gap:10px;font-size:13px;padding:5px 0}
+  .fact b{color:var(--muted);font-weight:600;min-width:86px;font-size:12px}
+  .role{border-left:3px solid var(--red);padding:8px 0 8px 14px;margin-bottom:14px}
+  .role h4{font-size:14px;margin-bottom:2px}
+  .role .r-org{font-size:12px;color:var(--yellow);font-weight:600;margin-bottom:4px}
+  .role p{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .conn{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;cursor:pointer;transition:border-color .15s, background .15s}
+  .conn:hover{border-color:var(--yellow);background:var(--bg3)}
+  .conn .c-arrow{color:var(--muted);flex-shrink:0;padding-top:1px}
+  .conn .c-name{font-size:13.5px;font-weight:600}
+  .conn .c-label{font-size:12px;color:var(--muted);margin-top:1px}
+  .conn .c-kind{margin-left:auto;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:var(--bg3);color:var(--muted)}
+  .contra{border:1px solid rgba(229,72,77,.3);background:rgba(229,72,77,.06);border-radius:9px;padding:12px 14px;margin-bottom:10px}
+  .contra h4{font-size:13.5px;color:var(--red);margin-bottom:4px}
+  .contra p{font-size:12.5px;color:#c9c4b8;line-height:1.55}
+  .empty-note{color:var(--muted);font-size:13px;font-style:italic}
+  .src-list{font-size:12.5px;color:var(--muted);line-height:1.8}
+  .wiki-link{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--yellow);text-decoration:none;border-bottom:1px dashed var(--yellow)}
+
+  /* ---------- tour bar ---------- */
+  #tourbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%) translateY(140%);width:min(620px,calc(100% - 24px));background:rgba(14,14,17,.96);border:1px solid var(--line);border-radius:14px;z-index:50;transition:transform .3s cubic-bezier(.2,.8,.25,1);backdrop-filter:blur(8px);overflow:hidden}
+  #tourbar.on{transform:translateX(-50%) translateY(0)}
+  #tourbar .t-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  #tourbar .t-name{font-family:"Archivo Black";font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--yellow)}
+  #tourbar .t-count{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
+  #tourbar .t-exit{background:none;border:0;color:var(--muted);font-size:18px;padding:2px 6px}
+  #tourbar .t-exit:hover{color:var(--ink)}
+  #tourbar .t-body{padding:14px 16px 16px}
+  #tourbar .t-now{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  #tourbar .t-now b{color:var(--ink);font-size:14px;letter-spacing:0;text-transform:none}
+  #tourbar .t-rel{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--yellow);background:rgba(247,224,23,.07);border:1px solid rgba(247,224,23,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px}
+  #tourbar .t-cap{font-size:13.5px;color:#cfcabd;line-height:1.55}
+  #tourbar .t-nav{display:flex;align-items:center;gap:10px;padding:0 16px 14px}
+  .t-btn{background:var(--bg3);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;transition:border-color .15s}
+  .t-btn:hover:not(:disabled){border-color:var(--yellow)}
+  .t-btn:disabled{opacity:.35;cursor:default}
+  .t-btn.next{background:var(--yellow);color:#111;border-color:var(--yellow);margin-left:auto}
+  #tourbar .t-dots{display:flex;gap:6px;justify-content:center;padding:0 16px 14px}
+  #tourbar .t-dots i{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .2s}
+  #tourbar .t-dots i.done{background:#6b675c}
+  #tourbar .t-dots i.now{background:var(--yellow);transform:scale(1.3)}
+
+  /* tour picker */
+  #tourmenu{position:absolute;top:14px;right:14px;z-index:30;display:flex;flex-direction:column;gap:8px;transition:right .28s}
+  #tourmenu .tm{background:rgba(14,14,17,.94);border:1px solid var(--line);border-radius:10px;padding:10px 14px;text-align:left;color:var(--ink);transition:border-color .15s}
+  #tourmenu .tm:hover{border-color:var(--yellow)}
+  #tourmenu .tm b{font-size:13px;display:block}
+  #tourmenu .tm small{color:var(--muted);font-size:11.5px}
+  @media(max-width:1023px){
+    #tourmenu{top:auto;bottom:12px;left:12px;right:12px;transform:translateY(calc(100% + 16px));transition:transform .25s}
+    #tourmenu.open{transform:translateY(0)}
+  }
+  body.touring #tourmenu{display:none}
+
+  /* ---------- mobile panel: bottom sheet ---------- */
+  @media(max-width:1023px){
+    #panel{top:auto;left:0;right:0;bottom:0;width:auto;height:62vh;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(105%)}
+    #panel.open{transform:translateY(0)}
+    #panel::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:4px;border-radius:99px;background:var(--line)}
+    #panel .p-head{padding-top:24px}
+    #tourbar{bottom:auto;top:10px;transform:translateX(-50%) translateY(-140%)}
+    #tourbar.on{transform:translateX(-50%) translateY(0)}
+  }
+  @media(max-width:1023px) and (min-width:641px){
+    #panel{left:auto;width:min(420px,55vw);border-radius:16px 0 0 16px;border-top:0;border-left:1px solid var(--line);top:0;height:auto;transform:translateX(105%)}
+    #panel.open{transform:translateX(0)}
+    #panel::before{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+    <img class="logo" src="img/orig/logo.png" alt="DinoBane">
+    <span class="title" style="color:var(--ink)">Power <em>Map</em> · Flat</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="hbtn" href="powermap.html" style="text-decoration:none;display:inline-flex;align-items:center">Full view</a>
+  <button class="hbtn" id="keyBtn">Key &amp; filters</button>
+  <button class="hbtn" id="tourBtn">Guided tours</button>
+</header>
+
+<div id="stage">
+  <svg id="map" role="application" aria-label="Power map">
+    <g id="world">
+      <g id="guides"></g>
+      <g id="edges"></g>
+      <g id="nodes"></g>
+      <g id="sats"></g>
+    </g>
+  </svg>
+
+  <div id="key" class="closed"></div>
+  <div id="tourmenu"></div>
+
+  <div id="tourbar">
+    <div class="t-top">
+      <span class="t-name" id="tName"></span>
+      <span class="t-count" id="tCount"></span>
+      <button class="t-exit" id="tExit" title="Exit tour">×</button>
+    </div>
+    <div class="t-body">
+      <div class="t-now" id="tNow"></div>
+      <div class="t-rel" id="tRel" style="display:none"></div>
+      <div class="t-cap" id="tCap"></div>
+    </div>
+    <div class="t-nav">
+      <button class="t-btn" id="tPrev">← Back</button>
+      <button class="t-btn next" id="tNext">Next →</button>
+    </div>
+    <div class="t-dots" id="tDots"></div>
+  </div>
+</div>
+
+<aside id="panel" aria-hidden="true">
+  <div class="p-head">
+    <button class="p-close" id="pClose" title="Close">×</button>
+    <span class="p-type" id="pType"></span>
+    <h2 id="pName"></h2>
+    <div class="p-sub" id="pSub"></div>
+  </div>
+  <nav class="p-tabs" id="pTabs"></nav>
+  <div class="p-body" id="pBody"></div>
+</aside>
+
+<script src="powermap-data.js"></script>
+<script src="powermap-tours.js"></script>
+<script>
+'use strict';
+/* ================= indexes ================= */
+const NN = {}; N.forEach(n => NN[n[0]] = n);
+const byId = id => NN[id];
+const TYPE_COLOR = {money:'var(--c-money)',media:'var(--c-media)',party:'var(--c-party)',person:'var(--c-person)',lobby:'var(--c-lobby)',scandal:'var(--c-scandal)'};
+const TYPE_LABEL = {money:'Money',media:'Media',party:'Party',person:'Person',lobby:'Lobby',scandal:'Scandal'};
+const KIND_LABEL = {money:'money',own:'ownership',party:'party',law:'legal',personal:'personal',state:'state',work:'work'};
+
+/* edges indexed by node */
+const EDGE_BY = {};
+E.forEach(e => {
+  (EDGE_BY[e[0]] = EDGE_BY[e[0]] || []).push(e);
+  (EDGE_BY[e[1]] = EDGE_BY[e[1]] || []).push(e);
+});
+/* satellites by parent */
+const SAT_BY = {};
+SAT.forEach(s => { (SAT_BY[s[0]] = SAT_BY[s[0]] || []).push(s); });
+
+/* ================= layout: concentric rings ================= */
+const RING_R = [200, 360, 500, 640];
+const NODE_R = [30, 23, 17, 12];
+/* flat visual system: power shown by weight, not colour */
+const RING_STYLE = [
+  { stroke:'#e8e4d8', w:2.6, label:12.5, weight:600 },  // ring 0 — the most powerful
+  { stroke:'#b3aea0', w:2.0, label:11,   weight:600 },
+  { stroke:'#8a8578', w:1.75, label:10,  weight:500 },
+  { stroke:'#6e6a5f', w:1.5, label:9.5,  weight:500 },  // ring 3 — peripheral
+];
+const rings = [[],[],[],[]];
+N.forEach(n => rings[n[3]].push(n));
+const TYPE_ORDER = ['party','money','media','person','lobby','scandal'];
+const pos = {};
+rings.forEach((list, ring) => {
+  list.sort((a,b) => TYPE_ORDER.indexOf(a[2]) - TYPE_ORDER.indexOf(b[2]) || a[1].localeCompare(b[1]));
+  const off = ring * 0.7;
+  list.forEach((n, i) => {
+    const a = off + (i / list.length) * Math.PI * 2;
+    const rr = RING_R[ring] + (i % 2 ? 55 : -55); // sub-ring stagger: halves angular crowding
+    pos[n[0]] = { x: Math.cos(a) * rr, y: Math.sin(a) * rr, ring, r: NODE_R[ring] };
+  });
+});
+/* satellite positions: orbit their parent */
+const satPos = [];
+Object.entries(SAT_BY).forEach(([pid, sats]) => {
+  const p = pos[pid]; if (!p) return;
+  sats.forEach((s, i) => {
+    const a = (i / sats.length) * Math.PI * 2 + (pid.length % 7);
+    satPos.push({ s, x: p.x + Math.cos(a) * (p.r + 40), y: p.y + Math.sin(a) * (p.r + 40) });
+  });
+});
+
+/* ================= render ================= */
+const NS = 'http://www.w3.org/2000/svg';
+const $ = id => document.getElementById(id);
+const guides = $('guides'), gEdges = $('edges'), gNodes = $('nodes'), gSats = $('sats');
+
+RING_R.forEach(r => {
+  const c = document.createElementNS(NS,'circle');
+  c.setAttribute('class','ring-guide'); c.setAttribute('r', r); c.setAttribute('cx',0); c.setAttribute('cy',0);
+  guides.appendChild(c);
+});
+
+const edgeEls = [];
+E.forEach(e => {
+  const a = pos[e[0]], b = pos[e[1]]; if (!a || !b) return;
+  const mx = (a.x+b.x)/2*0.88, my = (a.y+b.y)/2*0.88; // slight bow toward centre
+  const p = document.createElementNS(NS,'path');
+  p.setAttribute('d', `M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`);
+  p.setAttribute('class','edge');
+  p.setAttribute('fill','none');
+  const isMoney = (e[4]==='money' || e[4]==='own');
+  p.setAttribute('stroke', isMoney ? '#c22e2e' : (e[2]==='dash' ? '#6b675c' : '#8a8578'));
+  p.setAttribute('stroke-width', isMoney ? 1.5 : 1.2);
+  if (e[2]==='dash') p.setAttribute('stroke-dasharray','4 5');
+  p.dataset.a = e[0]; p.dataset.b = e[1];
+  gEdges.appendChild(p); edgeEls.push(p);
+});
+
+const nodeEls = {};
+N.forEach(n => {
+  const p = pos[n[0]];
+  const g = document.createElementNS(NS,'g');
+  g.setAttribute('class','node'); g.dataset.id = n[0];
+  const hit = document.createElementNS(NS,'circle');
+  hit.setAttribute('class','hit'); hit.setAttribute('cx',p.x); hit.setAttribute('cy',p.y); hit.setAttribute('r', p.r + 10);
+  const st = RING_STYLE[n[3]];
+  const ring = document.createElementNS(NS,'circle');
+  ring.setAttribute('class','ring-c'); ring.setAttribute('cx',p.x); ring.setAttribute('cy',p.y); ring.setAttribute('r', p.r + 5);
+  ring.setAttribute('fill','none'); ring.setAttribute('stroke','transparent');
+  const vis = document.createElementNS(NS,'circle');
+  vis.setAttribute('cx',p.x); vis.setAttribute('cy',p.y); vis.setAttribute('r', p.r);
+  vis.setAttribute('fill','#15151a'); vis.setAttribute('stroke', st.stroke); vis.setAttribute('stroke-width', st.w);
+  const dot = document.createElementNS(NS,'circle');
+  dot.setAttribute('cx',p.x); dot.setAttribute('cy',p.y); dot.setAttribute('r', p.r*0.3);
+  dot.setAttribute('fill', st.stroke); dot.style.pointerEvents='none';
+  const t = document.createElementNS(NS,'text');
+  t.setAttribute('x', p.x); t.setAttribute('y', p.y + p.r + 14);
+  t.setAttribute('font-size', st.label); t.setAttribute('font-weight', st.weight);
+  t.textContent = n[1];
+  const visG = document.createElementNS(NS,'g');
+  visG.setAttribute('class','vis');
+  g.appendChild(hit); g.appendChild(visG); visG.appendChild(ring); visG.appendChild(vis); visG.appendChild(dot); g.appendChild(t);
+  g.addEventListener('click', ev => { ev.stopPropagation(); selectNode(n[0]); });
+  gNodes.appendChild(g); nodeEls[n[0]] = g;
+});
+
+satPos.forEach(({s, x, y}) => {
+  const pp = pos[s[0]];
+  const g = document.createElementNS(NS,'g');
+  g.setAttribute('class','sat');
+  g.dataset.parent = s[0];
+  if (pp) {
+    const link = document.createElementNS(NS,'line');
+    link.setAttribute('class','satlink');
+    link.setAttribute('x1',pp.x); link.setAttribute('y1',pp.y);
+    link.setAttribute('x2',x); link.setAttribute('y2',y);
+    g.appendChild(link);
+  }
+  const hit = document.createElementNS(NS,'circle');
+  hit.setAttribute('cx',x); hit.setAttribute('cy',y); hit.setAttribute('r', 11); hit.setAttribute('fill','transparent');
+  const c = document.createElementNS(NS,'circle');
+  c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r', 6);
+  c.setAttribute('fill','#0e0e11'); c.setAttribute('stroke','#8a8578'); c.setAttribute('stroke-width',1.4);
+  const t = document.createElementNS(NS,'text');
+  t.setAttribute('x', x); t.setAttribute('y', y + 18); t.textContent = s[1];
+  const w = document.createElementNS(NS,'g'); w.setAttribute('class','vis'); w.appendChild(c);
+  g.appendChild(hit); g.appendChild(w); g.appendChild(t);
+  g.addEventListener('click', ev => { ev.stopPropagation(); selectSat(s); });
+  gSats.appendChild(g);
+});
+
+/* ================= pan / zoom ================= */
+const world = $('world'), svg = $('map');
+let view = { x: 0, y: 0, k: 1 };
+function applyView(){ world.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`); }
+function stageBox(){ return svg.getBoundingClientRect(); }
+function resetView(animateTo){
+  const b = stageBox();
+  const panelOpen = $('panel').classList.contains('open') && window.innerWidth > 1023;
+  const availW = b.width - (panelOpen ? Math.min(400, b.width*0.4) : 0);
+  const k = Math.min(availW, b.height) / 1560;
+  const target = { x: (panelOpen ? availW/2 : b.width/2), y: b.height/2, k };
+  if (animateTo) flyTo(target); else { view = target; applyView(); }
+}
+let flyRAF = null;
+function flyTo(target, done){
+  cancelAnimationFrame(flyRAF);
+  const from = {...view}, t0 = performance.now(), dur = 450;
+  (function step(t){
+    const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1-p, 3);
+    view = { x: from.x + (target.x-from.x)*e, y: from.y + (target.y-from.y)*e, k: from.k + (target.k-from.k)*e };
+    applyView();
+    if (p < 1) flyRAF = requestAnimationFrame(step); else if (done) done();
+  })(t0);
+}
+function centerOn(id, zoom){
+  const p = pos[id]; if (!p) return;
+  const b = stageBox();
+  const w = window.innerWidth;
+  const panelOpen = $('panel').classList.contains('open');
+  let cx = b.width/2, cy = b.height/2, availW = b.width, availH = b.height;
+  if (panelOpen && w > 1023) { availW = b.width - Math.min(400, b.width*0.4); cx = availW/2; }
+  else if (panelOpen && w <= 640) { availH = b.height * 0.38; cy = availH/2; }       // mobile bottom sheet
+  else if (panelOpen) { availW = b.width - Math.min(420, b.width*0.55); cx = availW/2; } // tablet side sheet
+  const k = zoom || Math.max(view.k, Math.min(availW, availH) / 700);
+  flyTo({ x: cx - p.x*k, y: cy - p.y*k, k });
+}
+/* drag + wheel + pinch */
+let drag = null, pinch = null;
+svg.addEventListener('pointerdown', e => {
+  svg.setPointerCapture(e.pointerId);
+  if (!drag) { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; svg.classList.add('dragging'); }
+  else pinch = { d: 0, k: view.k, cx: 0, cy: 0 };
+});
+svg.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch' && e.isPrimary === false) return;
+  if (drag && !pinch) { view.x = drag.vx + (e.clientX - drag.x); view.y = drag.vy + (e.clientY - drag.y); applyView(); }
+});
+svg.addEventListener('pointerup', e => { drag = null; pinch = null; svg.classList.remove('dragging'); });
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const b = stageBox(), f = e.deltaY < 0 ? 1.12 : 0.89;
+  const mx = e.clientX - b.left, my = e.clientY - b.top;
+  const k = Math.max(0.25, Math.min(4, view.k * f));
+  view.x = mx - (mx - view.x) * (k / view.k);
+  view.y = my - (my - view.y) * (k / view.k);
+  view.k = k; applyView();
+}, { passive: false });
+svg.addEventListener('click', () => { if (!tour.active) closePanel(); });
+
+/* ================= detail panel ================= */
+const panel = $('panel'), pBody = $('pBody'), pTabs = $('pTabs');
+let curSel = null, curTab = 'profile';
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+function connectionsFor(id){
+  return (EDGE_BY[id] || []).map(e => {
+    const out = e[0] === id;
+    const other = byId(out ? e[1] : e[0]);
+    return { out, otherId: out ? e[1] : e[0], otherName: other ? other[1] : e[1], label: e[3], kind: e[4] || '' };
+  });
+}
+function relationBetween(a, b){
+  const e = (EDGE_BY[a] || []).find(e => (e[0]===a && e[1]===b) || (e[0]===b && e[1]===a));
+  if (!e) return null;
+  return { from: byId(e[0])[1], to: byId(e[1])[1], label: e[3], kind: e[4] || '' };
+}
+
+function buildTabs(sections){
+  pTabs.innerHTML = sections.map(s =>
+    `<button class="p-tab ${s.key===curTab?'on':''}" data-k="${s.key}">${s.label}${s.count!=null?` · ${s.count}`:''}</button>`).join('');
+  pTabs.querySelectorAll('.p-tab').forEach(b => b.addEventListener('click', () => { curTab = b.dataset.k; renderPanel(); }));
+}
+
+function renderPanel(){
+  if (!curSel) return;
+  const { kind, data } = curSel;
+  let sections;
+  if (kind === 'node') {
+    const id = data[0];
+    const roles = ROLES[id] || [];
+    const conns = connectionsFor(id);
+    const contros = CONTRO[id] || [];
+    const sats = SAT_BY[id] || [];
+    sections = [
+      { key:'profile', label:'Profile' },
+      { key:'career', label:'Career & power', count: roles.length || null },
+      { key:'connections', label:'Connections', count: conns.length || null },
+      { key:'controversies', label:'Controversies', count: contros.length || null },
+      { key:'sources', label:'Sources' },
+    ];
+  } else {
+    sections = [
+      { key:'profile', label:'Profile' },
+      { key:'affiliations', label:'Affiliations', count: data[4].length || null },
+      { key:'controversies', label:'Controversies', count: data[5].length || null },
+    ];
+  }
+  if (!sections.find(s => s.key === curTab)) curTab = 'profile';
+  buildTabs(sections);
+  pBody.innerHTML = renderSection(curSel, curTab);
+  pBody.querySelectorAll('.conn').forEach(el => el.addEventListener('click', () => selectNode(el.dataset.id)));
+  pBody.scrollTop = 0;
+}
+
+function renderSection(sel, tab){
+  if (sel.kind === 'sat') {
+    const s = sel.data;
+    if (tab === 'profile') return `
+      <div class="sec"><div class="sec-label">Who they are</div><p style="font-size:13.5px;line-height:1.6">${esc(s[3])}</p></div>
+      <div class="sec"><div class="sec-label">Orbits</div>
+        <div class="conn" data-id="${esc(s[0])}"><span class="c-arrow">↩</span><div><div class="c-name">${esc(byId(s[0]) ? byId(s[0])[1] : s[0])}</div><div class="c-label">${esc(s[2])}</div></div></div>
+      </div>`;
+    if (tab === 'affiliations') return s[4].length
+      ? `<div class="sec"><div class="sec-label">Affiliations</div>${s[4].map(a=>`<div class="fact"><b>·</b><span>${esc(a)}</span></div>`).join('')}</div>`
+      : `<p class="empty-note">No logged affiliations.</p>`;
+    if (tab === 'controversies') return s[5].length
+      ? s[5].map(c=>`<div class="contra"><h4>${esc(c[0])}</h4><p>${esc(c[1])}</p></div>`).join('')
+      : `<p class="empty-note">No logged controversies.</p>`;
+  }
+  const n = sel.data, id = n[0];
+  if (tab === 'profile') {
+    const demog = DEMOG[id], camp = CAMP[id], kissed = KISSED[id];
+    return `
+      <div class="sec"><div class="sec-label">Why they matter</div><p style="font-size:13.5px;line-height:1.65">${esc(n[4])}</p></div>
+      ${camp || demog ? `<div class="sec"><div class="sec-label">Positioning</div>
+        ${camp ? `<div class="fact"><b>Alignment</b><span>${esc(camp)}</span></div>` : ''}
+        ${demog && demog[0] ? `<div class="fact"><b>Heritage</b><span>${esc(demog[0])}</span></div>` : ''}
+        ${demog && demog[1] ? `<div class="fact"><b>Religion</b><span>${esc(demog[1])}</span></div>` : ''}
+        ${demog && demog[2] ? `<div class="fact"><b>Party</b><span>${esc(demog[2])}</span></div>` : ''}
+      </div>` : ''}
+      ${kissed ? `<div class="sec"><div class="sec-label">Foreign ties</div><p style="font-size:12.5px;color:#c9c4b8;line-height:1.6">${esc(kissed)}</p></div>` : ''}
+      ${n[6] ? `<a class="wiki-link" href="https://en.wikipedia.org/wiki/${encodeURIComponent(n[6])}" target="_blank" rel="noopener">Wikipedia: ${esc(n[6])} ↗</a>` : ''}`;
+  }
+  if (tab === 'career') {
+    const roles = ROLES[id] || [];
+    return roles.length
+      ? `<div class="sec"><div class="sec-label">Career &amp; power</div>${roles.map(r=>`<div class="role"><h4>${esc(r[0])}</h4><div class="r-org">${esc(r[1])}</div><p>${esc(r[2])}</p></div>`).join('')}</div>`
+      : `<p class="empty-note">No formal role record — influence here is informal: money, ownership, or access.</p>`;
+  }
+  if (tab === 'connections') {
+    const conns = connectionsFor(id);
+    return conns.length
+      ? `<div class="sec"><div class="sec-label">Connections — tap to travel</div>${conns.map(c=>`
+          <div class="conn" data-id="${esc(c.otherId)}">
+            <span class="c-arrow">${c.out ? '→' : '←'}</span>
+            <div><div class="c-name">${esc(c.otherName)}</div><div class="c-label">${esc(c.label)}</div></div>
+            <span class="c-kind">${esc(KIND_LABEL[c.kind] || c.kind)}</span>
+          </div>`).join('')}</div>`
+      : `<p class="empty-note">No mapped connections.</p>`;
+  }
+  if (tab === 'controversies') {
+    const contros = CONTRO[id] || [];
+    return contros.length
+      ? contros.map(c=>`<div class="contra"><h4>${esc(c[0])}</h4><p>${esc(c[1])}</p></div>`).join('')
+      : `<p class="empty-note">No logged controversies.</p>`;
+  }
+  if (tab === 'sources') {
+    return `<div class="sec"><div class="sec-label">Sources</div><p class="src-list">${esc(n[5]).split(';').map(s=>s.trim()).filter(Boolean).join('<br>')}</p></div>`;
+  }
+  return '';
+}
+
+function openPanel(){ panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); }
+function closePanel(){
+  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
+  curSel = null; clearHighlights();
+  if (!tour.active) resetView(true);
+}
+
+function clearHighlights(){
+  Object.values(nodeEls).forEach(g => g.classList.remove('sel','dim'));
+  edgeEls.forEach(p => p.classList.remove('hl','dim'));
+  document.querySelectorAll('.sat.lit').forEach(g => g.classList.remove('lit'));
+}
+function highlightFor(id){
+  clearHighlights();
+  nodeEls[id] && nodeEls[id].classList.add('sel');
+  const linked = new Set([id]);
+  edgeEls.forEach(p => {
+    if (p.dataset.a === id || p.dataset.b === id) { p.classList.add('hl'); linked.add(p.dataset.a); linked.add(p.dataset.b); }
+    else p.classList.add('dim');
+  });
+  Object.entries(nodeEls).forEach(([nid, g]) => { if (!linked.has(nid)) g.classList.add('dim'); });
+  document.querySelectorAll('.sat').forEach(g => g.classList.toggle('lit', g.dataset.parent === id));
+}
+
+function selectNode(id, fromTour){
+  const n = byId(id); if (!n) return;
+  curSel = { kind:'node', data:n };
+  $('pType').textContent = TYPE_LABEL[n[2]] || n[2];
+  $('pType').style.background = 'rgba(207,201,186,.12)';
+  $('pType').style.color = '#cfc9ba';
+  $('pName').textContent = n[1];
+  const camp = CAMP[id];
+  $('pSub').textContent = camp ? camp + ' · Ring ' + n[3] : 'Ring ' + n[3];
+  openPanel(); renderPanel(); highlightFor(id);
+  if (!fromTour) centerOn(id);
+}
+function selectSat(s){
+  curSel = { kind:'sat', data:s };
+  $('pType').textContent = s[2];
+  $('pType').style.background = 'rgba(140,135,120,.15)'; $('pType').style.color = '#b3aea0';
+  $('pName').textContent = s[1];
+  $('pSub').textContent = 'Satellite of ' + (byId(s[0]) ? byId(s[0])[1] : s[0]);
+  openPanel(); renderPanel(); highlightFor(s[0]);
+}
+$('pClose').addEventListener('click', closePanel);
+
+/* ================= key / filters ================= */
+const keyEl = $('key');
+const typeCounts = {};
+N.forEach(n => typeCounts[n[2]] = (typeCounts[n[2]]||0)+1);
+const activeTypes = new Set(TYPE_ORDER);
+function renderKey(){
+  keyEl.innerHTML = `<h3>Key — tap to filter</h3>` +
+    TYPE_ORDER.map(t => `<div class="krow ${activeTypes.has(t)?'':'off'}" data-t="${t}">
+      <span class="dot" style="background:#cfc9ba"></span>${TYPE_LABEL[t]}s<span class="count">${typeCounts[t]||0}</span></div>`).join('') +
+    `<div class="ksep"></div>
+     <div class="enote"><span class="eline" style="border-top-color:#c22e2e"></span>money / ownership<br><span class="eline"></span>documented link<br><span class="eline" style="border-top-style:dashed"></span>alleged / indirect</div>
+     <div class="ksep"></div>
+     <div class="enote">Rings: closer to the centre = more raw power — bigger, brighter nodes. Hollow pins are satellites — people orbiting a subject. Hover any node to enlarge it.</div>`;
+  keyEl.querySelectorAll('.krow').forEach(r => r.addEventListener('click', () => {
+    const t = r.dataset.t;
+    activeTypes.has(t) ? activeTypes.delete(t) : activeTypes.add(t);
+    applyFilter(); renderKey();
+  }));
+}
+function applyFilter(){
+  Object.entries(nodeEls).forEach(([id, g]) => {
+    g.style.display = activeTypes.has(byId(id)[2]) ? '' : 'none';
+  });
+  edgeEls.forEach(p => {
+    const show = activeTypes.has(byId(p.dataset.a)[2]) && activeTypes.has(byId(p.dataset.b)[2]);
+    p.style.display = show ? '' : 'none';
+  });
+}
+renderKey();
+const isMobile = () => window.innerWidth < 1024;
+$('keyBtn').addEventListener('click', () => {
+  if (isMobile()) { keyEl.classList.toggle('open'); $('tourmenu').classList.remove('open'); }
+  else keyEl.classList.toggle('closed');
+});
+if (isMobile()) keyEl.classList.remove('closed'); else keyEl.classList.add('closed');
+if (isMobile()) keyEl.classList.remove('open');
+
+/* ================= tours: carousel ================= */
+const tour = { active:false, key:null, idx:0 };
+const menuEl = $('tourmenu');
+menuEl.innerHTML = Object.entries(TOURS).map(([k,t],i) =>
+  `<button class="tm" data-k="${k}"><b>${i+1}. ${esc(t.name)}</b><small>${t.stops.length} stops · guided</small></button>`).join('');
+menuEl.querySelectorAll('.tm').forEach(el => el.addEventListener('click', () => { menuEl.classList.remove('open'); startTour(el.dataset.k); }));
+$('tourBtn').addEventListener('click', () => {
+  if (tour.active) return;
+  if (isMobile()) { menuEl.classList.toggle('open'); keyEl.classList.remove('open'); }
+  else menuEl.style.display = menuEl.style.display === 'none' ? '' : 'none';
+});
+if (!isMobile()) menuEl.style.display = ''; // visible on desktop by default
+
+function startTour(k){
+  tour.active = true; tour.key = k; tour.idx = 0;
+  document.body.classList.add('touring');
+  $('tourbar').classList.add('on');
+  gotoStop(0);
+}
+function endTour(){
+  tour.active = false; document.body.classList.remove('touring');
+  $('tourbar').classList.remove('on');
+  closePanel();
+}
+function gotoStop(i){
+  const T = TOURS[tour.key];
+  tour.idx = Math.max(0, Math.min(T.stops.length - 1, i));
+  const [id, caption] = T.stops[tour.idx];
+  const n = byId(id);
+  $('tName').textContent = T.name;
+  $('tCount').textContent = `Stop ${tour.idx + 1} of ${T.stops.length}`;
+  $('tNow').innerHTML = `Now viewing — <b>${esc(n ? n[1] : id)}</b>${n ? ` <span style="color:#9b978c">· ${TYPE_LABEL[n[2]]}</span>` : ''}`;
+  const relEl = $('tRel');
+  if (tour.idx > 0) {
+    const prevId = T.stops[tour.idx - 1][0];
+    const rel = relationBetween(prevId, id);
+    const prevName = byId(prevId) ? byId(prevId)[1] : prevId;
+    relEl.style.display = 'flex';
+    relEl.innerHTML = rel
+      ? `<span>⛓</span><span><b>${esc(prevName)}</b> ${rel.from===prevName ? '→' : '←'} <b>${esc(n[1])}</b> — ${esc(rel.label)}</span>`
+      : `<span>⛓</span><span>Follows <b>${esc(prevName)}</b> — no direct line; the tour steps sideways here.</span>`;
+  } else relEl.style.display = 'none';
+  $('tCap').textContent = caption;
+  $('tDots').innerHTML = T.stops.map((_, j) => `<i class="${j < tour.idx ? 'done' : j === tour.idx ? 'now' : ''}"></i>`).join('');
+  $('tPrev').disabled = tour.idx === 0;
+  $('tNext').textContent = tour.idx === T.stops.length - 1 ? 'Finish ✓' : 'Next →';
+  selectNode(id, true);
+  centerOn(id);
+}
+$('tPrev').addEventListener('click', () => gotoStop(tour.idx - 1));
+$('tNext').addEventListener('click', () => {
+  const T = TOURS[tour.key];
+  if (tour.idx >= T.stops.length - 1) endTour(); else gotoStop(tour.idx + 1);
+});
+$('tExit').addEventListener('click', endTour);
+document.addEventListener('keydown', e => {
+  if (!tour.active) return;
+  if (e.key === 'ArrowRight') $('tNext').click();
+  if (e.key === 'ArrowLeft') $('tPrev').click();
+  if (e.key === 'Escape') endTour();
+});
+
+window.addEventListener('resize', () => { if (!tour.active && !curSel) resetView(); });
+resetView();
+</script>
+</body>
+</html>

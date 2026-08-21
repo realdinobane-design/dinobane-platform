@@ -46,6 +46,12 @@ const ACT_NUMBER: Record<string, string> = {
 };
 
 export function TimelineRendererNoir({ data }: { data: TimelineData }) {
+  // Cross-link any name that exists on the power map into a popup file.
+  useEffect(() => {
+    const t = setTimeout(() => (window as any).PowerLink?.scan(document.body), 400);
+    return () => clearTimeout(t);
+  }, [data]);
+
   const D = data;
   const [activeActIdx, setActiveActIdx] = useState(0);
   const [scrolled, setScrolled] = useState(false);

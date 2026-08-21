@@ -167,9 +167,9 @@ function InnerApp() {
                   contact@realdinobane.com
                 </a>
               {" · "}
-              <a href="/#/contact" className="text-yellow-400 hover:underline">Contact form</a>
+              <a href="/app/#/contact" className="text-yellow-400 hover:underline">Contact form</a>
               {" · "}
-              <a href="/#/privacy" className="text-zinc-500 hover:underline">Privacy Policy</a>
+              <a href="/app/#/privacy" className="text-zinc-500 hover:underline">Privacy Policy</a>
               </p>
             </footer>
           </div>

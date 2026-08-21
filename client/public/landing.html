@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DinoBane — Political Investigations, Timelines &amp; the UK Power Map</title>
+<meta name="description" content="DinoBane: independent political investigations. Daily episodes, sourced timelines of key figures, and an interactive power map of the UK — every name cross-linked.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script>
+  // Members never see this page — bounce anyone with a live session to the app.
+  // MEMBER_HOME: wherever the member app is served from.
+  (function () {
+    var MEMBER_HOME = '/';
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(function (r) { if (r.ok) window.location.replace(MEMBER_HOME); })
+      .catch(function () { /* signed out or API unreachable — show the landing page */ });
+  })();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070708; --bg2:#101013; --ink:#f5f2ea; --muted:#a09c90;
+    --yellow:#f7e017; --yellow-ink:#111; --line:#232327; --red:#e5484d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+  .display{font-family:"Archivo Black",Impact,sans-serif;text-transform:uppercase;letter-spacing:-.01em;line-height:1.02}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  img{display:block;max-width:100%}
+
+  /* grain + vignette overlays */
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");}
+
+  /* ---- nav ---- */
+  header{position:sticky;top:0;z-index:100;background:rgba(7,7,8,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+  .logo svg{width:30px;height:30px}
+  .logo .display{font-size:18px}
+  .navlinks{display:flex;gap:26px;font-size:14px;font-weight:500}
+  .navlinks a{color:var(--muted);text-decoration:none;transition:color .15s}
+  .navlinks a:hover{color:var(--yellow)}
+  .btn{display:inline-block;font-weight:700;text-decoration:none;border-radius:6px;cursor:pointer;border:0;transition:transform .12s, box-shadow .2s;font-family:Inter}
+  .btn:active{transform:scale(.97)}
+  .btn-yellow{background:var(--yellow);color:var(--yellow-ink);padding:10px 20px;font-size:14px}
+  .btn-yellow:hover{box-shadow:0 0 24px rgba(247,224,23,.35)}
+  .btn-ghost{background:transparent;color:var(--ink);padding:10px 20px;font-size:14px;border:1px solid #3a3a40}
+  .btn-ghost:hover{border-color:var(--yellow);color:var(--yellow)}
+  .btn-lg{padding:16px 32px;font-size:16px}
+  @media(max-width:840px){.navlinks{display:none}}
+
+  /* ---- ticker ---- */
+  .ticker{background:var(--yellow);color:var(--yellow-ink);overflow:hidden;white-space:nowrap;border-bottom:3px solid #000}
+  .ticker-inner{display:inline-block;padding:8px 0;font-family:"Archivo Black";font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;animation:tick 38s linear infinite}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .ticker span{margin:0 28px}
+  .ticker .r{color:var(--red)}
+
+  /* ---- hero ---- */
+  .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero-bg{position:absolute;inset:0}
+  .hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 20%}
+  .hero-bg::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,rgba(7,7,8,.96) 0%,rgba(7,7,8,.88) 34%,rgba(7,7,8,.45) 62%,rgba(7,7,8,.15) 100%),
+               linear-gradient(0deg,rgba(7,7,8,.95) 0%,transparent 30%);}
+  .hero-content{position:relative;z-index:2;padding:120px 0 100px;max-width:640px}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #3a3a40;background:rgba(7,7,8,.6);border-radius:99px;padding:7px 15px;font-size:12.5px;font-weight:600;color:var(--muted)}
+  .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .hero h1{font-size:clamp(46px,6.4vw,86px);margin:26px 0 20px;text-shadow:0 4px 40px rgba(0,0,0,.8)}
+  .hero h1 .accent{color:var(--yellow)}
+  .hero h1 .strike{position:relative;color:var(--red)}
+  .hero p.lede{max-width:520px;color:#cfcabd;font-size:18px;text-shadow:0 2px 12px rgba(0,0,0,.9)}
+  .emailgate{display:flex;gap:10px;margin-top:34px;max-width:540px;flex-wrap:wrap}
+  .emailgate input{flex:1;min-width:230px;background:rgba(16,16,19,.85);border:1px solid #3a3a40;border-radius:6px;padding:15px 16px;color:var(--ink);font-size:15px;font-family:Inter}
+  .emailgate input:focus{outline:2px solid var(--yellow);outline-offset:1px}
+  .emailgate small{flex-basis:100%;color:var(--muted);font-size:12.5px}
+  .tape{position:absolute;z-index:3;right:-60px;top:14%;transform:rotate(5deg);background:var(--yellow);color:var(--yellow-ink);padding:16px 90px 16px 30px;font-family:"Archivo Black";font-size:17px;text-transform:uppercase;box-shadow:0 14px 50px rgba(0,0,0,.6)}
+  @media(max-width:900px){.tape{display:none}}
+
+  /* ---- sections ---- */
+  section{padding:90px 0;position:relative}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--yellow);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+  .kicker::before{content:"";width:26px;height:2px;background:var(--red)}
+  h2.display{font-size:clamp(30px,4.4vw,48px);margin-bottom:16px}
+  .sub{color:var(--muted);max-width:640px;margin-bottom:44px;font-size:16.5px}
+  .divider{height:1px;background:var(--line)}
+
+  /* ---- free sample ---- */
+  .sample-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:26px;align-items:stretch}
+  @media(max-width:840px){.sample-grid{grid-template-columns:1fr}}
+  .player{border-radius:12px;overflow:hidden;position:relative;aspect-ratio:16/9;cursor:pointer;border:1px solid #3a3a40}
+  .player img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
+  .player:hover img{transform:scale(1.04)}
+  .player::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,7,8,.85),transparent 55%)}
+  .player .playbtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;background:var(--yellow);display:grid;place-items:center;z-index:3;box-shadow:0 0 0 0 rgba(247,224,23,.5);animation:ring 2.2s infinite}
+  @keyframes ring{0%{box-shadow:0 0 0 0 rgba(247,224,23,.45)}70%{box-shadow:0 0 0 22px rgba(247,224,23,0)}100%{box-shadow:0 0 0 0 rgba(247,224,23,0)}}
+  .playbtn svg{margin-left:4px}
+  .player .free-tag{position:absolute;top:16px;left:16px;background:var(--red);color:#fff;font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:4px;text-transform:uppercase;letter-spacing:.1em;z-index:3}
+  .player .ep-title{position:absolute;left:20px;bottom:16px;z-index:3;font-family:"Archivo Black";font-size:20px;text-transform:uppercase;text-shadow:0 2px 14px #000}
+  .sample-copy{display:flex;flex-direction:column;justify-content:center}
+  .sample-copy h3{font-size:24px;margin-bottom:10px;font-family:"Archivo Black";text-transform:uppercase;line-height:1.15}
+  .sample-copy p{color:var(--muted);font-size:15px}
+  .meta{display:flex;gap:22px;margin-top:22px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--yellow);font-family:"Archivo Black";font-size:20px;display:block}
+
+  /* ---- timeline ---- */
+  #timeline{background:linear-gradient(180deg,rgba(7,7,8,.93),rgba(7,7,8,.96)),url('img/orig/sidebar_thumb_02.jpg') center/cover;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .timeline{margin-top:10px}
+  .tl-item{display:grid;grid-template-columns:100px 1fr;gap:26px;padding:30px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+  .tl-year{font-family:"Archivo Black";font-size:24px;color:var(--yellow)}
+  .tl-item h4{font-size:19px;margin-bottom:5px}
+  .tl-item h4 .new{color:var(--red);font-size:11px;vertical-align:middle;margin-left:10px;letter-spacing:.12em;font-family:Inter;font-weight:700}
+  .tl-item p{color:var(--muted);font-size:14.5px;max-width:660px}
+  .tl-locked{position:relative;user-select:none;border-bottom:0}
+  .tl-locked .blur{filter:blur(7px);pointer-events:none}
+  .tl-lock{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;gap:18px;background:linear-gradient(90deg,rgba(7,7,8,.55),rgba(7,7,8,.15));z-index:2;flex-wrap:wrap}
+  .lock-pill{display:flex;align-items:center;gap:10px;background:rgba(16,16,19,.9);border:1px solid #3a3a40;border-radius:99px;padding:11px 20px;font-size:13.5px;font-weight:600}
+  .xlink{color:var(--yellow);font-weight:600;text-decoration:none;border-bottom:1px dashed rgba(247,224,23,.5)}
+  .xlink:hover{border-bottom-style:solid}
+  /* ---- the loop strip ---- */
+  #loop{padding:0 0 20px}
+  .loop{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:22px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:30px 34px}
+  .loop-step{display:flex;gap:16px;align-items:flex-start}
+  .loop-n{font-family:"Archivo Black";font-size:26px;color:var(--yellow);line-height:1}
+  .loop-step h4{font-size:16px;margin-bottom:5px}
+  .loop-step p{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0}
+  .loop-arrow{font-family:"Archivo Black";font-size:22px;color:var(--red)}
+  @media(max-width:840px){.loop{grid-template-columns:1fr;padding:24px}.loop-arrow{display:none}}
+
+  /* ---- power map ---- */
+  .powermap{display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:stretch}
+  @media(max-width:840px){.powermap{grid-template-columns:1fr}}
+  .mapbox{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+  .mapbox::before{content:"RESTRICTED";position:absolute;right:-38px;top:22px;transform:rotate(35deg);color:rgba(229,72,77,.16);font-family:"Archivo Black";font-size:30px;letter-spacing:.2em;pointer-events:none}
+  .mapbox svg{width:100%;height:auto;display:block}
+  .node{cursor:pointer}
+  .node.locked{opacity:.4;cursor:not-allowed}
+  .node text{pointer-events:none;font-family:Inter}
+  .dossier{border-radius:12px;overflow:hidden;border:1px solid #3a3a40;background:var(--bg2);display:flex;flex-direction:column}
+  .dossier .d-img{height:190px;overflow:hidden;position:relative}
+  .dossier .d-img img{width:100%;height:100%;object-fit:cover;filter:saturate(.85)}
+  .dossier .d-img::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--bg2),transparent 70%)}
+  .dossier .d-body{padding:6px 28px 28px;display:flex;flex-direction:column;flex:1}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:4px;margin-bottom:12px;width:fit-content}
+  .tag-ngo{background:rgba(247,224,23,.14);color:var(--yellow)}
+  .dossier h4{font-family:"Archivo Black";font-size:22px;text-transform:uppercase;margin-bottom:10px}
+  .dossier p{color:var(--muted);font-size:14.5px}
+  .influence{margin:18px 0}
+  .influence .bar{height:8px;background:#1d1d22;border-radius:99px;overflow:hidden;margin-top:6px}
+  .influence .fill{height:100%;background:linear-gradient(90deg,var(--yellow),var(--red));border-radius:99px;width:94%}
+  .influence label{font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .locked-note{border:1px dashed #3a3a40;border-radius:8px;padding:14px 16px;font-size:13.5px;color:var(--muted);margin-top:auto;padding-top:14px}
+  .locked-note b{color:var(--ink)}
+  .dossier .btn{margin-top:16px}
+
+  /* ---- stories ---- */
+  .stories{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  @media(max-width:840px){.stories{grid-template-columns:1fr}}
+  .story{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg2);transition:border-color .2s, transform .2s;position:relative}
+  .story:hover{border-color:#3a3a40;transform:translateY(-3px)}
+  .story .st-img{aspect-ratio:16/9;overflow:hidden}
+  .story .st-img img{width:100%;height:100%;object-fit:cover;filter:saturate(.9)}
+  .story .st-body{padding:20px}
+  .story h4{font-size:16.5px;margin-bottom:6px}
+  .story p{color:var(--muted);font-size:13.5px}
+  .story .st-meta{font-size:12px;color:var(--muted);margin-top:12px;display:flex;gap:12px}
+  .story .lock-tag{position:absolute;top:12px;right:12px;background:rgba(7,7,8,.85);border:1px solid #3a3a40;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;z-index:2}
+  .story.locked-card .st-img img{filter:blur(4px) saturate(.7) brightness(.7)}
+
+  /* ---- member quote ---- */
+  .mquote{display:flex;gap:22px;align-items:center;max-width:840px;margin:0 auto 50px;background:rgba(16,16,19,.92);border:1px solid #2e2e34;border-radius:12px;padding:26px 30px}
+  .mquote img{width:74px;height:74px;border-radius:50%;object-fit:cover;border:2px solid var(--yellow);flex-shrink:0}
+  .mquote blockquote{font-size:16px;color:#d8d4c8;font-style:italic}
+  .mquote cite{display:block;margin-top:8px;font-size:12.5px;color:var(--muted);font-style:normal;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+
+  /* ---- rolling news wire ---- */
+  .wire{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg2)}
+  .w-row{display:flex;align-items:center;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line);font-size:14px;transition:background .15s}
+  .w-row:last-child{border-bottom:0}
+  .w-row:hover{background:var(--bg3)}
+  .w-time{color:var(--muted);font-size:12px;min-width:52px;flex-shrink:0}
+  .w-tag{font-size:10px;font-weight:700;letter-spacing:.1em;padding:3px 8px;border-radius:4px;background:rgba(229,72,77,.14);color:var(--red);flex-shrink:0}
+  .w-head{font-weight:500}
+  .w-locked .w-head{color:var(--muted)}
+  .w-lock{margin-left:auto;font-size:11.5px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+
+  /* ---- community / podcast strip ---- */
+  .strip{display:grid;grid-template-columns:.9fr 1.1fr;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+  @media(max-width:840px){.strip{grid-template-columns:1fr}}
+  .strip .s-img{min-height:280px}
+  .strip .s-img img{width:100%;height:100%;object-fit:cover}
+  .strip .s-body{background:var(--bg2);padding:40px;display:flex;flex-direction:column;justify-content:center}
+  .strip h3{font-family:"Archivo Black";font-size:24px;text-transform:uppercase;margin-bottom:10px}
+  .strip p{color:var(--muted);font-size:15px;max-width:480px}
+
+  /* ---- membership ---- */
+  #membership{background:linear-gradient(180deg,rgba(7,7,8,.94),rgba(7,7,8,.97)),url('img/boardroom.jpg') center/cover fixed}
+  .tiers{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;max-width:840px}
+  @media(max-width:700px){.tiers{grid-template-columns:1fr}}
+  .tier{background:rgba(16,16,19,.92);border:1px solid #2e2e34;border-radius:12px;padding:34px;backdrop-filter:blur(4px)}
+  .tier.featured{border:2px solid var(--yellow);position:relative;box-shadow:0 0 60px rgba(247,224,23,.08)}
+  .tier .badge{position:absolute;top:-13px;left:26px;background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:5px 13px;border-radius:4px;text-transform:uppercase;letter-spacing:.1em}
+  .tier h4{font-family:"Archivo Black";text-transform:uppercase;font-size:18px;margin-bottom:6px}
+  .tier .price{font-family:"Archivo Black";font-size:40px;margin:16px 0 4px;color:var(--yellow)}
+  .tier .price span{font-size:14px;font-family:Inter;color:var(--muted)}
+  .tier ul{list-style:none;margin:20px 0 26px;font-size:14px;color:#c8c4b8}
+  .tier li{padding:6px 0 6px 28px;position:relative}
+  .tier li::before{content:"✓";position:absolute;left:0;color:var(--yellow);font-weight:700}
+  .tier .fineprint{font-size:12px;color:var(--muted);margin-top:14px}
+  .w-full{width:100%}
+
+  footer{padding:56px 0 70px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;background:#050506}
+  footer .cols{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap}
+  footer a{color:var(--muted)}
+
+  /* ---- modal ---- */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:300;padding:24px}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid #3a3a40;border-radius:14px;max-width:430px;width:100%;padding:34px;box-shadow:0 30px 80px rgba(0,0,0,.7)}
+  .modal h3{font-family:"Archivo Black";text-transform:uppercase;font-size:21px;margin-bottom:8px}
+  .modal p{color:var(--muted);font-size:14px;margin-bottom:20px}
+  .modal input{width:100%;background:var(--bg);border:1px solid #3a3a40;border-radius:6px;padding:14px 15px;color:var(--ink);font-size:15px;font-family:Inter;margin-bottom:12px}
+  .modal .demo-note{margin-top:16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+  .modal .close{float:right;background:none;border:0;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="#">
+      <img src="img/orig/logo.png" alt="DinoBane" style="height:34px;width:auto">
+    </a>
+    <nav class="navlinks">
+      <a href="/app/#/media-vault">The Vault</a>
+      <a href="/app/#/news">News</a>
+      <a href="/app/#/timelines">Timeline</a>
+      <a href="powermap.html">Power Map</a>
+      <a href="/app/#/community">Community</a>
+      <a href="videos.html">Videos</a>
+    </nav>
+    <a class="btn btn-yellow" href="/app/#/membership">Join Now</a>
+  </div>
+</header>
+
+<div class="ticker"><div class="ticker-inner" id="ticker">
+  <span>● New episode every day</span><span class="r">▲ Rolling news: updated 4 min ago</span><span>● Timeline: Mandelson record updated</span><span class="r">▲ UK Power Map: 94 nodes mapped</span><span>● Community: members debating tonight's drop</span><span class="r">▲ The Long March: fifty years, one playbook</span>
+</div></div>
+
+<main>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-bg"><img src="img/orig/hero_thumbnail.jpg" alt="DinoBane anchor at the desk"></div>
+    <div class="tape">The establishment's worst nightmare</div>
+    <div class="wrap" style="width:100%">
+      <div class="hero-content">
+        <span class="chip"><span class="dot"></span> New episode every day · Investigations · Timelines · UK Power Map</span>
+        <h1 class="display">They hope<br>you won't<br><span class="accent">look closer.</span><br><span style="font-size:.55em;color:var(--muted)">We already did.</span></h1>
+        <p class="lede">The policies, the price tags, and the people paying for it — documented daily, sourced line by line. The timeline gives you the event. The power map gives you the person behind it.</p>
+        <form class="emailgate" onsubmit="event.preventDefault(); openModal('free');">
+          <input type="email" required placeholder="you@email.com" aria-label="Email">
+          <button class="btn btn-yellow btn-lg" type="submit">Send me a free video</button>
+          <small>Enter your email and we'll send you a private link to a free video from the Vault. Unsubscribe anytime.</small>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+  <!-- THE VAULT / FREE SAMPLE -->
+  <section id="vault">
+    <div class="kicker">The Vault · This week's free sample</div>
+    <h2 class="display">Watch one.<br>It's on the house.</h2>
+    <p class="sub">The Vault is my favourite videos I've ever made, all in one place. Members get the lot — drop your email in above and we'll send you a private link to one, free.</p>
+    <div class="sample-grid">
+      <div class="player" onclick="openModal('free')" role="button" aria-label="Get this week’s Vault pick">
+        <img src="img/orig/featured_video_thumb.jpg" alt="This week’s Vault pick">
+        <span class="free-tag">Free via email link</span>
+        <div class="playbtn"><svg width="26" height="26" viewBox="0 0 24 24" fill="#111"><path d="M8 5v14l11-7z"/></svg></div>
+        <div class="ep-title">This week's Vault pick</div>
+      </div>
+      <div class="sample-copy">
+        <h3>No ads. No algorithm. No permission.</h3>
+        <p>Every video in the Vault is one I chose to put there — the work I'm proudest of, kept exactly as it was made. No sponsor got a say. No platform gets a cut of your attention.</p>
+        <div class="meta">
+          <span><b>2×</b>weekly drops</span>
+          <span><b>0</b>ads, ever</span>
+          <span><b>100%</b>member-funded</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE DOSSIERS -->
+  <section id="stories" style="padding-top:0">
+    <div class="kicker">The Dossiers</div>
+    <h2 class="display">The whole story. In order.<br>With the names attached.</h2>
+    <p class="sub">Not headlines, not hot takes — the full chronological record of how we got here. Every event dated, every claim sourced, and every name in the text is a live link: click it and that person's file opens — bio, affiliations, money, controversies. Nobody else builds the news this way.</p>
+    <div class="stories">
+      <div class="story">
+        <div class="st-img"><img src="img/orig/main_story_thumb.jpg" alt="The Long March dossier"></div>
+        <div class="st-body">
+          <h4>The Long March</h4>
+          <p>Fifty years, four acts, one playbook — how a fringe theory became Whitehall doctrine. Most people can't name the year it started. The dates are in here.</p>
+          <div class="st-meta"><span>4 acts, cross-linked</span><span style="color:var(--yellow)">Start here</span></div>
+        </div>
+      </div>
+      <div class="story locked-card">
+        <span class="lock-tag">🔒 Members</span>
+        <div class="st-img"><img src="img/orig/sidebar_thumb_01.jpg" alt="Starmer dossier"></div>
+        <div class="st-body">
+          <h4>Sir Keir Starmer</h4>
+          <p>From McLibel barrister to Downing Street — every scandal logged in order, every name in it linked to its power-map file. Thirty-eight events. Most of them weren't on the news.</p>
+          <div class="st-meta"><span>38 events, cross-linked</span><span>Members only</span></div>
+        </div>
+      </div>
+      <div class="story locked-card">
+        <span class="lock-tag">🔒 Members</span>
+        <div class="st-img"><img src="img/orig/article_featured_image.jpg" alt="Farage dossier"></div>
+        <div class="st-body">
+          <h4>Nigel Farage</h4>
+          <p>The man who has burned three parties to keep one career warm. Thirty-nine events and counting — every backer and associate one click from their own file.</p>
+          <div class="st-meta"><span>39 events, cross-linked</span><span>Members only</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROLLING NEWS -->
+  <section id="news" style="padding-top:0">
+    <div class="kicker">Rolling news</div>
+    <h2 class="display">The news never sleeps.<br>Neither does this.</h2>
+    <p class="sub">A rolling aggregator of the stories that matter, updated around the clock — with the angle the headlines bury.</p>
+    <div class="wire">
+      <div class="w-row"><span class="w-time">4 min</span><span class="w-tag">POLITICS</span><span class="w-head">Whip's office "unaware" of donation filings — third time this year</span></div>
+      <div class="w-row"><span class="w-time">22 min</span><span class="w-tag">MONEY</span><span class="w-head">Defence contractor lobbying spend doubles ahead of procurement vote</span></div>
+      <div class="w-row"><span class="w-time">1 hr</span><span class="w-tag">MEDIA</span><span class="w-head">Ofcom ruling lands: channel keeps licence, again</span></div>
+      <div class="w-row w-locked"><span class="w-time">2 hr</span><span class="w-tag">ANALYSIS</span><span class="w-head">Why the "emergency" clause wasn't an emergency</span><span class="w-lock">🔒 Members</span></div>
+      <div class="w-row w-locked"><span class="w-time">3 hr</span><span class="w-tag">FOLLOW-UP</span><span class="w-head">The peerage timeline doesn't add up — full breakdown</span><span class="w-lock">🔒 Members</span></div>
+    </div>
+  </section>
+
+  </div><!-- /wrap -->
+
+  <!-- TIMELINE -->
+  <section id="timeline">
+    <div class="wrap">
+      <div class="kicker">The Timeline</div>
+      <h2 class="display">The figures, on the record</h2>
+      <p class="sub">Starmer. Farage. What they did, when they did it, and who paid — dated, sourced, in order. And every name is a live link into the power map: click it, their file opens. Members get the full timelines.</p>
+      <div class="timeline" data-powerlink>
+        <div class="tl-item">
+          <div class="tl-year">1990s</div>
+          <div><h4>McLibel — Starmer vs McDonald's</h4><p>A young barrister helps two environmentalists take on a corporation in the longest trial in English history. The record starts here.</p></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">2009</div>
+          <div><h4>The Savile Decision</h4><p>The CPS declines to prosecute Jimmy Savile. The Director of Public Prosecutions at the time: Keir Starmer. It's in the timeline, with the documents.</p></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">2010</div>
+          <div><h4>The Plane Crash<span class="new">● TRUE</span></h4><p>Polling day, 2010: Nigel Farage goes down in a light aircraft trailing a UKIP banner. He's leading the party again within months. You couldn't write it — so we just sourced it.</p></div>
+        </div>
+        <div class="tl-item tl-locked">
+          <div class="tl-year blur">2024</div>
+          <div class="blur"><h4>Giftgate — the freebies, the refund</h4><p>Lord Alli, the wardrobe, the £6,000 repayment — the first scandal of the new government, logged in full.</p></div>
+          <div class="tl-lock">
+            <span class="lock-pill">🔒 70+ more events across two timelines — members only</span>
+            <a class="btn btn-yellow" href="/app/#/membership">Unlock the timelines</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE LOOP — how the pieces fit together -->
+  <section id="loop">
+    <div class="wrap">
+      <div class="loop">
+        <div class="loop-step"><span class="loop-n">01</span><div><h4>Read the event</h4><p>The full timeline, in order — not the day's spin.</p></div></div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step"><span class="loop-n">02</span><div><h4>Click any name</h4><p>Every person mentioned is a live link.</p></div></div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step"><span class="loop-n">03</span><div><h4>Their file opens</h4><p>Bio, affiliations, funding, controversies — already mapped.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+
+  <!-- POWER MAP -->
+  <section id="powermap">
+    <div class="kicker">The Power Map</div>
+    <h2 class="display">Who actually calls the shots</h2>
+    <p class="sub">A reference library disguised as a map: 94 players, 118 connections, every one sourced — who they are, who they're affiliated with, who finances them. The research that would take you weeks is already done, and every name in every timeline lands here. <a href="powermap.html" style="color:var(--yellow)">Open the full map →</a></p>
+    <div class="powermap">
+      <div class="mapbox">
+        <svg viewBox="0 0 560 395" aria-label="Power map">
+          <!-- edges: real connections from the dataset -->
+          <line x1="280" y1="215" x2="170" y2="120" stroke="#2c2c33" stroke-width="2" stroke-dasharray="5 5"/>
+          <line x1="280" y1="215" x2="395" y2="120" stroke="#2c2c33" stroke-width="2" stroke-dasharray="5 5"/>
+          <line x1="280" y1="215" x2="280" y2="345" stroke="#2c2c33" stroke-width="2" stroke-dasharray="5 5"/>
+          <line x1="280" y1="215" x2="105" y2="225" stroke="#c22e2e" stroke-width="2"/>
+          <line x1="280" y1="215" x2="455" y2="225" stroke="#c22e2e" stroke-width="2"/>
+          <line x1="280" y1="215" x2="130" y2="330" stroke="#c22e2e" stroke-width="2"/>
+          <line x1="280" y1="215" x2="430" y2="335" stroke="#c22e2e" stroke-width="2"/>
+          <line x1="170" y1="120" x2="395" y2="120" stroke="#2c2c33" stroke-width="1.5" stroke-dasharray="3 5"/>
+          <line x1="455" y1="225" x2="500" y2="110" stroke="#c22e2e" stroke-width="1.5"/>
+          <line x1="105" y1="225" x2="60"  y2="105" stroke="#c22e2e" stroke-width="1.5"/>
+          <line x1="455" y1="225" x2="430" y2="335" stroke="#2c2c33" stroke-width="1.5" stroke-dasharray="3 5"/>
+          <!-- locked nodes: real names from the map -->
+          <g class="node locked" transform="translate(170,120)"><circle r="19" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="13">🔒</text><text y="37" text-anchor="middle" font-size="11" fill="#a09c90">Tony Blair</text></g>
+          <g class="node locked" transform="translate(395,120)"><circle r="19" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="13">🔒</text><text y="37" text-anchor="middle" font-size="11" fill="#a09c90">Labour Party</text></g>
+          <g class="node locked" transform="translate(280,345)"><circle r="19" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="13">🔒</text><text y="37" text-anchor="middle" font-size="11" fill="#a09c90">Sadiq Khan</text></g>
+          <g class="node locked" transform="translate(105,225)"><circle r="17" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="12">🔒</text><text y="35" text-anchor="middle" font-size="10.5" fill="#a09c90">Larry Fink</text></g>
+          <g class="node locked" transform="translate(455,225)"><circle r="17" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="12">🔒</text><text y="35" text-anchor="middle" font-size="10.5" fill="#a09c90">Rupert Murdoch</text></g>
+          <g class="node locked" transform="translate(130,330)"><circle r="17" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="12">🔒</text><text y="35" text-anchor="middle" font-size="10.5" fill="#a09c90">China</text></g>
+          <g class="node locked" transform="translate(430,335)"><circle r="17" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="12">🔒</text><text y="35" text-anchor="middle" font-size="10.5" fill="#a09c90">UAE</text></g>
+          <g class="node locked" transform="translate(60,105)"><circle r="15" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="11">🔒</text><text y="32" text-anchor="middle" font-size="10" fill="#a09c90">Serco</text></g>
+          <g class="node locked" transform="translate(500,110)"><circle r="15" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="11">🔒</text><text y="32" text-anchor="middle" font-size="10" fill="#a09c90">GB News</text></g>
+          <g class="node locked" transform="translate(280,42)"><circle r="15" fill="#141418" stroke="#3a3a42" stroke-width="2"/><text y="4" text-anchor="middle" font-size="11">🔒</text><text y="32" text-anchor="middle" font-size="10" fill="#a09c90">Nigel Farage</text></g>
+          <line x1="280" y1="215" x2="280" y2="42" stroke="#2c2c33" stroke-width="1.5" stroke-dasharray="3 5"/>
+          <!-- free sample node -->
+          <g class="node" transform="translate(280,215)" onclick="pickNode(this)" role="button" tabindex="0">
+            <circle r="34" fill="none" stroke="#f7e017" stroke-width="1.5" opacity=".5"><animate attributeName="r" values="30;40;30" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;.1;.6" dur="2.4s" repeatCount="indefinite"/></circle>
+            <circle r="25" fill="#f7e017"/><text y="6" text-anchor="middle" font-size="16" font-weight="700" fill="#111">★</text>
+            <text y="48" text-anchor="middle" font-size="11.5" font-weight="600" fill="#f7e017">World Economic Forum</text>
+            <text y="63" text-anchor="middle" font-size="10" fill="#a09c90">Free dossier — tap to open</text>
+          </g>
+        </svg>
+      </div>
+      <div class="dossier" id="dossier">
+        <div class="d-img"><img src="img/orig/sidebar_thumb_03.jpg" alt="Davos"></div>
+        <div class="d-body">
+          <span class="tag tag-ngo">Free dossier · Lobby</span>
+          <h4>World Economic Forum</h4>
+          <p>Funded by around 1,000 multinational corporations, Davos is where governments, central bankers and billionaires settle the agenda before voters ever hear it. Blair sat on the board of trustees. Starmer and Reeves attend. No ballot box, no manifesto — yet every government on this map sends its people to the mountain.</p>
+          <p style="font-size:13px;margin-top:14px">Mapped connections: <b style="color:var(--ink)">Tony Blair · Labour Party · Sadiq Khan</b></p>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px">Sources: FT · Politico · The Telegraph · weforum.org</p>
+          <div class="locked-note" style="margin-top:16px">🔒 <b>The other 93 nodes are members-only:</b> who funds Reform, who owns the press, and which states are buying Britain piece by piece.</div>
+          <a class="btn btn-yellow w-full" href="/app/#/membership" style="text-align:center">Unlock the full map</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMUNITY -->
+  <section id="community" style="padding-top:0">
+    <div class="strip">
+      <div class="s-img"><img src="img/orig/podcast_cover.jpg" alt="Studio microphone"></div>
+      <div class="s-body">
+        <div class="kicker">The Community</div>
+        <h3>Talk to me. Talk to each other.</h3>
+        <p>The members' community — a direct line to me and to everyone else who's paying attention. Debate tonight's drop, share what you've found, compare notes.</p>
+        <div style="margin-top:22px"><a class="btn btn-ghost" href="/app/#/membership">Join the conversation</a></div>
+      </div>
+    </div>
+  </section>
+
+  </div><!-- /wrap -->
+
+  <!-- MEMBERSHIP -->
+  <section id="membership">
+    <div class="wrap">
+      <div class="kicker">Membership</div>
+      <h2 class="display">Fund the work</h2>
+      <p class="sub">No ads. No algorithms. No sponsors. Just the work — funded by members, and answerable to no one else.</p>
+      <div class="tiers">
+        <div class="tier">
+          <h4>Reader</h4>
+          <div class="price">£5<span>/month</span></div>
+          <ul>
+            <li>Rolling news, unlocked in full</li>
+            <li>Complete timeline of key figures</li>
+            <li>All articles &amp; deep dives</li>
+            <li>Weekly members newsletter</li>
+          </ul>
+          <a class="btn btn-ghost w-full" href="/app/#/membership" style="text-align:center">Choose Reader</a>
+          <div class="fineprint">Cancel anytime in two clicks. We mean it.</div>
+        </div>
+        <div class="tier featured">
+          <span class="badge">Most popular</span>
+          <h4>Full Member</h4>
+          <div class="price">£9<span>/month</span></div>
+          <ul>
+            <li>Everything in Reader</li>
+            <li>The Vault — every video, ad-free</li>
+            <li>Complete UK Power Map dossiers</li>
+            <li>Community — a direct line to me</li>
+            <li>Early access to new drops</li>
+          </ul>
+          <a class="btn btn-yellow w-full" href="/app/#/membership" style="text-align:center">Become a Member</a>
+          <div class="fineprint">Secure checkout. Cancel anytime in two clicks.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap cols">
+    <div><b style="color:var(--ink)">DINOBANE</b><br>Independent political investigations.<br>Timelines, dossiers, and the UK power map.</div>
+    <div style="display:flex;gap:56px;flex-wrap:wrap">
+      <div><b style="color:var(--ink);display:block;margin-bottom:8px">The site</b>
+        <a href="/app/#/media-vault" style="display:block;text-decoration:none;padding:3px 0">The Vault</a>
+        <a href="/app/#/news" style="display:block;text-decoration:none;padding:3px 0">Rolling News</a>
+        <a href="/app/#/timelines" style="display:block;text-decoration:none;padding:3px 0">Timelines</a>
+      </div>
+      <div><b style="color:var(--ink);display:block;margin-bottom:8px">The tools</b>
+        <a href="powermap.html" style="display:block;text-decoration:none;padding:3px 0">Power Map</a>
+        <a href="powermap-flat.html" style="display:block;text-decoration:none;padding:3px 0">Power Map — Flat</a>
+        <a href="videos.html" style="display:block;text-decoration:none;padding:3px 0">Videos</a>
+      </div>
+      <div><b style="color:var(--ink);display:block;margin-bottom:8px">Members</b>
+        <a href="/app/#/community" style="display:block;text-decoration:none;padding:3px 0">Community</a>
+        <a href="/app/#/membership" style="display:block;text-decoration:none;padding:3px 0">Membership</a>
+      </div>
+    </div>
+    <div>New episode every day.</div>
+  </div>
+</footer>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalbg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <h3 id="modalTitle">Join DinoBane</h3>
+    <p id="modalSub">Create your account — takes 20 seconds.</p>
+    <input type="text" placeholder="Your name">
+    <input type="email" placeholder="you@email.com">
+    <button class="btn btn-yellow btn-lg w-full" onclick="alert('Demo: this is where the secure checkout / account creation handoff would happen.')">Continue →</button>
+    <div class="demo-note">⚠️ Mockup demo: no real account or payment here. In production this step creates the account server-side and hands off to the payment provider — the paywall is enforced on the server, not in the browser.</div>
+  </div>
+</div>
+
+<script src="powermap-data.js"></script>
+<script src="person-popup.js"></script>
+<script>
+  // duplicate ticker content for seamless loop
+  const t = document.getElementById('ticker');
+  t.innerHTML += t.innerHTML;
+
+  const titles = {
+    free:  ["Your free Vault video", "Enter your email and we'll send you a private link to a free video from the Vault. No card, no account."],
+    reader:["Join as Reader", "£5/month. Create your account, then checkout."],
+    member:["Become a Member", "£9/month. Create your account, then secure checkout."]
+  };
+  function openModal(kind){
+    const [tt,s] = titles[kind] || titles.member;
+    document.getElementById('modalTitle').textContent = tt;
+    document.getElementById('modalSub').textContent = s;
+    document.getElementById('modalbg').classList.add('open');
+  }
+  function closeModal(){ document.getElementById('modalbg').classList.remove('open'); }
+  function pickNode(){
+    document.getElementById('dossier').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+</script>
+</body>
+</html>

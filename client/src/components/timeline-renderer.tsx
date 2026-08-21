@@ -138,6 +138,12 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
     }
   }, []);
 
+  // Cross-link any name that exists on the power map into a popup file.
+  useEffect(() => {
+    const t = setTimeout(() => (window as any).PowerLink?.scan(document.body), 400);
+    return () => clearTimeout(t);
+  }, [D]);
+
   // Scroll-reveal for timeline cards and act dividers.
   useEffect(() => {
     const io = new IntersectionObserver(
