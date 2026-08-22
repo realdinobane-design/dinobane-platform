@@ -82,7 +82,7 @@ Other static data: `client/public/map-nodes.json` — generated index of all nod
 - The owner has **no git push credentials from the AI sandbox**. Delivery = one zip of the whole repo: `dinobane-platform-vN.zip`. The owner unzips and pushes.
 - **One zip per handover. Delete the previous version's zip. Every version gets a `## v.N — YYYY-MM-DD` entry in `CHANGES.md`** describing what changed and how it was tested.
 - Before zipping: `rm -rf node_modules dist` (both are rebuildable; node_modules is huge).
-- Current version: **v.27**.
+- Current version: **v.28**.
 
 ---
 
@@ -145,6 +145,7 @@ Classic-script `const` globals — shared across script tags in the browser (sam
 - **v.25** — global search (`/api/search` + `/app/#/search`), free timeline teaser with members lock card, source-confidence chips (verified/single-source/contested), event photography (Wikimedia Commons backgrounds), reciprocal map→dossier links, evidence feed + corrections log, member email digest (Resend), documents vault, timeline comparison, ask-the-archive, page-view analytics, admin Intel Desk. All server data in KV — **no migrations**.
 - **v.26** — the Power League (scores, league.html, map badges, bio panel block, popup block, `power` in map-nodes.json); community QoL (unread badges via `localStorage db_lastseen_<channel>`, mention highlighting + "@ Mentions only" filter, online-first members list, jump-to-latest, char counter); vault QoL (search, 5-way sort incl. likes/comments from `/api/media/stats`, header stats, byte-size footers).
 - **v.27** — this handover file. No code changes.
+- **v.28** — nav declutter: desktop bar is 7 primary links + a "More" dropdown (`more: true` flag in `NAV_LINKS`, `PRIMARY_LINKS`/`MORE_LINKS` split in `app-nav.tsx`; mobile drawer shows everything under a MORE divider). League page header gained "← Back to site" alongside "Power Map →".
 
 ---
 

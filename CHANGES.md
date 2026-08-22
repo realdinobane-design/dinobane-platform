@@ -199,3 +199,9 @@ is required in env vars.
 ## v.27 — 2026-08-22
 **Handover documentation only — no code changes.**
 - Added `AI-HANDOVER.md` at the repo root: a full briefing for the next AI/developer — mission statement (DINOBANE = "Democracy In Name Only", and this site is the bane of it), architecture, the KV no-migration pattern, the three-map-data-copies rule, the Power League scoring system and every place scores surface, versioning/zip protocol, sandbox testing recipe with known pitfalls, and outstanding owner-side items (Stripe price ID, deploy env vars). **Repo-root placement is deliberate: it ships to GitHub but is never served by the website. Do not move it into `client/` or any served path.**
+
+## v.28 — 2026-08-22
+**Navigation declutter + Power League back-link fix.**
+- **Power League navigation** — `league.html` previously offered only "Back to the map", stranding visitors who arrived from the site. The header now has two buttons: "← Back to site" (gold, → dinobane.com) and "Power Map →".
+- **Menu bar declutter** — the desktop nav had grown to 12 links and was wrapping to two rows. Split into 7 primary links (Home, Videos, Intel, UK Power Map, Timelines, Community, Vault) plus a "More" dropdown holding the secondary five (Power League, Search, Documents, Ask the Archive, Contact). The More trigger highlights red when one of its pages is active; member-only items keep their crown marker inside the dropdown. Mobile drawer keeps all links, now grouped under a "MORE" divider. Header back to a single 65px row.
+- Tested in Chromium/Playwright: both league buttons present with correct hrefs, desktop nav renders 7 links + working More menu with all 5 items, mobile drawer groups correctly, zero JS errors. `npm run build` passes.

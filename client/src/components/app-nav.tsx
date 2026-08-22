@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked, Network, Search, FileText, Archive, Trophy } from "lucide-react";
+import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked, Network, Search, FileText, Archive, Trophy, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DmChat } from "@/components/dm-chat";
@@ -18,20 +18,26 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_EMAILS = new Set(["realdinobane@gmail.com", "yingchanzeng@gmail.com"]);
 
-const NAV_LINKS: { href: string; label: string; icon: any; memberOnly?: boolean; external?: boolean }[] = [
+type NavLink = { href: string; label: string; icon: any; memberOnly?: boolean; external?: boolean; more?: boolean };
+
+const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Home", icon: null },
   { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
   { href: "/rings-of-power/index.html", label: "UK Power Map", icon: Network, external: true },
-  { href: "/rings-of-power/league.html", label: "Power League", icon: Trophy, external: true },
   { href: "/timelines", label: "Timelines", icon: BookMarked },
-  { href: "/search", label: "Search", icon: Search },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
-  { href: "/documents", label: "Documents", icon: FileText, memberOnly: true },
-  { href: "/ask", label: "Ask the Archive", icon: Archive, memberOnly: true },
-  { href: "/contact", label: "Contact", icon: Mail },
+  // Secondary destinations — grouped under the "More" menu on desktop to keep the bar clean
+  { href: "/rings-of-power/league.html", label: "Power League", icon: Trophy, external: true, more: true },
+  { href: "/search", label: "Search", icon: Search, more: true },
+  { href: "/documents", label: "Documents", icon: FileText, memberOnly: true, more: true },
+  { href: "/ask", label: "Ask the Archive", icon: Archive, memberOnly: true, more: true },
+  { href: "/contact", label: "Contact", icon: Mail, more: true },
 ];
+
+const PRIMARY_LINKS = NAV_LINKS.filter(l => !l.more);
+const MORE_LINKS = NAV_LINKS.filter(l => l.more);
 
 export function AppNav() {
   const { user, refetch } = useAuth();
@@ -92,7 +98,7 @@ export function AppNav() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-          {NAV_LINKS.map(link => link.external ? (
+          {PRIMARY_LINKS.map(link => link.external ? (
             <a
               key={link.href}
               href={link.href}
@@ -121,6 +127,41 @@ export function AppNav() {
               )}
             </Link>
           ))}
+
+          {/* More menu — secondary destinations */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  MORE_LINKS.some(l => !l.external && isActive(l.href))
+                    ? "bg-red-900/30 text-red-400"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+                data-testid="button-nav-more"
+              >
+                More <ChevronDown size={12} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {MORE_LINKS.map(link => (
+                <DropdownMenuItem key={link.href} asChild>
+                  {link.external ? (
+                    <a href={link.href} data-testid={`link-nav-${link.label.toLowerCase()}`}>
+                      {link.icon && <link.icon size={14} className="mr-2 text-muted-foreground" />}
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link href={link.href} data-testid={`link-nav-${link.label.toLowerCase()}`}>
+                      {link.icon && <link.icon size={14} className="mr-2 text-muted-foreground" />}
+                      {link.label}
+                      {link.memberOnly && <Crown size={10} className="ml-auto text-yellow-500" />}
+                    </Link>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         {/* Right side */}
@@ -260,7 +301,7 @@ export function AppNav() {
       {/* Mobile nav dropdown */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border bg-background px-4 py-3 flex flex-col gap-1">
-          {NAV_LINKS.map(link => link.external ? (
+          {PRIMARY_LINKS.map(link => link.external ? (
             <a
               key={link.href}
               href={link.href}
@@ -287,6 +328,39 @@ export function AppNav() {
               {link.memberOnly && <Crown size={11} className="text-yellow-500" />}
             </Link>
           ))}
+
+          {/* Secondary destinations */}
+          <div className="mt-2 pt-2 border-t border-border">
+            <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">More</p>
+            {MORE_LINKS.map(link => link.external ? (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
+              >
+                {link.icon && <link.icon size={15} />}
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  isActive(link.href)
+                    ? "bg-red-900/30 text-red-400"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                {link.icon && <link.icon size={15} />}
+                {link.label}
+                {link.memberOnly && <Crown size={10} className="ml-auto text-yellow-500" />}
+              </Link>
+            ))}
+          </div>
+
           {!user && (
             <Link
               href="/membership"

@@ -14,7 +14,9 @@ header{display:flex;align-items:center;gap:16px;padding:16px 26px;border-bottom:
 h1{font-size:19px;font-weight:800;letter-spacing:-.3px}
 h1 em{color:var(--gold);font-style:normal}
 .sub{font-size:12px;color:var(--mut)}
-.back{margin-left:auto;font-size:12.5px;color:#c7cfdb;text-decoration:none;border:1px solid var(--line);padding:7px 13px;border-radius:6px}
+.backrow{margin-left:auto;display:flex;gap:8px;align-items:center}
+.back{font-size:12.5px;color:#c7cfdb;text-decoration:none;border:1px solid var(--line);padding:7px 13px;border-radius:6px}
+.back.site{border-color:rgba(201,162,39,.45);color:var(--gold)}
 .back:hover{border-color:var(--gold);color:var(--gold)}
 .wrap{max-width:1080px;margin:0 auto;padding:30px 22px 80px}
 .intro{font-size:13.5px;color:#9aa7b8;line-height:1.7;max-width:760px;margin-bottom:8px}
@@ -53,7 +55,10 @@ td.note{font-size:12px;color:#9aa7b8;line-height:1.5;font-style:italic;max-width
     <h1>THE POWER <em>LEAGUE</em></h1>
     <div class="sub">Every actor on the UK Power Map, scored and ranked · DinoBane Intel</div>
   </div>
-  <a class="back" href="index.html">← Back to the map</a>
+  <div class="backrow">
+    <a class="back site" href="https://dinobane.com/">← Back to site</a>
+    <a class="back" href="index.html">Power Map →</a>
+  </div>
 </header>
 <div class="wrap">
   <p class="intro">Power is not one thing. It is money, office, connections, inheritance and voice — and they do not always live in the same hands. Each actor below is scored 0–10 on five dimensions, doubled to a mark out of 100. Scandal nodes are evidence, not players, and are not scored.</p>
