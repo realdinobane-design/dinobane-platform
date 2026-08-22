@@ -65,6 +65,17 @@ export const TIMELINES: TimelineEntry[] = [
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Official_portrait_of_Nigel_Farage_MP.jpg",
   },
   {
+    slug: "mahmood",
+    title: "Shabana Mahmood",
+    subtitle: "An evidence-led political-intelligence timeline of the Home Secretary",
+    dossierCode: "DB-SM-007",
+    category: "Politics",
+    viewPath: "/mahmood",
+    tags: ["1980 – now", "20 events", "Home Office · Justice · Ladywood"],
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/c/cd/Shabana_Mahmood_Official_Cabinet_Portrait%2C_September_2025_%28cropped%29.jpg",
+  },
+  {
     slug: "overton-shift",
     title: "The Overton Shift",
     subtitle: "Forty years of dragging the window leftward, one outrage at a time",

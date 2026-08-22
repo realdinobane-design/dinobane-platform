@@ -159,3 +159,11 @@ is required in env vars.
 - Intro sequence rebuilt: the zoom starts immediately (was a 3.4s freeze), creeping very slowly and accelerating (ease-in cubic), landing on the standard view exactly as the title finishes fading (~4.2s).
 - Title overlay readability: dark radial backdrop behind the title plus layered shadows on title and strapline — no longer lost against the glowing web.
 - Trial length is one constant (TRIAL_SECONDS in rings-of-power/index.html) if it ever needs tuning.
+
+## v.24 — 2026-08-22
+**New timeline dossier: Shabana Mahmood (`/app/#/mahmood`).**
+- New page `client/src/pages/mahmood.tsx` — full dossier timeline in the Starmer/Farage house pattern: 4 acts (Origins 1980–2010 · Opposition 2010–2024 · The Lord Chancellor 2024–25 · The Home Office 2025–present), 20 events (9 key), 6 pull-quotes (verbatim, sourced: TheyWorkForYou voting fingerprint, British Muslim TV 2024 faith interview, acceptance speech, "safest way forward", "two-tier sentencing… under my watch", Times "fair spread"), collapsible "Read the dossier" details, 6 tactics, 4-step engine, closing. Content built from the 12-dimension Mahmood research dossier (Hansard, TheyWorkForYou, gov.uk, court judgments, official stats).
+- **Power Map cross-links**: 25 in-timeline links deep-link straight into the map at the relevant node — `/rings-of-power/index.html#n=<id>` — covering mahmood, labour, burnham, islam, mb, pakistan, ricu, asylumhotels, grooming, robinson. The map's existing `#n=` deep-link handler flies straight to the node.
+- Route: `/mahmood` (MemberRoute, same gating as /starmer and /farage) in `client/src/App.tsx`; registry seed entry in `client/src/lib/timelines.ts` (slug `mahmood`, code DB-SM-007, official cabinet portrait card image) so the Timelines hub lists it automatically even before any DB registry update.
+- Admin override: same deep-merge pattern as starmer.tsx — content can be edited via the page-content key `mahmood` without code changes; `?defaults=1` previews the shipped copy.
+- Tested in a real browser (Chromium/Playwright): page renders end-to-end with zero JS errors, all acts/quotes/tactics/engine/closing present, hub card links correctly, and `#n=mahmood` deep-link selects her node on the map. Non-members redirect to sign-in as designed.
