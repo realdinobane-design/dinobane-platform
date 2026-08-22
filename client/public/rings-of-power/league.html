@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Power League — who really runs Britain, ranked | DINOBANE</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><circle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%232f9bff%22/></svg>">
+<style>
+:root{--bg:#070a10;--panel:rgba(13,18,26,.92);--line:#1e2a3a;--mut:#7d8ea3;--txt:#e9edf3;--gold:#c9a227;--red:#cc2a2a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(201,162,39,.07),transparent 60%);pointer-events:none}
+header{display:flex;align-items:center;gap:16px;padding:16px 26px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:10;backdrop-filter:blur(8px);flex-wrap:wrap}
+h1{font-size:19px;font-weight:800;letter-spacing:-.3px}
+h1 em{color:var(--gold);font-style:normal}
+.sub{font-size:12px;color:var(--mut)}
+.back{margin-left:auto;font-size:12.5px;color:#c7cfdb;text-decoration:none;border:1px solid var(--line);padding:7px 13px;border-radius:6px}
+.back:hover{border-color:var(--gold);color:var(--gold)}
+.wrap{max-width:1080px;margin:0 auto;padding:30px 22px 80px}
+.intro{font-size:13.5px;color:#9aa7b8;line-height:1.7;max-width:760px;margin-bottom:8px}
+.method{font-size:12px;color:var(--mut);margin-bottom:26px;line-height:1.6}
+.method b{color:#c7cfdb}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.filters button{background:transparent;border:1px solid var(--line);color:#c7cfdb;font-size:11.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:6px 12px;border-radius:20px;cursor:pointer}
+.filters button:hover{border-color:var(--gold);color:var(--gold)}
+.filters button.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--gold)}
+td{padding:10px;border-bottom:1px solid #141c28;vertical-align:middle}
+tr.row{cursor:pointer}
+tr.row:hover td{background:rgba(201,162,39,.05)}
+tr.hl td{background:rgba(201,162,39,.1)}
+td.rank{color:var(--mut);font-weight:700;font-size:13px;width:36px}
+td.name b{font-size:13.5px}
+td.name .ty{display:block;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+.band{display:inline-block;min-width:34px;text-align:center;font-weight:800;font-size:12px;border:1px solid;border-radius:5px;padding:3px 7px}
+td.total{font-weight:800;font-size:15px;width:60px}
+.dim{display:flex;align-items:center;gap:6px;margin:2px 0}
+.dim label{width:56px;flex:none;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut)}
+.dim .bar{flex:1;height:4px;background:#1a2230;border-radius:2px;overflow:hidden;min-width:40px}
+.dim .bar i{display:block;height:100%}
+.dim em{width:14px;font-style:normal;font-size:10px;color:#c7cfdb;text-align:right}
+td.note{font-size:12px;color:#9aa7b8;line-height:1.5;font-style:italic;max-width:340px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 20px;font-size:11px;color:var(--mut)}
+.legend span b{margin-right:4px}
+@media (max-width:760px){td.note,th.note{display:none}.dim label{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>THE POWER <em>LEAGUE</em></h1>
+    <div class="sub">Every actor on the UK Power Map, scored and ranked · DinoBane Intel</div>
+  </div>
+  <a class="back" href="index.html">← Back to the map</a>
+</header>
+<div class="wrap">
+  <p class="intro">Power is not one thing. It is money, office, connections, inheritance and voice — and they do not always live in the same hands. Each actor below is scored 0–10 on five dimensions, doubled to a mark out of 100. Scandal nodes are evidence, not players, and are not scored.</p>
+  <p class="method"><b>Wealth</b> — money owned or controlled · <b>Office</b> — state and institutional levers held right now · <b>Network</b> — who takes the call · <b>Old Money</b> — dynasty, hereditary depth, institutional age · <b>Influence</b> — agenda-setting reach. Bands: <b>S</b> 80+ Apex · <b>A</b> 68+ Core · <b>B</b> 56+ Major Player · <b>C</b> 44+ Operator · <b>D</b> 30+ Satellite · <b>E</b> &lt;30 Periphery. Scores are DinoBane's editorial judgment from the sourced record — click any row to see the evidence on the map.</p>
+  <div class="legend" id="legend"></div>
+  <div class="filters" id="filters"></div>
+  <table>
+    <thead><tr>
+      <th data-k="rank">#</th><th data-k="name">Actor</th><th data-k="total">Score</th><th data-k="band">Band</th>
+      <th>Breakdown</th><th class="note">Why</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<script src="data.js"></script>
+<script src="power-scores.js"></script>
+<script>
+(function(){
+  'use strict';
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const TN={money:'Money',person:'People',party:'Parties',lobby:'Lobbies & States',media:'Media'};
+  const rows=[];
+  N.forEach(a=>{
+    const s=POWER_SCORES[a[0]];
+    if(!s)return;
+    const t=powerTotal(a[0]),band=powerBand(t);
+    rows.push({id:a[0],name:a[1],type:a[2],total:t,band:band.letter,bandName:band.name,dims:s.slice(0,5),note:s[5]});
+  });
+  let filter='all',sortK='total',sortDir=-1;
+  const hl=(location.hash.match(/n=([a-z_0-9]+)/i)||[])[1];
+  const legend=document.getElementById('legend');
+  legend.innerHTML=POWER_BANDS.slice().reverse().map(b=>
+    `<span><b class="band" style="color:${powerBandColor(b[1])};border-color:${powerBandColor(b[1])}">${b[1]}</b>${b[2]} (${b[0]}${b[0]===80?'+':'–'+(b[0]===0?29:POWER_BANDS[POWER_BANDS.findIndex(x=>x[1]===b[1])-1][0]-1)})</span>`
+  ).reverse().join('');
+  const fWrap=document.getElementById('filters');
+  const types=['all','person','money','party','lobby','media'];
+  fWrap.innerHTML=types.map(t=>`<button data-t="${t}" class="${t==='all'?'on':''}">${t==='all'?'All':(TN[t]||t)}</button>`).join('');
+  fWrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    filter=b.dataset.t;
+    fWrap.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    render();
+  }));
+  document.querySelectorAll('th[data-k]').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.k;
+    if(sortK===k)sortDir*=-1;else{sortK=k;sortDir=k==='name'?1:-1;}
+    render();
+  }));
+  function render(){
+    let list=rows.filter(r=>filter==='all'||r.type===filter);
+    list.sort((a,b)=>{
+      if(sortK==='name')return sortDir*a.name.localeCompare(b.name);
+      if(sortK==='band')return sortDir*(a.total-b.total);
+      return sortDir*(a.total-b.total)||a.name.localeCompare(b.name);
+    });
+    document.getElementById('rows').innerHTML=list.map((r,i)=>{
+      const bc=powerBandColor(r.band);
+      const dims=POWER_DIMS.map((d,j)=>`<div class="dim"><label>${d[1]}</label><div class="bar"><i style="width:${r.dims[j]*10}%;background:${bc}"></i></div><em>${r.dims[j]}</em></div>`).join('');
+      return `<tr class="row ${r.id===hl?'hl':''}" data-id="${r.id}">
+        <td class="rank">${i+1}</td>
+        <td class="name"><b>${esc(r.name)}</b><span class="ty">${TN[r.type]||r.type}</span></td>
+        <td class="total" style="color:${bc}">${r.total}</td>
+        <td><span class="band" style="color:${bc};border-color:${bc}" title="${r.bandName}">${r.band}</span></td>
+        <td>${dims}</td>
+        <td class="note">${esc(r.note)}</td>
+      </tr>`;
+    }).join('');
+    document.querySelectorAll('tr.row').forEach(tr=>tr.addEventListener('click',()=>{
+      location.href='index.html#n='+tr.dataset.id;
+    }));
+    if(hl){const el=document.querySelector('tr.hl');if(el)el.scrollIntoView({block:'center'});}
+  }
+  render();
+})();
+</script>
+</body>
+</html>

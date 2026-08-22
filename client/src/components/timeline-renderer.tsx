@@ -43,6 +43,13 @@ export type TimelineEvent = {
   pullQuote?: TimelinePullQuote;
   links: TimelineLink[];
   imageUrl?: string;
+  /**
+   * Source-strength label shown as a small chip on the card:
+   *  - "verified"      — multiple independent primary sources
+   *  - "single-source" — rests on one outlet/record; read with that caveat
+   *  - "contested"     — sources materially disagree; see the body text
+   */
+  confidence?: "verified" | "single-source" | "contested";
 };
 
 /**
@@ -122,7 +129,7 @@ export type TimelineData = {
   extraSections?: ExtraSection[];
 };
 
-export function TimelineRenderer({ data }: { data: TimelineData }) {
+export function TimelineRenderer({ data, locked = false }: { data: TimelineData; locked?: boolean }) {
   const D = data;
 
   // Inject Google Fonts once.
@@ -260,7 +267,7 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
 
         <SectionHead kicker="Section I · Chronology" title="The Drift Leftward" />
         <section className="lm-timeline-host">
-          {groupedTimeline.map((group, gi) => (
+          {(locked ? groupedTimeline.slice(0, 1) : groupedTimeline).map((group, gi) => (
             <ActBlock
               key={group.act?.id ?? `orphans-${gi}`}
               act={group.act}
@@ -271,6 +278,26 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
           ))}
         </section>
 
+        {locked && (
+          <section className="lm-lock" aria-label="Members-only content">
+            <div className="lm-lock-card">
+              <div className="lm-lock-stamp">EYES ONLY — MEMBERS</div>
+              <h3>The rest of this dossier is classified.</h3>
+              <p>
+                {groupedTimeline.length > 1
+                  ? `${groupedTimeline.slice(1).reduce((n, g) => n + g.events.length, 0)} more events, the full tactics matrix, the engine and the closing brief sit behind the members' wall.`
+                  : "The full chronology, tactics matrix, engine and closing brief sit behind the members' wall."}
+              </p>
+              <div className="lm-lock-actions">
+                <a className="lm-lock-cta" href="/app/#/membership">Become a member — £4.99/month</a>
+                <a className="lm-lock-signin" href="/app/#/login">Already a member? Sign in</a>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!locked && (
+        <>
         <SectionHead kicker="Section II · Tactics Matrix" title="Angels' Faces" />
         <div className="lm-tactics-wrap">
           <section className="lm-tactics">
@@ -321,6 +348,8 @@ export function TimelineRenderer({ data }: { data: TimelineData }) {
               <ExtraSectionBlock key={i} section={s} />
             ))}
           </>
+        )}
+        </>
         )}
 
         <footer className="lm-footer">
@@ -446,6 +475,20 @@ function EventRow({
         <div className="lm-card-inner">
           {ev.key && <span className="lm-key-tag">Key Event</span>}
           <span className="lm-year">{ev.year}</span>
+          {ev.confidence && (
+            <span
+              className={`lm-conf lm-conf-${ev.confidence}`}
+              title={
+                ev.confidence === "verified"
+                  ? "Verified — corroborated by multiple independent primary sources"
+                  : ev.confidence === "single-source"
+                    ? "Single source — rests on one outlet or record; read with that caveat"
+                    : "Contested — sources materially disagree; see body text"
+              }
+            >
+              {ev.confidence === "verified" ? "✓ Verified" : ev.confidence === "single-source" ? "◐ Single source" : "⚠ Contested"}
+            </span>
+          )}
           {ev.place && <div className="lm-place">{ev.place}</div>}
           <h3>{ev.title}</h3>
           <p>{ev.body}</p>
@@ -1084,4 +1127,42 @@ const CSS = `
   .lm-thesis{padding:28px 22px}
   .lm-thesis p{font-size:17px}
 }
+
+/* ── Source-confidence chips ─────────────────────────────────────────── */
+.lm-conf{
+  display:inline-block; margin-left:10px; padding:2px 8px;
+  font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; border:1px solid; border-radius:2px;
+  vertical-align:middle; cursor:help;
+}
+.lm-conf-verified{color:#c9a227; border-color:rgba(201,162,39,.55); background:rgba(201,162,39,.08)}
+.lm-conf-single-source{color:#8fa3b8; border-color:rgba(143,163,184,.5); background:rgba(143,163,184,.08)}
+.lm-conf-contested{color:#c0392b; border-color:rgba(192,57,43,.55); background:rgba(192,57,43,.08)}
+
+/* ── Members-lock card (free teaser gate) ────────────────────────────── */
+.lm-lock{display:flex; justify-content:center; padding:36px 20px}
+.lm-lock-card{
+  max-width:560px; width:100%; text-align:center;
+  border:1px dashed rgba(201,162,39,.5); border-radius:6px;
+  background:linear-gradient(180deg, rgba(20,20,24,.92), rgba(12,12,14,.96));
+  padding:44px 32px 36px;
+}
+.lm-lock-stamp{
+  display:inline-block; font-family:"JetBrains Mono",monospace; font-size:11px;
+  letter-spacing:.22em; color:#c9a227; border:1px solid rgba(201,162,39,.6);
+  padding:4px 12px; margin-bottom:18px; transform:rotate(-2deg);
+}
+.lm-lock-card h3{
+  font-family:"Cormorant Garamond",serif; font-style:italic; font-weight:600;
+  font-size:30px; margin:0 0 12px; color:#e8e4da;
+}
+.lm-lock-card p{color:#a8a29a; font-size:15px; line-height:1.6; margin:0 0 24px}
+.lm-lock-actions{display:flex; flex-direction:column; gap:12px; align-items:center}
+.lm-lock-cta{
+  display:inline-block; background:#c9a227; color:#111; font-weight:600;
+  padding:12px 26px; border-radius:3px; text-decoration:none; font-size:15px;
+}
+.lm-lock-cta:hover{background:#dcb53a}
+.lm-lock-signin{color:#8fa3b8; font-size:13px; text-decoration:underline}
+.lm-lock-signin:hover{color:#c9d4e0}
 `;

@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Crown, Upload, Image, Film, Trash2,
   Loader2, Lock, Vault, CloudUpload,
-  Heart, MessageCircle, X, Send, ChevronLeft, ChevronRight
+  Heart, MessageCircle, X, Send, ChevronLeft, ChevronRight, Search
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -369,6 +369,8 @@ export default function MediaVaultPage() {
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<"images" | "videos">("videos");
   const [lightboxItem, setLightboxItem] = useState<MediaItem | null>(null);
+  const [vaultSearch, setVaultSearch] = useState("");
+  const [vaultSort, setVaultSort] = useState<"newest" | "oldest" | "liked" | "discussed" | "largest">("newest");
 
   const openLightbox = (item: MediaItem) => setLightboxItem(item);
 
@@ -459,7 +461,20 @@ export default function MediaVaultPage() {
   const isAdmin = ADMIN_EMAILS.has(user.email);
   const images = media.filter(m => m.type === "image");
   const videos = media.filter(m => m.type === "video");
-  const tabItems = activeTab === "images" ? images : videos;
+  const baseItems = activeTab === "images" ? images : videos;
+  const sortItems = (list: MediaItem[]) => {
+    const arr = [...list];
+    switch (vaultSort) {
+      case "oldest": arr.sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()); break;
+      case "liked": arr.sort((a, b) => (stats[b.id]?.likeCount ?? 0) - (stats[a.id]?.likeCount ?? 0)); break;
+      case "discussed": arr.sort((a, b) => (stats[b.id]?.commentCount ?? 0) - (stats[a.id]?.commentCount ?? 0)); break;
+      case "largest": arr.sort((a, b) => (b.size || 0) - (a.size || 0)); break;
+      default: arr.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    }
+    return arr;
+  };
+  const vq = vaultSearch.trim().toLowerCase();
+  const tabItems = sortItems(vq ? baseItems.filter(m => m.name.toLowerCase().includes(vq)) : baseItems);
 
   return (
     <>
@@ -489,6 +504,11 @@ export default function MediaVaultPage() {
             </h1>
           </div>
           <p className="text-sm text-zinc-500 ml-9">Private media library — images &amp; videos for community use.</p>
+          {media.length > 0 && (
+            <p className="text-[11px] font-mono text-zinc-600 ml-9 mt-1">
+              {media.length} file{media.length === 1 ? "" : "s"} · {formatBytes(media.reduce((n, m) => n + (m.size || 0), 0))} total
+            </p>
+          )}
         </div>
 
         {/* Upload zones (admin only) */}
@@ -534,6 +554,33 @@ export default function MediaVaultPage() {
               ))}
             </div>
 
+            {/* Toolbar: search + sort */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-5">
+              <div className="relative flex-1 max-w-sm">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                <input
+                  value={vaultSearch}
+                  onChange={e => setVaultSearch(e.target.value)}
+                  placeholder="Search files by name…"
+                  className="w-full bg-[#111] border border-[#1e1e1e] rounded-sm pl-8 pr-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-[#cc2a2a]/60"
+                />
+              </div>
+              <select
+                value={vaultSort}
+                onChange={e => setVaultSort(e.target.value as typeof vaultSort)}
+                className="bg-[#111] border border-[#1e1e1e] rounded-sm px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#cc2a2a]/60"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="liked">Most liked</option>
+                <option value="discussed">Most discussed</option>
+                <option value="largest">Largest files</option>
+              </select>
+              <span className="text-[10px] font-mono text-zinc-600 sm:ml-auto">
+                {tabItems.length} shown · {formatBytes(tabItems.reduce((n, m) => n + (m.size || 0), 0))}
+              </span>
+            </div>
+
             {/* Image grid */}
             {activeTab === "images" && (
               <section>
@@ -542,9 +589,13 @@ export default function MediaVaultPage() {
                     <Image size={28} className="text-zinc-700 mx-auto mb-3" />
                     <p className="text-sm text-zinc-500">No images uploaded yet.</p>
                   </div>
+                ) : tabItems.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed border-zinc-800 rounded-sm">
+                    <p className="text-sm text-zinc-500">No images match “{vaultSearch}”.</p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {images.map(item => {
+                    {tabItems.map(item => {
                       const s = stats[item.id] ?? { likeCount: 0, commentCount: 0, liked: false };
                       return (
                         <div key={item.id} onClick={() => openLightbox(item)}
@@ -573,6 +624,12 @@ export default function MediaVaultPage() {
                             <span className="flex items-center gap-1 text-xs text-zinc-500">
                               <MessageCircle size={11} />{s.commentCount}
                             </span>
+                            <span
+                              className="ml-auto text-[10px] font-mono text-zinc-600"
+                              title={`${item.name} · ${new Date(item.uploadedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
+                            >
+                              {formatBytes(item.size)}
+                            </span>
                           </div>
                         </div>
                       );
@@ -590,9 +647,13 @@ export default function MediaVaultPage() {
                     <Film size={28} className="text-zinc-700 mx-auto mb-3" />
                     <p className="text-sm text-zinc-500">No videos uploaded yet.</p>
                   </div>
+                ) : tabItems.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed border-zinc-800 rounded-sm">
+                    <p className="text-sm text-zinc-500">No videos match “{vaultSearch}”.</p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {videos.map(item => {
+                    {tabItems.map(item => {
                       const s = stats[item.id] ?? { likeCount: 0, commentCount: 0, liked: false };
                       return (
                         <div key={item.id} onClick={() => openLightbox(item)}
@@ -626,6 +687,12 @@ export default function MediaVaultPage() {
                             </span>
                             <span className="flex items-center gap-1 text-xs text-zinc-500">
                               <MessageCircle size={11} />{s.commentCount}
+                            </span>
+                            <span
+                              className="ml-auto text-[10px] font-mono text-zinc-600"
+                              title={`${item.name} · ${new Date(item.uploadedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
+                            >
+                              {formatBytes(item.size)}
                             </span>
                           </div>
                         </div>

@@ -12,7 +12,8 @@ import LegacyHomePage from "@/pages/home";
 
 // All other pages are split into their own chunk and loaded on demand.
 // Visitors who only hit the landing page never download these.
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { useLocation } from "wouter";
 const NotFound = lazy(() => import("@/pages/not-found"));
 const ArticlesPage = lazy(() => import("@/pages/articles"));
 const ArticleDetailPage = lazy(() => import("@/pages/article-detail"));
@@ -42,6 +43,12 @@ const AdminLongMarchPage = lazy(() => import("@/pages/admin-long-march"));
 const TimelinesPage = lazy(() => import("@/pages/timelines"));
 const TimelineViewPage = lazy(() => import("@/pages/timeline-view"));
 const AdminTimelineEditorPage = lazy(() => import("@/pages/admin-timeline-editor"));
+const SearchPage = lazy(() => import("@/pages/search"));
+const ComparePage = lazy(() => import("@/pages/compare"));
+const CorrectionsPage = lazy(() => import("@/pages/corrections"));
+const DocumentsPage = lazy(() => import("@/pages/documents"));
+const AskArchivePage = lazy(() => import("@/pages/ask-archive"));
+const AdminIntelPage = lazy(() => import("@/pages/admin-intel"));
 import { AppNav } from "@/components/app-nav";
 import { AdminPageToggle } from "@/components/admin-page-toggle";
 import { AdminBanner } from "@/components/admin-banner";
@@ -84,6 +91,20 @@ function PageLoader() {
   return <div className="min-h-[50vh]" aria-busy="true" aria-label="Loading" />;
 }
 
+// Fires one lightweight page-view ping per route change. Fails silently —
+// analytics must never break navigation.
+function AnalyticsPing() {
+  const [path] = useLocation();
+  useEffect(() => {
+    fetch("/api/analytics/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }).catch(() => {});
+  }, [path]);
+  return null;
+}
+
 function AppRoutes() {
   return (
     <Switch>
@@ -106,14 +127,24 @@ function AppRoutes() {
       <Route path="/articles" component={ArticlesPage} />
       <Route path="/articles/:id" component={ArticleDetailPage} />
 
+      {/* Public utility pages */}
+      <Route path="/search" component={SearchPage} />
+      <Route path="/corrections" component={CorrectionsPage} />
+
+      {/* Timeline routes are public — non-members see the free teaser
+          (first act only) rendered by the pages themselves. */}
+      <Route path="/timelines" component={TimelinesPage} />
+      <Route path="/long-march" component={LongMarchPage} />
+      <Route path="/starmer" component={StarmerPage} />
+      <Route path="/farage" component={FaragePage} />
+      <Route path="/mahmood" component={MahmoodPage} />
+      <Route path="/timeline/:slug" component={TimelineViewPage} />
+
       {/* Member-only routes — must have isMember=true */}
-      <Route path="/timelines">{() => <MemberRoute component={TimelinesPage} />}</Route>
-      <Route path="/long-march">{() => <MemberRoute component={LongMarchPage} />}</Route>
-      <Route path="/starmer">{() => <MemberRoute component={StarmerPage} />}</Route>
-      <Route path="/farage">{() => <MemberRoute component={FaragePage} />}</Route>
-      <Route path="/mahmood">{() => <MemberRoute component={MahmoodPage} />}</Route>
+      <Route path="/compare">{() => <MemberRoute component={ComparePage} />}</Route>
+      <Route path="/documents">{() => <MemberRoute component={DocumentsPage} />}</Route>
+      <Route path="/ask">{() => <MemberRoute component={AskArchivePage} />}</Route>
       <Route path="/long-march-noir">{() => <MemberRoute component={LongMarchNoirPage} />}</Route>
-      <Route path="/timeline/:slug">{() => <MemberRoute component={TimelineViewPage} />}</Route>
       <Route path="/community">{() => <MemberRoute component={CommunityPage} />}</Route>
       <Route path="/media-vault">{() => <MemberRoute component={MediaVaultPage} />}</Route>
       <Route path="/members">{() => <AuthRoute component={MembersPage} />}</Route>
@@ -126,6 +157,7 @@ function AppRoutes() {
       <Route path="/admin/content">{() => <AuthRoute component={AdminContentPage} />}</Route>
       <Route path="/admin/long-march">{() => <AuthRoute component={AdminLongMarchPage} />}</Route>
       <Route path="/admin/timeline/:slug">{() => <AuthRoute component={AdminTimelineEditorPage} />}</Route>
+      <Route path="/admin/intel">{() => <AuthRoute component={AdminIntelPage} />}</Route>
 
       <Route component={NotFound} />
     </Switch>
@@ -152,6 +184,7 @@ function InnerApp() {
           <div className="min-h-screen bg-background text-foreground flex flex-col">
             <AdminBanner />
             <AppNav />
+            <AnalyticsPing />
             <main className="flex-1">
               <Suspense fallback={<PageLoader />}>
                 <AppRoutes />
@@ -172,6 +205,8 @@ function InnerApp() {
               <a href="/app/#/contact" className="text-yellow-400 hover:underline">Contact form</a>
               {" · "}
               <a href="/app/#/privacy" className="text-zinc-500 hover:underline">Privacy Policy</a>
+              {" · "}
+              <a href="/app/#/corrections" className="text-zinc-500 hover:underline">Corrections Log</a>
               </p>
             </footer>
           </div>

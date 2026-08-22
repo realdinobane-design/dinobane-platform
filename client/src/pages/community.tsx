@@ -408,6 +408,7 @@ function PostCard({ msg, channel, user, replyCount, onDm, onImageClick }: {
   const qc = useQueryClient();
   const { toast } = useToast();
   const canDelete = user && (user.id === msg.userId || user.email === "realdinobane@gmail.com" || user.email === "yingchanzeng@gmail.com");
+  const mentionsMe = !!user && msg.content.toLowerCase().includes("@" + (user.username||"").toLowerCase());
 
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/messages/${msg.id}`),
@@ -421,9 +422,19 @@ function PostCard({ msg, channel, user, replyCount, onDm, onImageClick }: {
   });
 
   return (
-    <div className="bg-[#111] border border-[#1e1e1e] hover:border-[#2a2a2a] rounded-sm transition-colors overflow-hidden">
+    <div className={cn(
+      "bg-[#111] border rounded-sm transition-colors overflow-hidden",
+      mentionsMe
+        ? "border-yellow-500/50 hover:border-yellow-500/70 shadow-[0_0_0_1px_rgba(240,200,0,0.15)]"
+        : "border-[#1e1e1e] hover:border-[#2a2a2a]"
+    )}>
       {/* Card header */}
       <div className="px-4 pt-4 pb-3">
+        {mentionsMe && (
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-yellow-500 flex items-center gap-1.5">
+            <Star size={9} className="fill-yellow-500" /> Mentions you
+          </div>
+        )}
         {/* Author row */}
         <div className="flex items-start gap-3">
           <button
@@ -579,7 +590,12 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const [dmInboxOpen, setDmInboxOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ userId: number; username: string; contentType: "message" | "dm" | "user"; contentId?: number } | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [mentionOnly, setMentionOnly] = useState(false);
+  const [memberFilter, setMemberFilter] = useState("");
+  const [showJump, setShowJump] = useState(false);
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const feedScrollRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -671,6 +687,35 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
   const { toast } = useToast();
   const [postSearch, setPostSearch] = useState("");
 
+  // On mount: count posts newer than your last visit in each channel (localStorage),
+  // so unread badges are right even before any WebSocket traffic arrives.
+  useEffect(() => {
+    CHANNELS.forEach(async (ch) => {
+      try {
+        const res = await apiRequest("GET", `/api/messages/${ch.id}`);
+        const msgs: MessageWithUser[] = await res.json();
+        const lastSeen = parseInt(localStorage.getItem(`db_lastseen_${ch.id}`) || "0", 10);
+        const n = msgs.filter(m => !m.parentId && new Date(m.createdAt).getTime() > lastSeen && m.userId !== user?.id).length;
+        if (n > 0) setUnread(u => (u[ch.id] ? u : { ...u, [ch.id]: Math.min(n, 99) }));
+      } catch {}
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mark the active channel as seen whenever its posts load or grow.
+  useEffect(() => {
+    if (!posts.length) return;
+    const latest = Math.max(...posts.map(p => new Date(p.createdAt).getTime()));
+    try { localStorage.setItem(`db_lastseen_${activeChannel}`, String(latest)); } catch {}
+    setUnread(u => (u[activeChannel] ? { ...u, [activeChannel]: 0 } : u));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, activeChannel]);
+
+  // Members: online first, then alphabetical; filterable when the list is long.
+  const sortedMembers = [...membersList]
+    .filter(m => !memberFilter || m.username.toLowerCase().includes(memberFilter.toLowerCase()) || m.displayName.toLowerCase().includes(memberFilter.toLowerCase()))
+    .sort((a, b) => Number(onlineUserIds.has(b.id)) - Number(onlineUserIds.has(a.id)) || a.username.localeCompare(b.username));
+
   // Post new top-level message
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -757,6 +802,11 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                   <p className={cn("text-sm font-semibold leading-none truncate", activeChannel === ch.id ? "text-white" : "")}>{ch.label}</p>
                   <p className="text-[10px] text-zinc-600 mt-0.5 truncate">{ch.sub}</p>
                 </div>
+                {(unread[ch.id] ?? 0) > 0 && activeChannel !== ch.id && (
+                  <span className="ml-auto shrink-0 bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                    {unread[ch.id]}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -797,8 +847,19 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
 
           {membersOpen && (
             <div className="mt-1 space-y-0.5">
+              {membersList.length > 8 && (
+                <div className="px-1 pb-1.5">
+                  <input
+                    value={memberFilter}
+                    onChange={e => setMemberFilter(e.target.value)}
+                    placeholder="Find a member…"
+                    className="w-full bg-[#111] border border-[#1e1e1e] rounded-sm px-2 py-1 text-[11px] text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-[#cc2a2a]/40"
+                  />
+                </div>
+              )}
               {membersList.length === 0 && <p className="text-[11px] text-zinc-700 px-3 py-2">No members yet.</p>}
-              {membersList.map(m => (
+              {membersList.length > 0 && sortedMembers.length === 0 && <p className="text-[11px] text-zinc-700 px-3 py-2">No one matches that.</p>}
+              {sortedMembers.map(m => (
                 <div key={m.id} className="flex items-center gap-1">
                   <button
                     onClick={() => insertMention(m.username)}
@@ -896,6 +957,11 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 )}
               >
                 #{ch.label}
+                {(unread[ch.id] ?? 0) > 0 && activeChannel !== ch.id && (
+                  <span className="ml-1 bg-[#cc2a2a] text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1">
+                    {unread[ch.id]}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -968,7 +1034,10 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                   <ImageIcon size={13} /> Image
                 </button>
                 <div className="ml-auto flex items-center gap-3">
-                  <span className="text-[10px] text-zinc-600">Enter to post · Shift+Enter for new line</span>
+                  {draft.length > 0 && (
+                    <span className={cn("text-[10px] font-mono", draft.length > 2000 ? "text-red-400" : "text-zinc-600")}>{draft.length}/2000</span>
+                  )}
+                  <span className="text-[10px] text-zinc-600 hidden sm:inline">Enter to post · Shift+Enter for new line</span>
                   <button
                     onClick={handleSend}
                     disabled={(!draft.trim() && !pendingImage) || sendMutation.isPending}
@@ -1003,6 +1072,20 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
                 </button>
               )}
             </div>
+            <div className="max-w-2xl mx-auto mt-1.5 flex items-center gap-2">
+              <button
+                onClick={() => setMentionOnly(v => !v)}
+                className={cn(
+                  "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm border transition-colors",
+                  mentionOnly
+                    ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
+                    : "border-[#222] text-zinc-600 hover:text-zinc-400"
+                )}
+              >
+                @ Mentions only
+              </button>
+              {mentionOnly && <span className="text-[10px] text-zinc-600">showing posts that mention @{user.username}</span>}
+            </div>
           </div>
           <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
             {isLoading ? (
@@ -1019,6 +1102,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
               </div>
             ) : (
               posts
+                .filter(p => !mentionOnly || p.content.toLowerCase().includes("@" + user.username.toLowerCase()))
                 .filter(p => !postSearch || p.content.toLowerCase().includes(postSearch.toLowerCase()) || p.user.displayName.toLowerCase().includes(postSearch.toLowerCase()))
                 .map(post => (
                   <PostCard
@@ -1034,6 +1118,15 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
             )}
             <div ref={feedEndRef} />
           </div>
+          {/* Jump to latest — appears when you've scrolled up the feed */}
+          {showJump && (
+            <button
+              onClick={() => feedEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+              className="sticky bottom-4 left-full mr-4 ml-auto flex items-center gap-1.5 bg-[#cc2a2a] hover:bg-red-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-lg shadow-black/40 transition-colors"
+            >
+              <ChevronDown size={12} /> New posts
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1145,7 +1238,7 @@ function CommunityUI({ user, activeChannel, setActiveChannel }: {
             {membersList.length === 0 && (
               <p className="text-[#555] text-sm text-center py-8">No members yet.</p>
             )}
-            {membersList.map(m => (
+            {sortedMembers.map(m => (
               <div key={m.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#1a1a1a] last:border-0">
                 <div className="relative shrink-0">
                   <div

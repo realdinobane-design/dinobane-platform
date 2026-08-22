@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked, Network } from "lucide-react";
+import { Menu, X, Youtube, Users, Crown, Rss, User, Vault, ShieldAlert, Mail, Trash2, MessageSquare, BookMarked, Network, Search, FileText, Archive, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DmChat } from "@/components/dm-chat";
@@ -23,9 +23,13 @@ const NAV_LINKS: { href: string; label: string; icon: any; memberOnly?: boolean;
   { href: "/articles", label: "Videos", icon: Youtube },
   { href: "/news", label: "Intel", icon: Rss },
   { href: "/rings-of-power/index.html", label: "UK Power Map", icon: Network, external: true },
-  { href: "/timelines", label: "Timelines", icon: BookMarked, memberOnly: true },
+  { href: "/rings-of-power/league.html", label: "Power League", icon: Trophy, external: true },
+  { href: "/timelines", label: "Timelines", icon: BookMarked },
+  { href: "/search", label: "Search", icon: Search },
   { href: "/community", label: "Community", icon: Users, memberOnly: true },
   { href: "/media-vault", label: "Vault", icon: Vault, memberOnly: true },
+  { href: "/documents", label: "Documents", icon: FileText, memberOnly: true },
+  { href: "/ask", label: "Ask the Archive", icon: Archive, memberOnly: true },
   { href: "/contact", label: "Contact", icon: Mail },
 ];
 
@@ -208,6 +212,11 @@ export function AppNav() {
                       <DropdownMenuItem asChild>
                         <Link href="/admin/content" data-testid="link-admin-content">
                           <Trash2 size={14} className="mr-2 text-orange-400" /> Content Moderation
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/intel" data-testid="link-admin-intel">
+                          <Archive size={14} className="mr-2 text-yellow-400" /> Intel Desk
                         </Link>
                       </DropdownMenuItem>
                     </>

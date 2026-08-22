@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PageStatusGate } from "@/components/page-status-gate";
 import { TimelineRenderer, type TimelineData } from "@/components/timeline-renderer";
 import { getPageContent } from "@/lib/page-status";
+import { getMe } from "@/lib/auth";
 import { MembersOnlyBanner } from "@/components/members-only-banner";
 import { TimelineReactions } from "@/components/timeline-reactions";
 
@@ -825,6 +826,8 @@ function mergeData(override: Partial<TimelineData> | null | undefined): Timeline
 }
 
 export default function StarmerPage() {
+  const { data: authUser } = useQuery({ queryKey: ["/api/auth/me"], queryFn: getMe, retry: false, staleTime: 300_000 });
+  const locked = !authUser?.isMember;
   const { data: saved } = useQuery({
     queryKey: ["/api/page-content/starmer"],
     queryFn: () => getPageContent<Partial<TimelineData>>("starmer"),
@@ -842,8 +845,8 @@ export default function StarmerPage() {
     <>
       <MembersOnlyBanner variant="auto" />
       <PageStatusGate slug="starmer" name="Sir Keir Starmer">
-        <TimelineRenderer data={D} />
-        <TimelineReactions slug="starmer" />
+        <TimelineRenderer data={D} locked={locked} />
+        {!locked && <TimelineReactions slug="starmer" />}
       </PageStatusGate>
     </>
   );

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PageStatusGate } from "@/components/page-status-gate";
 import { TimelineRenderer, type TimelineData } from "@/components/timeline-renderer";
 import { getPageContent } from "@/lib/page-status";
+import { getMe } from "@/lib/auth";
 import { MembersOnlyBanner } from "@/components/members-only-banner";
 import { TimelineReactions } from "@/components/timeline-reactions";
 
@@ -84,6 +85,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Born into two countries",
       place: "Birmingham",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Mosque_Noor_Ul_Uloom%2C_Small_Heath_-_geograph.org.uk_-_2347760.jpg/1920px-Mosque_Noor_Ul_Uloom%2C_Small_Heath_-_geograph.org.uk_-_2347760.jpg",
+      confidence: "single-source",
       act: "origins",
       body: "Born 17 September 1980 in Birmingham to parents from Mirpur, Azad Kashmir. From 1981 to 1986 the family lived in Taif, Saudi Arabia, where her father worked as a civil engineer — an early childhood split between Small Heath and the Kingdom. On their return she attended the selective King Edward VI Camp Hill School for Girls.",
       links: [
@@ -96,6 +99,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Oxford, then the Bar",
       place: "Oxford / London",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Lincoln_College_Dining_Hall%2C_Oxford_-_Diliff.jpg/1920px-Lincoln_College_Dining_Hall%2C_Oxford_-_Diliff.jpg",
+      confidence: "verified",
       act: "origins",
       body: "Law at Lincoln College, Oxford; called to the Bar in 2003 and practised as a barrister — the legal formation that would later carry her to the Lord Chancellorship.",
       links: [],
@@ -105,6 +110,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "One of the first three",
       place: "Birmingham Ladywood",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/f/f7/Official_portrait_of_Shabana_Mahmood_MP_crop_2.jpg",
+      confidence: "verified",
       act: "origins",
       body: "Elected MP for Birmingham Ladywood on 6 May 2010 — with Rushanara Ali and Yasmin Qureshi, one of the first three Muslim women ever to sit in the House of Commons. Ladywood: inner-city, majority-minority, one of the most deprived constituencies in England — roughly 22% white, around 64% of neighbourhoods highly deprived. The seat will shape everything that follows.",
       links: [
@@ -117,6 +124,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The MEND panel",
       place: "London",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Prime_Minister_Keir_Starmer_attends_Iftar_reception_-_2025_-_54384933608.jpg/1920px-Prime_Minister_Keir_Starmer_attends_Iftar_reception_-_2025_-_54384933608.jpg",
+      confidence: "verified",
       act: "origins",
       body: "Named in MEND's own 2014 Activity Report as a panellist at its Islamophobia Awareness Month conference (November 2014); spoke again at a MEND-covered Ramadan Tent Project Open Iftar in 2018. MEND — Muslim Engagement and Development — would later be cited by MP Nick Timothy in a September 2025 open letter challenging her appointment as Home Secretary; her appearance is documented, the significance contested.",
       detail: "Timothy's letter also claimed she had 'endorsed the Muslim Council of Britain'. No primary evidence of a direct MCB endorsement exists — the link runs through her support for the 2018 APPG definition of Islamophobia, which the MCB championed. The distinction matters: one claim is documented, the other is inference.",
@@ -131,6 +140,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "First votes against the line",
       place: "Westminster",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d7/House_of_Commons_Chamber_1.png",
+      confidence: "verified",
       act: "opposition",
       body: "Votes against the Immigration Bill 2015 at second and third reading — the opening entries in what becomes a fourteen-year pattern.",
       links: [
@@ -142,6 +153,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The fingerprint: nineteen votes against",
       place: "Westminster",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/4/48/Westminster_palace.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "TheyWorkForYou's compiled record, verbatim: 'Almost always voted against a stricter asylum system — 19 votes against, 8 absences, between 2015 and 2026.' Also: 'generally voted against stronger laws and enforcement of immigration rules' and 'almost always voted against making it easier to remove someone's British citizenship.' Across 2010–2024, zero rebellions against the Labour whip.",
       pullQuote: {
@@ -157,6 +170,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The Jamaica flight letter",
       place: "Westminster",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Qantas_a380_vh-oqa_takeoff_heathrow_arp.jpg/1920px-Qantas_a380_vh-oqa_takeoff_heathrow_arp.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "Co-signs the 9 February 2020 cross-party letter (organised by Diane Abbott and Lord David Blunkett's successor signatures, fronted by Abbott and Sir Ed Davey) demanding the Home Office halt a deportation flight to Jamaica. Among those whose removal the letter sought to stop were offenders convicted of serious crimes.",
       detail: "On 5 January 2026, now-Home Secretary Mahmood was confronted with her own signature in the Commons by Conservative MP Ben Obese-Jecty. The exchange is in Hansard: the woman who once signed to stop the flight now defending the returns operation she runs.",
@@ -169,6 +184,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Against the Nationality and Borders Bill",
       place: "Westminster",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Prime_Minister_Rishi_Sunak_visits_Border_Force_in_Dover_-_52952295866.jpg/1920px-Prime_Minister_Rishi_Sunak_visits_Border_Force_in_Dover_-_52952295866.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "Votes against the Nationality and Borders Bill at second reading; absent from the third-reading division. The Bill — the Conservative centrepiece on asylum differentiation and offshore processing — passes anyway.",
       links: [],
@@ -178,6 +195,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Against the Illegal Migration Bill — and the Gaza abstention",
       place: "Westminster",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Solidarity_protest_for_Palestine_in_London_%2853329879043%29.jpg/1920px-Solidarity_protest_for_Palestine_in_London_%2853329879043%29.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "Votes against the Illegal Migration Bill at second and third reading — the legislation her own 2025–26 package would later be compared against. On 15 November 2023 she follows the whip into abstention on the SNP's Gaza ceasefire amendment, declining to join the fifty-six Labour rebels.",
       links: [],
@@ -187,6 +206,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Against Rwanda, third reading",
       place: "Westminster",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b6/Marsham_Street_-_geograph.org.uk_-_2326100.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "17 January 2024: votes against the Safety of Rwanda Bill at third reading. Within two years she would be defending her own removals architecture from the dispatch box — different mechanism, same direction of travel, opposite vote.",
       links: [],
@@ -196,6 +217,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "\u201cThe most important thing in my life\u201d",
       place: "British Muslim TV",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Silver_rehal_%28Quran_stand%29_at_the_Malay_Heritage_Centre.jpg/1920px-Silver_rehal_%28Quran_stand%29_at_the_Malay_Heritage_Centre.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "In a pre-election interview with British Muslim TV, asked what Islam means to her, she answers without hedging. The quote circulates widely after her Home Office appointment; the clip is genuine and the wording verified across three independent carriers.",
       pullQuote: {
@@ -212,6 +235,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Three thousand four hundred and twenty-one",
       place: "Birmingham Ladywood",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Ladywood_Middleway%2C_Birmingham_-_geograph.org.uk_-_6955159.jpg/1920px-Ladywood_Middleway%2C_Birmingham_-_geograph.org.uk_-_6955159.jpg",
+      confidence: "verified",
       act: "opposition",
       body: "5 July 2024: holds Ladywood by 3,421 votes (9.4%) against pro-Gaza independent Akhmed Yakoob's 33.2% — a majority of 23,868 all but wiped out. A leaked Labour submission to the party's internal review, reported by the Guardian, documented a sectarian intimidation campaign: men told to 'shave their beards' if they supported Labour, a truck broadcasting that 'Allah will judge you', police called repeatedly.",
       pullQuote: {
@@ -230,6 +255,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Sworn in on the Quran",
       place: "Royal Courts of Justice",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Royal_Courts_of_Justice_2019.jpg/1920px-Royal_Courts_of_Justice_2019.jpg",
+      confidence: "verified",
       act: "justice",
       body: "16 July 2024: appointed Lord Chancellor and Secretary of State for Justice on 5 July, sworn in eleven days later on the Quran — the first Muslim woman to hold a great office of state. The courts, the prisons, sentencing and the probation service are now hers.",
       links: [
@@ -241,6 +268,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "SDS40: the early-release gamble",
       place: "Ministry of Justice",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/a/aa/HM_Prison_Wandsworth_from_the_air_%28geograph_4537307%29.jpg",
+      confidence: "verified",
       act: "justice",
       body: "18 July 2024, with prisons at 99% capacity: announces SDS40, cutting the automatic release point from 50% to 40% of sentence. Her defence — 'the safest way forward'. By June 2025 the scheme has released 38,042 prisoners; a releasee is charged with a sexual assault on the day of his release; 37 restraining-order breachers are wrongly freed; releases in error rise 128%. The scheme carries no specific exclusion for the Southport rioters sentenced that same summer.",
       pullQuote: {
@@ -255,6 +284,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The grooming-inquiry vote",
       place: "Westminster",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Central_Criminal_Court_of_England_and_Wales_%28The_Old_Bailey%29_Ceiling.jpg/1920px-Central_Criminal_Court_of_England_and_Wales_%28The_Old_Bailey%29_Ceiling.jpg",
+      confidence: "verified",
       act: "justice",
       body: "8 January 2025: votes against the Conservative amendment demanding a national statutory inquiry into grooming gangs — the government calls it a wrecking amendment and whips against it. Eleven months later, as Home Secretary, she appoints Anne Longfield to chair a national inquiry with an explicit ethnicity remit. Against the inquiry when the Opposition proposed it; in control of it once it is hers to appoint.",
       links: [
@@ -266,6 +297,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The two-tier sentencing war",
       place: "Westminster",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/2/2a/The_Strand_and_Royal_Courts_of_Justice_-_geograph.org.uk_-_5163722.jpg",
+      confidence: "verified",
       act: "justice",
       body: "March–April 2025: the Sentencing Council issues guidance directing courts to consider pre-sentence reports for offenders from ethnic, cultural and faith minorities. Mahmood declares war on it — 'There will never be a two-tier sentencing approach under my watch' (5 March) — the Council refuses (27 March), and she passes emergency legislation, the Sentencing Guidelines (Pre-sentence Reports) Act 2025, with a Clause 19 dual veto giving ministers control over future guidance.",
       pullQuote: {
@@ -280,6 +313,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Record backlog — and the blasphemy-law line",
       place: "Ministry of Justice",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/3/33/Portcullis_house_atrium.jpg",
+      confidence: "verified",
       act: "justice",
       body: "June 2025: the Crown Court backlog hits a record 78,329 cases. The same month, in the Commons, she draws a bright line on speech and religion: 'We do not have a blasphemy law, and we are not going to have a blasphemy law' — even as she resists pressure over the Islamophobia definition she had previously championed.",
       links: [],
@@ -290,6 +325,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Home Secretary",
       place: "2 Marsham Street",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/6/6f/2025_Shabana_Mahmood_-_%28cropped%29.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "5 September 2025: appointed Home Secretary in Starmer's post-Rayner reshuffle — the first female Muslim Home Secretary, holding MI5 oversight, counter-terrorism, Prevent, proscription, policing and the borders. RICU, the Home Office's covert communications unit, now sits in her department.",
       links: [
@@ -302,6 +339,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Defending the definition",
       place: "Westminster",
       key: false,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/d/db/Westminster_Hall%2C_interior_-_geograph.org.uk_-_3374602.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "15 September 2025: challenged in the Commons by Nick Timothy over her promotion of the 2018 APPG 'Islamophobia' definition, she defends it as giving 'context to patterns of behaviour' while pledging no infringement of free speech. Days later, briefing emerges of her reservations about adopting the definition — the reservation and the defence documented within the same fortnight.",
       links: [
@@ -313,6 +352,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "Heaton Park — and the HTS delisting",
       place: "Manchester / Westminster",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c0/Heaton_Park_Hebrew_Congregation_%28geograph_4299474%29.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "2 October 2025: the Heaton Park synagogue attack kills two worshippers — an Islamist terrorist striking on her watch, nineteen days into the job. Nineteen days after that, 21 October, her department de-proscribes Hay'at Tahrir al-Sham — the former al-Qaeda franchise now running Syria — removing it from the banned-organisations list. No new organisation is proscribed under her tenure.",
       links: [
@@ -324,6 +365,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "\u201cRestoring Order and Control\u201d",
       place: "House of Commons",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/House_of_Commons_2010.jpg/1920px-House_of_Commons_2010.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "17 November 2025: the most restrictive asylum package since at least the 1990s — thirty-month refugee leave, twenty-year wait for settlement, family reunion ended, support converted from duty to discretion. She frames the stakes as civilisational for the system itself: the 'public consent for having an asylum system at all' is fraying. Asked about dispersal, she is blunt: 'we already run a dispersal model… and we will carry on doing so.' When a Labour MP raises racist abuse, she answers with her own: 'fucking Paki' — the retort is in Hansard.",
       pullQuote: {
@@ -341,6 +384,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The chair and the crown",
       place: "Labour NEC",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Official_portrait_of_Andy_Burnham_MP.jpg/1920px-Official_portrait_of_Andy_Burnham_MP.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "As chair of Labour's NEC: on 5 January 2026 she is confronted in the Commons with her 2020 Jamaica-flight signature; on 25 January her NEC panel blocks Andy Burnham's bid for the Gorton & Denton by-election seat; on 17 July 2026 — herself one of twenty-three MPs who never nominated him — she announces Burnham's leadership victory; on 20 July, Prime Minister Burnham reappoints her Home Secretary. She blocked his route, announced his crown, and kept her office.",
       links: [
@@ -353,6 +398,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The extremism ledger",
       place: "Home Office",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Metropolitan_Police_officers_at_Occupy_London_Finsbury_Square.jpg/1920px-Metropolitan_Police_officers_at_Occupy_London_Finsbury_Square.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "February–June 2026: the Palestine Action ban she inherited is ruled unlawful by the High Court (13 February) and restored by the Court of Appeal (15 June, [2026] EWCA Civ 721) with 3,000+ arrested under it. A non-statutory 'anti-Muslim hostility' definition is adopted for England (9 March). Non-crime hate incidents are abolished (26 March). The Fulford inquiry finds the Southport attack 'foreseeable and avoidable' (13 April). The threat level rises to SEVERE after the Golders Green stabbing (30 April). And through it all the counter-extremism commissioner post sits vacant — 'Remarkably, there is no government counter-extremism strategy' (Lord Goodman).",
       detail: "Prevent referrals hit records on her watch — 10,293 in the year to September 2025 — with extreme-right referrals (20%) more than double the Islamist share (8%) and 56% logged with no ideology at all, even as MI5's caseload runs 75% Islamist. February 2026 guidance reverses the Shawcross review: ideology is no longer needed for referral.",
@@ -366,6 +413,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "The Bill and the £10,000 door",
       place: "Westminster",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Palace_of_Westminster%2C_London_-_Feb_2007.jpg/1920px-Palace_of_Westminster%2C_London_-_Feb_2007.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "30 June 2026: the Immigration and Asylum Bill 2026 is published — 53 clauses, an appeals body (the IIAA) staffed by non-legally-qualified adjudicators, Article 8 family-life protections narrowed, and clauses 23–24 imposing a contribution of roughly £10,000 on refugees — the 'refugee tax'. Second reading passes 264–90 on 13 July with fourteen Labour rebels. The right calls it tinkering; the refugee sector calls it a shakedown; the Bill proceeds.",
       links: [
@@ -377,6 +426,8 @@ export const MAHMOOD_DATA: TimelineData = {
       title: "\u201cA fair spread\u201d",
       place: "The Times interview",
       key: true,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Bibby_Stockholm_-_53107286039.jpg/1920px-Bibby_Stockholm_-_53107286039.jpg",
+      confidence: "verified",
       act: "home-office",
       body: "19–20 August 2026: she tells The Times the asylum accommodation system will be redistributed across the country — into communities that have hosted nobody, including wealthier ones. The verbatim words matter, because they have been misquoted ever since: she said 'asylum seekers', and the fairness she means is geographic.",
       pullQuote: {
@@ -545,6 +596,8 @@ function mergeData(override: Partial<TimelineData> | null | undefined): Timeline
 }
 
 export default function MahmoodPage() {
+  const { data: authUser } = useQuery({ queryKey: ["/api/auth/me"], queryFn: getMe, retry: false, staleTime: 300_000 });
+  const locked = !authUser?.isMember;
   const { data: saved } = useQuery({
     queryKey: ["/api/page-content/mahmood"],
     queryFn: () => getPageContent<Partial<TimelineData>>("mahmood"),
@@ -562,8 +615,8 @@ export default function MahmoodPage() {
     <>
       <MembersOnlyBanner variant="auto" />
       <PageStatusGate slug="mahmood" name="Shabana Mahmood">
-        <TimelineRenderer data={D} />
-        <TimelineReactions slug="mahmood" />
+        <TimelineRenderer data={D} locked={locked} />
+        {!locked && <TimelineReactions slug="mahmood" />}
       </PageStatusGate>
     </>
   );

@@ -3,6 +3,7 @@ import { useParams, Link } from "wouter";
 import { PageStatusGate } from "@/components/page-status-gate";
 import { TimelineRenderer, type TimelineData } from "@/components/timeline-renderer";
 import { getPageContent } from "@/lib/page-status";
+import { getMe } from "@/lib/auth";
 import { MembersOnlyBanner } from "@/components/members-only-banner";
 import { TimelineReactions } from "@/components/timeline-reactions";
 import { BLANK_TIMELINE_DATA, getTimelinesRegistry, mergeRegistry } from "@/lib/timelines";
@@ -14,6 +15,8 @@ import { LONG_MARCH_DATA } from "@/pages/long-march";
  * that haven't been authored yet. The registry entry tells us the display name.
  */
 export default function TimelineViewPage() {
+  const { data: authUser } = useQuery({ queryKey: ["/api/auth/me"], queryFn: getMe, retry: false, staleTime: 300_000 });
+  const locked = !authUser?.isMember;
   const { slug } = useParams<{ slug: string }>();
 
   // Special-case: /timeline/long-march should behave identically to /long-march.
@@ -55,8 +58,8 @@ export default function TimelineViewPage() {
     <>
       <MembersOnlyBanner variant="auto" />
       <PageStatusGate slug={slug} name={displayName}>
-        <TimelineRenderer data={D} />
-        <TimelineReactions slug={slug} />
+        <TimelineRenderer data={D} locked={locked} />
+        {!locked && <TimelineReactions slug={slug} />}
       </PageStatusGate>
     </>
   );

@@ -25,6 +25,30 @@
 
   var CFG = Object.assign({ mapUrl: 'powermap.html' }, window.POWERLINK || {});
 
+  /* Nodes that have a full DinoBane dossier — links popup back to the app */
+  var DOSSIERS = {
+    mahmood: '/app/#/mahmood',
+    farage: '/app/#/farage'
+  };
+
+  /* Compact Power League block for popup cards (needs power-scores.js loaded) */
+  function powerHTML(id) {
+    if (typeof POWER_SCORES === 'undefined' || !POWER_SCORES[id]) return '';
+    var s = POWER_SCORES[id];
+    var total = (s[0] + s[1] + s[2] + s[3] + s[4]) * 2;
+    var band = powerBand(total), bc = powerBandColor(band.letter);
+    var h = '<div class="pwr-sec"><div class="pwr-sec-label">Power League — <span style="color:' + bc + '">'
+      + band.letter + ' · ' + band.name + ' · ' + total + '/100</span></div>'
+      + '<div class="pwr-dims">'
+      + POWER_DIMS.map(function (d, i) {
+          return '<div class="pwr-dim"><label>' + d[1] + '</label>'
+            + '<div class="pwr-bar"><i style="width:' + (s[i] * 10) + '%;background:' + bc + '"></i></div>'
+            + '<em>' + s[i] + '</em></div>';
+        }).join('')
+      + '</div><p class="pwr-note">' + esc(s[5]) + '</p></div>';
+    return h;
+  }
+
   /* ---------- indexes from powermap-data.js globals ---------- */
   var NN = {}; N.forEach(function (n) { NN[n[0]] = n; });
   var EDGE_BY = {};
@@ -79,6 +103,13 @@
     + '.pwr-sec{margin-top:18px}'
     + '.pwr-sec-label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9b978c;margin-bottom:8px}'
     + '.pwr-desc{font-size:14px;line-height:1.65;color:#d8d4c8;margin:0}'
+    + '.pwr-dims{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}'
+    + '.pwr-dim{display:flex;align-items:center;gap:8px}'
+    + '.pwr-dim label{width:70px;flex:none;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#9b978c}'
+    + '.pwr-bar{flex:1;height:5px;background:#2a2925;border-radius:3px;overflow:hidden}'
+    + '.pwr-bar i{display:block;height:100%;border-radius:3px}'
+    + '.pwr-dim em{width:16px;font-style:normal;font-size:11px;font-weight:700;color:#d8d4c8;text-align:right}'
+    + '.pwr-note{font-size:12px;color:#9b978c;font-style:italic;line-height:1.55;margin:0}'
     + '.pwr-fact{display:flex;gap:10px;font-size:13.5px;padding:4px 0}'
     + '.pwr-fact b{color:#9b978c;font-weight:600;min-width:86px;flex-shrink:0}'
     + '.pwr-role{border-left:2px solid #f7e017;padding:2px 0 2px 12px;margin:10px 0}'
@@ -155,6 +186,7 @@
       + '<span class="pwr-tag">' + esc(TYPE_LABEL[n[2]] || n[2]) + '</span>'
       + '<h3 class="pwr-name">' + esc(n[1]) + '</h3>'
       + '<div class="pwr-ring">Ring ' + n[3] + ' — ' + esc(RING_LABEL[n[3]] || '') + ' · on the power map</div>'
+      + powerHTML(id)
       + '<div class="pwr-sec"><div class="pwr-sec-label">Who they are</div><p class="pwr-desc">' + esc(n[4]) + '</p></div>';
 
     if (camp || demog) {
@@ -184,6 +216,9 @@
     if (n[5]) {
       h += '<div class="pwr-sec"><div class="pwr-sec-label">Sources</div><p class="pwr-src">'
         + n[5].split(';').map(function (s) { return esc(s.trim()); }).filter(Boolean).join('<br>') + '</p></div>';
+    }
+    if (DOSSIERS[id]) {
+      h += '<a class="pwr-open" href="' + esc(DOSSIERS[id]) + '">Read the full DinoBane dossier →</a>';
     }
     h += '<a class="pwr-open" href="' + esc(CFG.mapUrl) + '">Open in the full Power Map →</a>';
     return h;

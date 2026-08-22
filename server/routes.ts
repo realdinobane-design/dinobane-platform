@@ -4112,6 +4112,255 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   }, 60 * 60 * 1000); // check once per hour
 
+  // ─── V25 INTEL FEATURES (KV-backed, no migrations) ──────────────────────────
+  // All of these store JSON blobs in app_settings via getSetting/setSetting.
+  const EVIDENCE_KEY = "evidence_updates";
+  const CORRECTIONS_KEY = "corrections_log";
+  const DOCUMENTS_KEY = "documents_registry";
+  const ARCHIVE_REQUESTS_KEY = "archive_requests";
+  const ANALYTICS_KEY = "analytics:views";
+
+  async function readJsonList(key: string): Promise<any[]> {
+    const raw = await storage.getSetting(key);
+    if (!raw) return [];
+    try { const v = JSON.parse(raw); return Array.isArray(v) ? v : []; } catch { return []; }
+  }
+  async function writeJsonList(key: string, rows: any[]) {
+    await storage.setSetting(key, JSON.stringify(rows));
+  }
+  async function requirePageAdmin(req: any, res: any): Promise<any | null> {
+    if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return null; }
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller || !PAGE_STATUS_ADMINS.has(caller.email)) {
+      res.status(403).json({ error: "Admin only" });
+      return null;
+    }
+    return caller;
+  }
+
+  // ── Global search (server side: articles + timeline registry) ──────────────
+  app.get("/api/search", async (req, res) => {
+    const q = String(req.query.q || "").trim().toLowerCase();
+    if (q.length < 2) return res.json({ articles: [], timelines: [] });
+    const words = q.split(/\s+/).filter(Boolean);
+    const matches = (text: string) => {
+      const t = (text || "").toLowerCase();
+      return words.every((w) => t.includes(w));
+    };
+    let articles: any[] = [];
+    try {
+      const all = await storage.getArticles();
+      articles = all
+        .filter((a: any) => matches(`${a.title} ${a.summary || ""}`))
+        .slice(0, 10)
+        .map((a: any) => ({ id: a.id, title: a.title, summary: a.summary || "", publishedAt: a.publishedAt }));
+    } catch {}
+    let timelines: any[] = [];
+    try {
+      const raw = await storage.getSetting(TIMELINE_REGISTRY_KEY);
+      const registry = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(registry)) {
+        timelines = registry
+          .filter((t: any) => matches(`${t.title || ""} ${t.subtitle || ""} ${(t.tags || []).join(" ")}`))
+          .slice(0, 10)
+          .map((t: any) => ({ slug: t.slug, title: t.title, subtitle: t.subtitle || "", viewPath: t.viewPath || `/timeline/${t.slug}` }));
+      }
+    } catch {}
+    return res.json({ articles, timelines });
+  });
+
+  // ── Evidence / "what's new" feed ────────────────────────────────────────────
+  app.get("/api/evidence", async (_req, res) => {
+    return res.json(await readJsonList(EVIDENCE_KEY));
+  });
+  app.post("/api/admin/evidence", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const { title, body, url, timeline } = req.body || {};
+    if (!title || !body) return res.status(400).json({ error: "title and body required" });
+    const rows = await readJsonList(EVIDENCE_KEY);
+    const row = {
+      id: `ev_${Date.now().toString(36)}`,
+      title: String(title).slice(0, 200),
+      body: String(body).slice(0, 2000),
+      url: url ? String(url).slice(0, 500) : "",
+      timeline: timeline ? String(timeline).slice(0, 60) : "",
+      createdAt: new Date().toISOString(),
+    };
+    rows.unshift(row);
+    await writeJsonList(EVIDENCE_KEY, rows.slice(0, 200));
+    return res.json(row);
+  });
+  app.delete("/api/admin/evidence/:id", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const rows = await readJsonList(EVIDENCE_KEY);
+    const next = rows.filter((r) => r.id !== req.params.id);
+    await writeJsonList(EVIDENCE_KEY, next);
+    return res.json({ ok: true, removed: rows.length - next.length });
+  });
+
+  // ── Corrections log (public accountability trail) ──────────────────────────
+  app.get("/api/corrections", async (_req, res) => {
+    return res.json(await readJsonList(CORRECTIONS_KEY));
+  });
+  app.post("/api/admin/corrections", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const { text, context } = req.body || {};
+    if (!text) return res.status(400).json({ error: "text required" });
+    const rows = await readJsonList(CORRECTIONS_KEY);
+    const row = {
+      id: `cor_${Date.now().toString(36)}`,
+      text: String(text).slice(0, 1000),
+      context: context ? String(context).slice(0, 500) : "",
+      createdAt: new Date().toISOString(),
+    };
+    rows.unshift(row);
+    await writeJsonList(CORRECTIONS_KEY, rows.slice(0, 200));
+    return res.json(row);
+  });
+  app.delete("/api/admin/corrections/:id", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const rows = await readJsonList(CORRECTIONS_KEY);
+    const next = rows.filter((r) => r.id !== req.params.id);
+    await writeJsonList(CORRECTIONS_KEY, next);
+    return res.json({ ok: true, removed: rows.length - next.length });
+  });
+
+  // ── Documents vault registry (files themselves live in R2 or external) ─────
+  app.get("/api/documents", async (_req, res) => {
+    return res.json(await readJsonList(DOCUMENTS_KEY));
+  });
+  app.put("/api/admin/documents", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const docs = req.body?.documents;
+    if (!Array.isArray(docs)) return res.status(400).json({ error: "documents must be an array" });
+    const clean = docs.slice(0, 100).map((d: any, i: number) => ({
+      id: d.id || `doc_${i}_${Date.now().toString(36)}`,
+      title: String(d.title || "").slice(0, 200),
+      description: String(d.description || "").slice(0, 1000),
+      url: String(d.url || "").slice(0, 500),
+      source: String(d.source || "").slice(0, 200),
+      date: String(d.date || "").slice(0, 40),
+    })).filter((d: any) => d.title && d.url);
+    await writeJsonList(DOCUMENTS_KEY, clean);
+    console.log(`[documents] ${caller.email} updated registry (${clean.length} docs)`);
+    return res.json(clean);
+  });
+
+  // ── Ask-the-archive: member research requests ──────────────────────────────
+  app.post("/api/archive-requests", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+    const caller = await storage.getUserById(req.session.userId);
+    if (!caller) return res.status(401).json({ error: "Not authenticated" });
+    if (!caller.isMember && !PAGE_STATUS_ADMINS.has(caller.email)) {
+      return res.status(403).json({ error: "Members only" });
+    }
+    const { subject, details } = req.body || {};
+    if (!subject) return res.status(400).json({ error: "subject required" });
+    const rows = await readJsonList(ARCHIVE_REQUESTS_KEY);
+    const row = {
+      id: `req_${Date.now().toString(36)}`,
+      userId: caller.id,
+      userName: (caller as any).displayName || caller.username || caller.email.split("@")[0],
+      subject: String(subject).slice(0, 200),
+      details: String(details || "").slice(0, 2000),
+      status: "open",
+      createdAt: new Date().toISOString(),
+    };
+    rows.unshift(row);
+    await writeJsonList(ARCHIVE_REQUESTS_KEY, rows.slice(0, 300));
+    return res.json(row);
+  });
+  app.get("/api/admin/archive-requests", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    return res.json(await readJsonList(ARCHIVE_REQUESTS_KEY));
+  });
+  app.patch("/api/admin/archive-requests/:id", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const status = req.body?.status;
+    if (!["open", "in-progress", "answered", "declined"].includes(status)) {
+      return res.status(400).json({ error: "invalid status" });
+    }
+    const rows = await readJsonList(ARCHIVE_REQUESTS_KEY);
+    const row = rows.find((r) => r.id === req.params.id);
+    if (!row) return res.status(404).json({ error: "Not found" });
+    row.status = status;
+    await writeJsonList(ARCHIVE_REQUESTS_KEY, rows);
+    return res.json(row);
+  });
+
+  // ── Lightweight analytics (page-view counters) ─────────────────────────────
+  app.post("/api/analytics/view", async (req, res) => {
+    const path = String(req.body?.path || "").slice(0, 120);
+    if (!path || !path.startsWith("/")) return res.status(400).json({ error: "path required" });
+    try {
+      const raw = await storage.getSetting(ANALYTICS_KEY);
+      const counts: Record<string, number> = raw ? JSON.parse(raw) : {};
+      counts[path] = (counts[path] || 0) + 1;
+      await storage.setSetting(ANALYTICS_KEY, JSON.stringify(counts));
+    } catch {}
+    return res.json({ ok: true });
+  });
+  app.get("/api/admin/analytics", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    const raw = await storage.getSetting(ANALYTICS_KEY);
+    let counts: Record<string, number> = {};
+    try { counts = raw ? JSON.parse(raw) : {}; } catch {}
+    const rows = Object.entries(counts)
+      .map(([path, count]) => ({ path, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 100);
+    return res.json(rows);
+  });
+
+  // ── Member digest: last 7 days of evidence updates, emailed via Resend ─────
+  app.post("/api/admin/digest", async (req, res) => {
+    const caller = await requirePageAdmin(req, res);
+    if (!caller) return;
+    if (!resend) return res.status(503).json({ error: "RESEND_API_KEY not configured" });
+    const rows = await readJsonList(EVIDENCE_KEY);
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = rows.filter((r) => new Date(r.createdAt).getTime() >= weekAgo);
+    if (recent.length === 0) return res.json({ sent: 0, reason: "no updates in the last 7 days" });
+    const items = recent.map((r) =>
+      `<li style="margin-bottom:16px"><strong>${r.title}</strong><br/><span style="color:#444">${r.body}</span>${r.url ? `<br/><a href="${r.url}">Source →</a>` : ""}</li>`
+    ).join("");
+    const html = `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto">
+      <h2 style="border-bottom:2px solid #b8860b;padding-bottom:8px">DinoBane — This Week's New Evidence</h2>
+      <ul style="padding-left:20px">${items}</ul>
+      <p style="color:#666;font-size:13px">You're receiving this because you're a DinoBane member. <a href="https://dinobane.com/app/#/corrections">Corrections log</a> · <a href="https://dinobane.com">dinobane.com</a></p>
+    </div>`;
+    let sent = 0;
+    try {
+      const users = await storage.getAllUsers();
+      const members = users.filter((u: any) => u.isMember && u.email);
+      for (const m of members) {
+        try {
+          await resend.emails.send({
+            from: "DinoBane <noreply@dinobane.com>",
+            to: m.email,
+            subject: `DinoBane: ${recent.length} new evidence update${recent.length > 1 ? "s" : ""} this week`,
+            html,
+          });
+          sent++;
+        } catch (e: any) {
+          console.error(`[digest] failed to send to ${m.email}:`, e.message);
+        }
+      }
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+    console.log(`[digest] ${caller.email} sent digest to ${sent} members (${recent.length} items)`);
+    return res.json({ sent, items: recent.length });
+  });
+
   // ─── WEBSOCKET SERVER ─────────────────────────────────────────────────────────
   wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 

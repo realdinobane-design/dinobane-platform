@@ -31,6 +31,8 @@ header{position:absolute;top:0;left:0;right:0;z-index:7;height:56px;display:flex
 #stats{color:var(--mut);font-size:11.5px;margin-left:auto;white-space:nowrap}
 #exitb{flex-shrink:0;background:hsl(0,76%,47%);color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:7px 14px;border-radius:6px;letter-spacing:.2px}
 #exitb:hover{background:hsl(0,76%,55%)}
+#leagueb{flex-shrink:0;background:transparent;border:1px solid #c9a227;color:#c9a227;text-decoration:none;font-weight:700;font-size:11.5px;padding:6px 12px;border-radius:6px;letter-spacing:1.2px}
+#leagueb:hover{background:rgba(201,162,39,.12)}
 @media (max-width:900px){#maptitle span,#stats{display:none}}
 @media (max-width:560px){#maptitle{display:none}}
 #dock{position:absolute;left:14px;top:72px;z-index:5;width:198px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;backdrop-filter:blur(8px);max-height:calc(100vh - 140px);overflow-y:auto}
@@ -145,6 +147,20 @@ button.chip.on{border-color:#e0a13c;color:#e0a13c}
 #pclose:hover{color:var(--tx);border-color:var(--mut)}
 #pbody{padding:14px 18px 18px;overflow-y:auto}
 #pdetail{font-size:13.5px;color:#c7cfdb}
+/* Power League breakdown in the bio panel */
+.pwrap{display:flex;gap:14px;align-items:center;margin:4px 0 8px}
+.ptotal{flex:none;width:64px;height:64px;border:2px solid #c9a227;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.ptotal b{font-size:22px;font-weight:800}
+.ptotal span{font-size:9.5px;color:var(--mut);margin-top:3px}
+.pdims{flex:1;display:flex;flex-direction:column;gap:5px}
+.pdim{display:flex;align-items:center;gap:8px}
+.pdim label{width:64px;flex:none;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)}
+.pbar{flex:1;height:5px;background:#1a2230;border-radius:3px;overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:3px}
+.pdim em{width:16px;font-style:normal;font-size:11px;font-weight:700;color:#c7cfdb;text-align:right}
+.pnote{font-size:12px;color:#9aa7b8;font-style:italic;line-height:1.55;margin:2px 0 6px}
+.pleague{display:inline-block;font-size:11.5px;color:#c9a227;text-decoration:none;border-bottom:1px solid rgba(201,162,39,.4);margin-bottom:4px}
+.pleague:hover{border-bottom-color:#c9a227}
 h3.sec{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--mut);margin:18px 0 8px}
 .citem{margin:8px 0 0;padding:10px 12px;background:#0b0f16;border:1px solid var(--line);border-left:3px solid var(--c-scandal);border-radius:8px;font-size:12.5px;color:#c7cfdb}
 .citem b{color:var(--c-scandal);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;font-weight:650}
@@ -200,6 +216,7 @@ h3.sec{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--
   <div id="maptitle">UK POWER MAP <span>· who really runs Britain, 2024–26</span></div>
   <div id="searchwrap"><input id="searchbox" placeholder="Search the map…" autocomplete="off"><div id="searchres"></div></div>
   <div id="stats"></div>
+  <a id="leagueb" href="league.html" title="Power League — every actor scored and ranked">POWER LEAGUE</a>
   <a id="exitb" href="https://dinobane.com/">&larr; Back to site</a>
 </header>
 <div id="dock"></div>
@@ -234,6 +251,7 @@ h3.sec{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--
   <div id="phead"><div id="pimg">?</div><div><div id="pname"></div><div id="pcat"></div><div id="ptags"></div></div><button id="pclose" title="Close">✕</button></div>
   <div id="pbody">
     <div id="pdetail"></div>
+    <div id="powerSec"></div>
     <div id="roleSec"></div>
     <div id="controSec"></div>
     <h3 class="sec">Connections</h3><div id="pconns"></div>
@@ -249,6 +267,7 @@ window.addEventListener('error',function(e){
 });
 </script>
 <script src="data.js"></script>
+<script src="power-scores.js"></script>
 <script>
 'use strict';
 /* ================================================================
@@ -745,6 +764,24 @@ function drawLabel(a){
   ctx.drawImage(sp.c,x-sp.cw/2,y-sp.ch+5,sp.cw,sp.ch);
   ctx.globalAlpha=1;
   labelRects[id]={x:x-sp.w/2-4,y:y-sp.fs-2,w:sp.w+8,h:sp.fs+8};
+  /* Power League badge — band letter + score above the node label */
+  if(typeof powerTotal==='function'&&hpx>=22){
+    const pt=powerTotal(id);
+    if(pt!==null){
+      const band=powerBand(pt),bc=powerBandColor(band.letter);
+      const txt=band.letter+' \u00b7 '+pt;
+      ctx.font='700 10px -apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+      const bw=ctx.measureText(txt).width+14,bh=15;
+      const bx=x-bw/2,by=y-sp.ch-11;
+      ctx.globalAlpha=alphaFor(id)*0.95;
+      ctx.fillStyle='rgba(6,9,14,0.88)';
+      ctx.strokeStyle=bc;ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(bx,by,bw,bh,7);ctx.fill();ctx.stroke();
+      ctx.fillStyle=bc;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(txt,x,by+bh/2+0.5);
+      ctx.globalAlpha=1;
+    }
+  }
 }
 /* ---------- camera moves ---------- */
 let anim=null;
@@ -1007,6 +1044,22 @@ function showPanel(id){
     rsec.querySelectorAll('.rhead').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
   }else rsec.innerHTML='';
   document.getElementById('psrc').textContent=sources?('Sources: '+sources):'';
+  /* power league block */
+  const psec=document.getElementById('powerSec');
+  if(typeof powerTotal==='function'){
+    const pt=powerTotal(id);
+    if(pt!==null){
+      const sc=POWER_SCORES[id],band=powerBand(pt),bc=powerBandColor(band.letter);
+      psec.innerHTML=`<h3 class="sec">Power League — ${band.name}</h3>`+
+        `<div class="pwrap"><div class="ptotal" style="border-color:${bc}"><b style="color:${bc}">${pt}</b><span>${band.letter}-TIER</span></div>`+
+        `<div class="pdims">`+POWER_DIMS.map((d,i)=>{
+          const v=sc[i];
+          return `<div class="pdim"><label>${d[1]}</label><div class="pbar"><i style="width:${v*10}%;background:${bc}"></i></div><em>${v}</em></div>`;
+        }).join('')+`</div></div>`+
+        `<div class="pnote">${esc(sc[5])}</div>`+
+        `<a class="pleague" href="league.html#n=${id}">See full league table →</a>`;
+    }else psec.innerHTML='';
+  }else psec.innerHTML='';
   const img=document.getElementById('pimg');
   img.style.backgroundImage='none';
   img.textContent=label.split(/\s+/).map(w=>w[0]).slice(0,2).join('');
